@@ -5,7 +5,7 @@
 #include "WUtilities.h"
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    UWUtilities::Print(EWLogType::Log, L"Test");
 
     int32 exit_signal;
     std::cin >> exit_signal;

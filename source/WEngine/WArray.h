@@ -166,7 +166,7 @@ public:
         }
         return false;
     }
-    const T* GetData()
+    const T* GetData() const
     {
         return Array.data();
     }
@@ -195,7 +195,7 @@ public:
     {
         return Array.back();
     }
-    int32 Num()
+    const int32 Num() const
     {
         return Array.size();
     }

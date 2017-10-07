@@ -134,24 +134,14 @@ class UWUtilities
 {
 public:
     static void Print(EWLogType LogType, const FString& format);
+    static void Print(EWLogType LogType, const TCHAR* format);
 
     static int64 GetTimeStampInMS();
     static int32 GetSafeTimeStampInMS();
 
-    static float GetFreeDiskSpace();
     static int32 WGetTotalMemory();
     static int32 WGetAvailableMemory();
 
-    static bool WFileExists(const FString& FullPath);
-    static bool WCopyFile(const FString& DestinationFullPath, const FString& SourceFullPath);
-    static bool WDeleteFile(const FString& FullPath);
-    static bool WCreateDirectory(const FString& FullPath);
-    static bool WDirectoryExist(const FString& FullPath);
-    static bool WDeleteDirectory(const FString& FullPath);
-
-    static bool WLoadFileToString(FString& Result, const FString& FullPath);
-    static bool WSaveStringToFile(const FString& Parameter, const FString& FullPath);
-    static int32 WGetFileSizeInBytes(const FString& FullPath);
     static FString WGetSafeErrorMessage();
     static FString WGenerateMD5HashFromString(const FString& RawData);
     static FString WGenerateMD5Hash(const TArray<uint8>& RawData);
@@ -192,8 +182,6 @@ public:
     static FString ConvertIntegerToHex(int32 inputValue);
 
     static int32 ConvertHexToInteger(const FString& InputData);
-private:
-    static void PrintInternal(EWLogType LogType, const FString& format, bool IsNext, bool PrintAnyway = false);
 };
 
 #endif

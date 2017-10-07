@@ -38,7 +38,7 @@ private:
     std::wstring Data;
 
 public:
-    int32 Len()
+    int32 Len() const
     {
         return Data.length();
     }
@@ -56,7 +56,7 @@ public:
     }
 
     FString() {}
-    FString( const FString& Other)
+    FString(const FString& Other)
     {
         Data = Other.Data;
     }
@@ -67,6 +67,12 @@ public:
     FString(const TCHAR* Other)
     {
         Data = Other;
+    }
+    FString(const ANSICHAR* Other)
+    {
+        wchar_t Tmp[1024];
+        int32 Length = swprintf(Tmp, L"%s", Other);
+        Data = std::wstring(Tmp, Length);
     }
     FString(const std::wstring& Other)
     {
@@ -101,6 +107,23 @@ public:
         Data = Other.Data;
         return *this;
     }
+    FString& operator=(const TCHAR* Other)
+    {
+        Data = Other;
+        return *this;
+    }
+    FString& operator=(const ANSICHAR* Other)
+    {
+        wchar_t Tmp[1024];
+        int32 Length = swprintf(Tmp, L"%s", Other);
+        Data = std::wstring(Tmp, Length);
+        return *this;
+    }
+    FString& operator=(const std::wstring& Other)
+    {
+        Data = Other;
+        return *this;
+    }
     bool operator==(const FString& Other)
     {
         return Data == Other.Data;
@@ -110,7 +133,7 @@ public:
         return Data != Other.Data;
     }
 
-    const TCHAR* operator*()
+    const TCHAR* operator*() const
     {
         return Data.data();
     }
@@ -323,7 +346,7 @@ public:
     {
         return StartsWith(InSuffix.Data.data(), InSuffix.Data.length(), SearchCase);
     }
-    const TCHAR* GetCharArray()
+    const TCHAR* GetCharArray() const
     {
         return Data.data();
     }
@@ -365,7 +388,7 @@ public:
     {
         return Data.substr(FromIx, Data.length() - FromIx);
     }
-    FString Mid(int32 Start, int32 Count)
+    FString Mid(int32 Start, int32 Count) const
     {
         return Data.substr(Start, Count);
     }
@@ -489,7 +512,7 @@ public:
     }
     static FString Printf(const TCHAR* Fmt, ...)
     {
-        TCHAR Destination[512];
+        TCHAR Destination[1024];
 
         va_list args;
         va_start(args, Fmt);
