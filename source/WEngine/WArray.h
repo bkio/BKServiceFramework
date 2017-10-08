@@ -5,8 +5,10 @@
 
 #include "WEngine.h"
 #include <vector>
-#include <stdarg.h>
 #include <algorithm>
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "ClangTidyInspection"
 
 template <class T>
 class TArray
@@ -21,7 +23,7 @@ public:
     {
         Array = Other.Array;
     }
-    TArray<T>(TArray<T>&& Other)
+    TArray<T>(TArray<T>&& Other) noexcept
     {
         Array = Other.Array;
     }

@@ -6,6 +6,10 @@
 #include "WEngine.h"
 #include "WArray.h"
 #include <string>
+#include <cstdarg>
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "ClangTidyInspection"
 
 namespace ESearchCase
 {

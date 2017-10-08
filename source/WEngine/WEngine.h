@@ -27,7 +27,7 @@
     #define PLATFORM_LINUX 0
 #endif
 
-#define INDEX_NONE -1
+#define INDEX_NONE (-1)
 
 template<typename T32BITS, typename T64BITS, int PointerSize>
 struct SelectIntPointerType
@@ -80,7 +80,19 @@ typedef decltype(nullptr)		TYPE_OF_NULLPTR;
 #define SMALL_NUMBER		(1.e-8f)
 #define KINDA_SMALL_NUMBER	(1.e-4f)
 #define BIG_NUMBER			(3.4e+38f)
-#define EULERS_NUMBER       (2.71828182845904523536f)
+
+// Aux constants.
+#define INV_PI			(0.31830988618f)
+#define HALF_PI			(1.57079632679f)
+
+#define THRESH_POINT_ON_PLANE			(0.10f)		/* Thickness of plane for front/back/inside test */
+#define THRESH_POINTS_ARE_SAME			(0.00002f)	/* Two points are same if within this distance */
+#define THRESH_NORMALS_ARE_PARALLEL		(0.999845f)	/* Two unit vectors are parallel if abs(A dot B) is greater than or equal to this. This is roughly cosine(1.0 degrees). */
+#define THRESH_NORMALS_ARE_ORTHOGONAL	(0.017455f)	/* Two unit vectors are orthogonal (perpendicular) if abs(A dot B) is less than or equal this. This is roughly cosine(89.0 degrees). */
+
+#define THRESH_VECTOR_NORMALIZED		(0.01f)		/** Allowed error for a normalized vector (against squared magnitude) */
+
+#define MAX_int16		((int16)	0x7fff)
 
 class FMemory
 {

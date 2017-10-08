@@ -4,8 +4,10 @@
 #define Pragma_Once_WVector2D
 
 #include "WEngine.h"
-#include "WString.h"
 #include "WMath.h"
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "ClangTidyInspection"
 
 /**
  * A vector in 2-D space composed of components (X, Y) with floating point precision.
@@ -13,10 +15,10 @@
 struct FVector2D
 {
     /** Vector's X component. */
-    float X;
+    float X = 0.0f;
 
     /** Vector's Y component. */
-    float Y;
+    float Y = 0.0f;
 
 public:
 
@@ -29,7 +31,11 @@ public:
 public:
 
     /** Default constructor (no initialization). */
-    FVector2D() { }
+    FVector2D()
+    {
+        X = 0.0f;
+        Y = 0.0f;
+    }
 
     /**
      * Constructor using initial values for each component.
@@ -389,13 +395,6 @@ public:
     bool IsZero() const;
 
     /**
-     * Get this vector as a vector where each component has been rounded to the nearest int.
-     *
-     * @return New FVector2D from this vector that is rounded.
-     */
-    FVector2D RoundToVector() const;
-
-    /**
      * Creates a copy of this vector with both axes clamped to the given range.
      * @return New vector with clamped axes.
      */
@@ -428,10 +427,10 @@ public:
     static float GetRangeValue(FVector2D const& Range, float Pct);
 
 /** For the given Value clamped to the [Input:Range] inclusive, returns the corresponding percentage in [Output:Range] Inclusive. */
-    static float GetMappedRangeValueClamped(const FVector2D& InputRange, const FVector2D& OutputRange, const float Value);
+    static float GetMappedRangeValueClamped(const FVector2D& InputRange, const FVector2D& OutputRange, float Value);
 
 /** Transform the given Value relative to the input range to the Output Range. */
-    static float GetMappedRangeValueUnclamped(const FVector2D& InputRange, const FVector2D& OutputRange, const float Value);
+    static float GetMappedRangeValueUnclamped(const FVector2D& InputRange, const FVector2D& OutputRange, float Value);
 };
 
 /* FVector2D inline functions
@@ -452,50 +451,50 @@ FVector2D::FVector2D(float InX,float InY)
 
 FVector2D FVector2D::operator+(const FVector2D& V) const
 {
-    return FVector2D(X + V.X, Y + V.Y);
+    return {X + V.X, Y + V.Y};
 }
 
 
 FVector2D FVector2D::operator-(const FVector2D& V) const
 {
-    return FVector2D(X - V.X, Y - V.Y);
+    return {X - V.X, Y - V.Y};
 }
 
 
 FVector2D FVector2D::operator*(float Scale) const
 {
-    return FVector2D(X * Scale, Y * Scale);
+    return {X * Scale, Y * Scale};
 }
 
 
 FVector2D FVector2D::operator/(float Scale) const
 {
     const float RScale = 1.f/Scale;
-    return FVector2D(X * RScale, Y * RScale);
+    return {X * RScale, Y * RScale};
 }
 
 
 FVector2D FVector2D::operator+(float A) const
 {
-    return FVector2D(X + A, Y + A);
+    return {X + A, Y + A};
 }
 
 
 FVector2D FVector2D::operator-(float A) const
 {
-    return FVector2D(X - A, Y - A);
+    return {X - A, Y - A};
 }
 
 
 FVector2D FVector2D::operator*(const FVector2D& V) const
 {
-    return FVector2D(X * V.X, Y * V.Y);
+    return {X * V.X, Y * V.Y};
 }
 
 
 FVector2D FVector2D::operator/(const FVector2D& V) const
 {
-    return FVector2D(X / V.X, Y / V.Y);
+    return {X / V.X, Y / V.Y};
 }
 
 
@@ -579,7 +578,7 @@ bool FVector2D::Equals(const FVector2D& V, float Tolerance) const
 
 FVector2D FVector2D::operator-() const
 {
-    return FVector2D(-X, -Y);
+    return {-X, -Y};
 }
 
 
@@ -740,30 +739,23 @@ float FVector2D::Component(int32 Index) const
     return (&X)[Index];
 }
 
-
-FVector2D FVector2D::RoundToVector() const
-{
-    return FVector2D(FMath::RoundToInt(X), FMath::RoundToInt(Y));
-}
-
 FVector2D FVector2D::ClampAxes(float MinAxisVal, float MaxAxisVal) const
 {
-    return FVector2D(FMath::Clamp(X, MinAxisVal, MaxAxisVal), FMath::Clamp(Y, MinAxisVal, MaxAxisVal));
+    return {FMath::Clamp(X, MinAxisVal, MaxAxisVal), FMath::Clamp(Y, MinAxisVal, MaxAxisVal)};
 }
 
 
 FVector2D FVector2D::GetSignVector() const
 {
-    return FVector2D
-            (
-                    FMath::FloatSelect(X, 1.f, -1.f),
+    return {
+            FMath::FloatSelect(X, 1.f, -1.f),
                     FMath::FloatSelect(Y, 1.f, -1.f)
-            );
+    };
 }
 
 FVector2D FVector2D::GetAbs() const
 {
-    return FVector2D(FMath::Abs(X), FMath::Abs(Y));
+    return {FMath::Abs(X), FMath::Abs(Y)};
 }
 
 
@@ -785,7 +777,7 @@ float FVector2D::GetRangeValue(FVector2D const& Range, float Pct)
 /** For the given Value clamped to the [Input:Range] inclusive, returns the corresponding percentage in [Output:Range] Inclusive. */
 float FVector2D::GetMappedRangeValueClamped(const FVector2D& InputRange, const FVector2D& OutputRange, const float Value)
 {
-    const float ClampedPct = FMath::Clamp<float>(GetRangePct(InputRange, Value), 0.f, 1.f);
+    const auto ClampedPct = FMath::Clamp<float>(GetRangePct(InputRange, Value), 0.f, 1.f);
     return GetRangeValue(OutputRange, ClampedPct);
 }
 
@@ -796,3 +788,4 @@ float FVector2D::GetMappedRangeValueUnclamped(const FVector2D& InputRange, const
 }
 
 #endif //Pragma_Once_WVector2D
+#pragma clang diagnostic pop
