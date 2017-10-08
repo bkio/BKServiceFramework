@@ -5,7 +5,6 @@
 
 #include "WEngine.h"
 #include "WArray.h"
-#include <wchar.h>
 #include <string>
 
 namespace ESearchCase
@@ -70,7 +69,7 @@ public:
     }
     FString(const ANSICHAR* Other)
     {
-        wchar_t Tmp[1024];
+        TCHAR Tmp[1024];
         int32 Length = swprintf(Tmp, L"%s", Other);
         Data = std::wstring(Tmp, Length);
     }
@@ -114,7 +113,7 @@ public:
     }
     FString& operator=(const ANSICHAR* Other)
     {
-        wchar_t Tmp[1024];
+        TCHAR Tmp[1024];
         int32 Length = swprintf(Tmp, L"%s", Other);
         Data = std::wstring(Tmp, Length);
         return *this;
@@ -159,6 +158,10 @@ public:
     {
         return Data.at(Index);
     }
+    const TCHAR& operator[] (int32 Index) const
+    {
+        return Data.at(Index);
+    }
     FString& operator+= (const FString& Str)
     {
         Data += Str.Data;
@@ -169,10 +172,28 @@ public:
         Data += Str;
         return *this;
     }
-    FString& operator+= (FString&& Str)
+    FString& operator+= (TCHAR Character)
     {
-        Data += Str.Data;
+        Data += Character;
         return *this;
+    }
+    FString operator+ (FString&& Str)
+    {
+        FString NewString = Data;
+        NewString += Str;
+        return NewString;
+    }
+    FString operator+ (const TCHAR* Str)
+    {
+        FString NewString = Data;
+        NewString += Str;
+        return NewString;
+    }
+    FString operator+ (TCHAR Character)
+    {
+        FString NewString = Data;
+        NewString += Character;
+        return NewString;
     }
 
     FString& Append(const TCHAR* Text, int32 Count)
@@ -266,9 +287,13 @@ public:
     {
         return Contains(SubStr.Data.data(), SubStr.Data.length(), SearchCase, SearchDir);
     }
-    void Empty()
+    void Empty(int32 Slack = 0)
     {
         Data.empty();
+        if (Slack > 0)
+        {
+            Data.resize(Slack);
+        }
     }
     bool EndsWith(const TCHAR* InSuffix, int32 Len, ESearchCase::Type SearchCase)
     {
@@ -684,6 +709,11 @@ public:
             TempString = TempString.Left( TrimIndex + 1 );
         }
         return TempString;
+    }
+    bool FindLastChar(TCHAR InChar, int32& Index) const
+    {
+        Index = Data.find_last_of(InChar);
+        return Index != std::wstring::npos;
     }
 
     typedef TCHAR* iterator;

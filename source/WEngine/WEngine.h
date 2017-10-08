@@ -3,6 +3,8 @@
 #ifndef Pragma_Once_WEngine
 #define Pragma_Once_WEngine
 
+#include <cstring>
+
 #ifdef _WIN32
     #define PLATFORM_WINDOWS 1
 #elif __APPLE__
@@ -72,5 +74,59 @@ typedef PTRINT SSIZE_T;																// signed int the same size as a pointer
 
 typedef int32					TYPE_OF_NULL;
 typedef decltype(nullptr)		TYPE_OF_NULLPTR;
+
+#undef  PI
+#define PI 					(3.1415926535897932f)
+#define SMALL_NUMBER		(1.e-8f)
+#define KINDA_SMALL_NUMBER	(1.e-4f)
+#define BIG_NUMBER			(3.4e+38f)
+#define EULERS_NUMBER       (2.71828182845904523536f)
+
+class FMemory
+{
+
+public:
+    static void* Memcpy(void* Dest, const void* Src, SIZE_T Count)
+    {
+        return memcpy(Dest, Src, Count);
+    }
+    template<class T>
+    static void Memcpy(T& Dest, const T& Src )
+    {
+        Memcpy(&Dest, &Src, sizeof(T));
+    }
+
+    static void* Memmove(void* Dest, const void* Src, SIZE_T Count)
+    {
+        return memmove(Dest, Src, Count);
+    }
+
+    static int32 Memcmp(const void* Buf1, const void* Buf2, SIZE_T Count)
+    {
+        return memcmp(Buf1, Buf2, Count);
+    }
+
+    static void* Memset(void* Dest, uint8 Char, SIZE_T Count)
+    {
+        return memset(Dest, Char, Count);
+    }
+
+    template<class T>
+    static void Memset( T& Src, uint8 ValueToSet )
+    {
+        Memset(&Src, ValueToSet, sizeof(T));
+    }
+
+    static void* Memzero(void* Dest, SIZE_T Count)
+    {
+        return memset(Dest, 0, Count);
+    }
+
+    template<class T>
+    static void Memzero( T& Src )
+    {
+        Memzero(&Src, sizeof(T));
+    }
+};
 
 #endif

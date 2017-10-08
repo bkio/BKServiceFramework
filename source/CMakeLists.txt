@@ -45,6 +45,7 @@ if(Boost_FOUND)
 		target_link_libraries(${WProjectName} ${WModule})
 	endforeach()
 
+	include_directories(${Boost_INCLUDE_DIRS})
 	target_link_libraries(${WProjectName} ${Boost_LIBRARIES})
 else()
     message(FATAL_ERROR "Could not find boost!")

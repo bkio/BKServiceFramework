@@ -30,6 +30,13 @@ public:
         Array = Other.Array;
         return *this;
     }
+    TArray(const T* Other, int32 Length)
+    {
+        for (int32 i = 0; i < Length; i++)
+        {
+            Array.push_back(Other[i]);
+        }
+    }
     bool operator==(const TArray<T>& Other)
     {
         return Array == Other.Array;
@@ -106,9 +113,13 @@ public:
     {
         return std::find(Array.begin(), Array.end(), Item) == Array.end();
     }
-    void Empty()
+    void Empty(int32 Slack = 0)
     {
         Array.clear();
+        if (Slack > 0)
+        {
+            Array.resize(Slack);
+        }
     }
     int32 Find(const T& Item)
     {
@@ -232,9 +243,13 @@ public:
     {
         Array.clear();
     }
-    T& operator[](int32 Index)
+    T operator[](int32 Index) const
     {
         return Array.at(Index);
+    }
+    T* operator[](int32 Index)
+    {
+        return &Array.at(Index);
     }
     TArray<T>& operator+= (const TArray<T>& Other)
     {
@@ -284,6 +299,15 @@ public:
     {
         const int32 OldNum = Array.size();
         Array.resize(Array.size() + Count);
+    }
+    int32 AddZeroed(int32 Count = 1)
+    {
+        const int32 Index = AddUninitialized(Count);
+        for (int32 i = Index; i < Index + Count; i++)
+        {
+            Array[i] = (T)0;
+        }
+        return Index;
     }
 
     typedef T* iterator;

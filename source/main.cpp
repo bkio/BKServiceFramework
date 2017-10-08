@@ -4,7 +4,8 @@
 #include <iostream>
 #include "WUtilities.h"
 
-int main() {
+int main()
+{
     UWUtilities::Print(EWLogType::Log, L"Test");
 
     int32 exit_signal;

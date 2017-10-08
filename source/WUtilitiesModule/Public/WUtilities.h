@@ -17,17 +17,17 @@ struct FWCHARWrapper
 {
 
 private:
-    char* Value = nullptr;
+    ANSICHAR* Value = nullptr;
     int32 Size = 0;
 
 public:
-    void SetValue(char* const Parameter, int32 SizeParameter)
+    void SetValue(ANSICHAR* const Parameter, int32 SizeParameter)
     {
         if (Parameter == nullptr || SizeParameter <= 0) return;
         Value = Parameter;
         Size = SizeParameter;
     }
-    char* const GetValue()
+    ANSICHAR* const GetValue()
     {
         return Value;
     }
@@ -35,29 +35,29 @@ public:
     {
         return Size;
     }
-    void SetArrayElement(int32 Index, char Character)
+    void SetArrayElement(int32 Index, ANSICHAR Character)
     {
         if (Index >= 0 && Index < Size)
         {
             Value[Index] = Character;
         }
     }
-    char GetArrayElement(int32 Index)
+    ANSICHAR GetArrayElement(int32 Index)
     {
         if (Index >= 0 && Index < Size)
         {
             return Value[Index];
         }
-        return (char)0;
+        return (ANSICHAR)0;
     }
-    void OrSetElement(int32 Index, char WithCharacter)
+    void OrSetElement(int32 Index, ANSICHAR WithCharacter)
     {
         if (Index >= 0 && Index < Size)
         {
             Value[Index] |= WithCharacter;
         }
     }
-    void AndSetElement(int32 Index, char WithCharacter)
+    void AndSetElement(int32 Index, ANSICHAR WithCharacter)
     {
         if (Index >= 0 && Index < Size)
         {
@@ -76,7 +76,7 @@ public:
     bool bDeallocateValueOnDestructor = false;
 
     FWCHARWrapper() {}
-    FWCHARWrapper(char* const Parameter, int32 SizeParameter, bool _bDeallocateValueOnDestructor = false)
+    FWCHARWrapper(ANSICHAR* const Parameter, int32 SizeParameter, bool _bDeallocateValueOnDestructor = false)
     {
         Value = Parameter;
         Size = SizeParameter;
@@ -110,11 +110,11 @@ public:
     FScopeSafeCharArray(const FString& Parameter, bool UseWChars = false);
     ~FScopeSafeCharArray();
 
-    const char* GetC()
+    const ANSICHAR* GetC()
     {
         return CharArray;
     }
-    const wchar_t* GetW()
+    const TCHAR* GetW()
     {
         return WCharArray;
     }
@@ -126,8 +126,8 @@ private:
         return *this;
     }
 
-    char* CharArray = nullptr;
-    wchar_t* WCharArray = nullptr;
+    ANSICHAR* CharArray = nullptr;
+    TCHAR* WCharArray = nullptr;
 };
 
 class UWUtilities
@@ -139,9 +139,6 @@ public:
     static int64 GetTimeStampInMS();
     static int32 GetSafeTimeStampInMS();
 
-    static int32 WGetTotalMemory();
-    static int32 WGetAvailableMemory();
-
     static FString WGetSafeErrorMessage();
     static FString WGenerateMD5HashFromString(const FString& RawData);
     static FString WGenerateMD5Hash(const TArray<uint8>& RawData);
@@ -151,9 +148,6 @@ public:
 
     static FString Base64Encode(const FString& Source);
     static bool Base64Decode(const FString& Source, FString& Destination);
-
-    static FString Base64EncodeFromWCHARArray(FWCHARWrapper& Source);
-    static bool Base64DecodeToWCHARArray(const FString& Source, FWCHARWrapper& Destination);
 
     static FString Base64EncodeExceptExtension(const FString& FileName);
     static bool Base64DecodeExceptExtension(const FString& FileName, FString& Destination);
@@ -173,9 +167,6 @@ public:
     static void ConvertFloatToByteArray(float Param, FWCHARWrapper& Result, uint8 UnitSize);
     static int32 ConvertByteArrayToInteger(FWCHARWrapper& Source, int32 StartIndex, uint8 UnitSize);
     static float ConvertByteArrayToFloat(FWCHARWrapper& Source, int32 StartIndex, uint8 UnitSize);
-
-    static FString StringToBinary(const FString& InputData);
-    static FString BinaryToString(FString InputData);
 
     static TArray<uint8> StringToByteArray(const FString& InputData);
     static FString ByteArrayToString(const TArray<uint8>& ByteArray);

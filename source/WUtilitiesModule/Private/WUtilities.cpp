@@ -4,8 +4,10 @@
 #include <chrono>
 #include <iostream>
 #include <fstream>
-#include <iterator>
-#include <bitset>
+#include <cmath>
+#include "WMD5.h"
+#include "WBase64.h"
+#include "WVector2D.h"
 
 FScopeSafeCharArray::FScopeSafeCharArray(const FString& Parameter, bool UseWChars)
 {
@@ -13,14 +15,14 @@ FScopeSafeCharArray::FScopeSafeCharArray(const FString& Parameter, bool UseWChar
     {
         if (Parameter.Len() == 0)
         {
-            WCharArray = new wchar_t[1];
+            WCharArray = new TCHAR[1];
             WCharArray[0] = '\0';
             return;
         }
-        WCharArray = new wchar_t[Parameter.Len() + 1];
+        WCharArray = new TCHAR[Parameter.Len() + 1];
         for (int32 i = 0; i < Parameter.Len(); i++)
         {
-            WCharArray[i] = (wchar_t)(Parameter.GetCharArray()[i]);
+            WCharArray[i] = (TCHAR)(Parameter.GetCharArray()[i]);
         }
         WCharArray[Parameter.Len()] = '\0';
     }
@@ -28,14 +30,14 @@ FScopeSafeCharArray::FScopeSafeCharArray(const FString& Parameter, bool UseWChar
     {
         if (Parameter.Len() == 0)
         {
-            CharArray = new char[1];
+            CharArray = new ANSICHAR[1];
             CharArray[0] = '\0';
             return;
         }
-        CharArray = new char[Parameter.Len() + 1];
+        CharArray = new ANSICHAR[Parameter.Len() + 1];
         for (int32 i = 0; i < Parameter.Len(); i++)
         {
-            CharArray[i] = (char)(Parameter.GetCharArray()[i]);
+            CharArray[i] = (ANSICHAR)(Parameter.GetCharArray()[i]);
         }
         CharArray[Parameter.Len()] = '\0';
     }
@@ -72,95 +74,228 @@ int32 UWUtilities::GetSafeTimeStampInMS()
     return (int32)(currentTime > MaxInt ? (currentTime % MaxInt) : currentTime);
 }
 
-int32 UWUtilities::WGetTotalMemory()
-{
-}
-int32 UWUtilities::WGetAvailableMemory()
-{
-}
 FString UWUtilities::WGetSafeErrorMessage()
 {
+    if (errno)
+    {
+        ANSICHAR ErrorBuffer[512];
+
+#if PLATFORM_WINDOWS
+        strerror_s(ErrorBuffer, 512, errno);
+#else
+        strerror_r(errno, ErrorBuffer, 512);
+#endif
+
+        return FString::Printf(L"%s", (const ANSICHAR*)ErrorBuffer);
+    }
+    return L"Error state has not been set.";
 }
 FString UWUtilities::WGenerateMD5HashFromString(const FString& RawData)
 {
+    return FMD5::HashAnsiString(*RawData);
 }
 FString UWUtilities::WGenerateMD5Hash(const TArray<uint8>& RawData)
 {
+    uint8 Digest[16];
+    FMD5 Md5Gen;
+    Md5Gen.Update(RawData.GetData(), RawData.Num());
+    Md5Gen.Final(Digest);
+    FString CurrentChecksum;
+    for (int32 i = 0; i < 16; i++) CurrentChecksum += FString::Printf(L"%02x", Digest[i]);
+    return CurrentChecksum;
 }
 FWCHARWrapper UWUtilities::WBasicRawHash(FWCHARWrapper& Source, int32 FromSourceIndex, int32 Size)
 {
+    if (Source.GetSize() == 0 || FromSourceIndex < 0 || Size > Source.GetSize()) return FWCHARWrapper();
+
+    int32 Sum = 0;
+    for (int32 i = 0; i < Size; i++)
+    {
+        Sum += (uint8)Source.GetArrayElement(i + FromSourceIndex);
+    }
+
+    FWCHARWrapper Result(new ANSICHAR[4], 4, false);
+    ConvertIntegerToByteArray(Sum, Result, 4);
+
+    return Result;
 }
 
 FString UWUtilities::Base64Encode(const FString& Source)
 {
+    return FBase64::Encode(Source);
 }
 bool UWUtilities::Base64Decode(const FString& Source, FString& Destination)
 {
-}
-FString UWUtilities::Base64EncodeFromWCHARArray(FWCHARWrapper& Source)
-{
-}
-bool UWUtilities::Base64DecodeToWCHARArray(const FString& Source, FWCHARWrapper& Destination)
-{
+    return FBase64::Decode(Source, Destination);
 }
 FString UWUtilities::Base64EncodeExceptExtension(const FString& FileName)
 {
+    int32 LastDotIndex = INDEX_NONE;
+    if (FileName.FindLastChar('.', LastDotIndex) && LastDotIndex > 0 && LastDotIndex != FileName.Len() - 1)
+    {
+        return FBase64::Encode(FileName.Mid(0, LastDotIndex)) + FString(L".") + FileName.Mid(LastDotIndex + 1, FileName.Len() - LastDotIndex - 1);
+    }
+    return FBase64::Encode(FileName);
 }
 bool UWUtilities::Base64DecodeExceptExtension(const FString& FileName, FString& Destination)
 {
+    int32 LastDotIndex = INDEX_NONE;
+    if (FileName.FindLastChar('.', LastDotIndex) && LastDotIndex > 0 && LastDotIndex != FileName.Len() - 1)
+    {
+        if (FBase64::Decode(FileName.Mid(0, LastDotIndex), Destination))
+        {
+            Destination.Append(FString(L".") + FileName.Mid(LastDotIndex + 1, FileName.Len() - LastDotIndex - 1));
+            return true;
+        }
+        return false;
+    }
+    return FBase64::Decode(FileName, Destination);
 }
 
 int32 UWUtilities::GetDestinationLengthBeforeCompressBoolArray(int32 SourceLen)
 {
+    if (SourceLen <= 0) return 0;
+    return SourceLen % 8 == 0 ? (int32)(SourceLen / 8) : ((int32)(SourceLen / 8)) + 1;
 }
 bool UWUtilities::CompressBooleanAsBit(FWCHARWrapper& DestArr, const TArray<bool>& SourceArr)
 {
+    int32 SourceLen = SourceArr.Num();
+    if (SourceLen == 0) return false;
+
+    int32 CurIx;
+    for (int32 i = 0; i < SourceLen; i += 8)
+    {
+        CurIx = (int32)(i / 8);
+        DestArr.SetArrayElement(CurIx, (ANSICHAR)0);
+        for (int32 j = 0; j < 8; j++)
+        {
+            if ((i + j) >= SourceLen) return true;
+
+            if (SourceArr[i + j])
+            {
+                DestArr.OrSetElement(CurIx, (ANSICHAR)std::pow(2, j));
+            }
+        }
+    }
+    return true;
 }
 bool UWUtilities::DecompressBitAsBoolArray(TArray<bool>& DestArr, FWCHARWrapper& SourceAsCompressed, int32 StartIndex, int32 EndIndex)
 {
+    if (SourceAsCompressed.GetSize() == 0) return false;
+    if (StartIndex < 0 || EndIndex >= SourceAsCompressed.GetSize()) return false;
+
+    DestArr.Reset();
+
+    for (int32 i = StartIndex; i <= EndIndex; i++)
+    {
+        ANSICHAR CurrentChar = SourceAsCompressed.GetArrayElement(i);
+        for (int32 j = 0; j < 8; j++)
+        {
+            ANSICHAR Tmp = CurrentChar;
+            ((Tmp <<= (7 - j)) >>= 7) &= 1;
+            DestArr.Add(Tmp == 1);
+        }
+    }
+    return true;
 }
 uint8 UWUtilities::CompressZeroOneFloatToByte(float Param)
 {
+    return (uint8)FMath::RoundToInt(FMath::Clamp(Param, 0.0f, 1.0f) * 255);
 }
 float UWUtilities::DecompressByteToZeroOneFloat(uint8 Param)
 {
+    return FVector2D::GetMappedRangeValueUnclamped(FVector2D(0, 255), FVector2D(0.0f, 1.0f), (float)Param);
 }
 uint8 UWUtilities::CompressAngleFloatToByte(float Param)
 {
+    while (Param < 0.0f) Param += 360.0f;
+    while (Param >= 360.0f) Param -= 360.0f;
+    return (uint8)FMath::RoundToInt((Param / 360.0f) * 255);
 }
 float UWUtilities::DecompressByteToAngleFloat(uint8 Param)
 {
+    return FVector2D::GetMappedRangeValueUnclamped(FVector2D(0, 255), FVector2D(0.0f, 360.0f), (float)Param);
 }
 void UWUtilities::ConvertIntegerToByteArray(int32 Param, FWCHARWrapper& Result, uint8 UnitSize)
 {
+    if (Result.GetSize() == 0) return;
+    FMemory::Memcpy(Result.GetValue(), &Param, UnitSize);
 }
 void UWUtilities::ConvertFloatToByteArray(float Param, FWCHARWrapper& Result, uint8 UnitSize)
 {
+    if (Result.GetSize() == 0) return;
+    FMemory::Memcpy(Result.GetValue(), &Param, UnitSize);
 }
 int32 UWUtilities::ConvertByteArrayToInteger(FWCHARWrapper& Source, int32 StartIndex, uint8 UnitSize)
 {
+    if (StartIndex < 0 || StartIndex >= Source.GetSize() || Source.GetSize() == 0) return 0;
+    int32 Result = 0;
+    FMemory::Memcpy(&Result, Source.GetValue() + StartIndex, UnitSize);
+    return Result;
 }
 float UWUtilities::ConvertByteArrayToFloat(FWCHARWrapper& Source, int32 StartIndex, uint8 UnitSize)
 {
-}
-
-FString UWUtilities::StringToBinary(const FString& InputData)
-{
-}
-FString UWUtilities::BinaryToString(FString InputData)
-{
+    if (StartIndex < 0 || StartIndex >= Source.GetSize() || Source.GetSize() == 0) return 0.0f;
+    float Result = 0.0f;
+    FMemory::Memcpy(&Result, Source.GetValue() + StartIndex, UnitSize);
+    return Result;
 }
 
 TArray<uint8> UWUtilities::StringToByteArray(const FString& InputData)
 {
+    TArray<uint8> returnArray;
+    for (int i = 0; i < InputData.Len(); i++)
+    {
+        returnArray.Add((uint8)InputData[i]);
+    }
+    return returnArray;
 }
 FString UWUtilities::ByteArrayToString(const TArray<uint8>& ByteArray)
 {
+    FString returnData = "";
+    for (int i = 0; i < ByteArray.Num(); i++)
+    {
+        returnData += (ANSICHAR)ByteArray[i];
+    }
+    return returnData;
 }
 
 FString UWUtilities::ConvertIntegerToHex(int32 inputValue)
 {
+    FString returnString = "";
+    ANSICHAR charData;
+
+    for (int32 i = 7; i >= 0; i--)
+    {
+        charData = (inputValue >> (i * 4)) & 0xf;
+        if (charData >= 0 && charData <= 9)
+        {
+            charData = charData + '0';
+        }
+        else if (charData >= 0xa && charData <= 0xf)
+        {
+            charData = (charData + 'a' - 10);
+        }
+        else
+        {
+            charData = '0';
+        }
+        returnString += charData;
+    }
+    return returnString;
 }
 int32 UWUtilities::ConvertHexToInteger(const FString& InputData)
 {
+    ANSICHAR newData[64];
+    uint8 iterations = InputData.Len();
+    if (iterations > 64)
+    {
+        iterations = 64;
+    }
+
+    for (int i = 0; i < iterations; i++)
+    {
+        newData[i] = InputData[i];
+    }
+    return std::strtoul(newData, nullptr, 16);
 }
