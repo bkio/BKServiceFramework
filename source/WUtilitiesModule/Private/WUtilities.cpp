@@ -15,14 +15,14 @@ FScopeSafeCharArray::FScopeSafeCharArray(const FString& Parameter, bool UseWChar
     {
         if (Parameter.Len() == 0)
         {
-            WCharArray = new TCHAR[1];
+            WCharArray = new UTFCHAR[1];
             WCharArray[0] = '\0';
             return;
         }
-        WCharArray = new TCHAR[Parameter.Len() + 1];
+        WCharArray = new UTFCHAR[Parameter.Len() + 1];
         for (int32 i = 0; i < Parameter.Len(); i++)
         {
-            WCharArray[i] = (TCHAR)(Parameter.GetCharArray()[i]);
+            WCharArray[i] = (UTFCHAR)(Parameter.GetCharArray()[i]);
         }
         WCharArray[Parameter.Len()] = '\0';
     }
@@ -58,7 +58,7 @@ void UWUtilities::Print(EWLogType LogType, const FString& Format)
 {
     std::wcout << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error")) << std::wstring(*Format) << std::endl;
 }
-void UWUtilities::Print(EWLogType LogType, const TCHAR* Format)
+void UWUtilities::Print(EWLogType LogType, const UTFCHAR* Format)
 {
     std::wcout << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error")) << std::wstring(Format) << std::endl;
 }
@@ -244,7 +244,7 @@ float UWUtilities::ConvertByteArrayToFloat(FWCHARWrapper& Source, int32 StartInd
 TArray<uint8> UWUtilities::StringToByteArray(const FString& InputData)
 {
     TArray<uint8> returnArray;
-    for (int i = 0; i < InputData.Len(); i++)
+    for (int32 i = 0; i < InputData.Len(); i++)
     {
         returnArray.Add((uint8)InputData[i]);
     }
@@ -253,7 +253,7 @@ TArray<uint8> UWUtilities::StringToByteArray(const FString& InputData)
 FString UWUtilities::ByteArrayToString(const TArray<uint8>& ByteArray)
 {
     FString returnData = "";
-    for (int i = 0; i < ByteArray.Num(); i++)
+    for (int32 i = 0; i < ByteArray.Num(); i++)
     {
         returnData += (ANSICHAR)ByteArray[i];
     }
@@ -293,7 +293,7 @@ int32 UWUtilities::ConvertHexToInteger(const FString& InputData)
         iterations = 64;
     }
 
-    for (int i = 0; i < iterations; i++)
+    for (int32 i = 0; i < iterations; i++)
     {
         newData[i] = InputData[i];
     }

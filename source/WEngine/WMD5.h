@@ -5,6 +5,7 @@
 
 #include "WEngine.h"
 #include "WString.h"
+#include "WMemory.h"
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "ClangTidyInspection"
@@ -39,7 +40,7 @@ public:
      *
      * @param String	the string the hash
      **/
-    static FString HashAnsiString(const TCHAR* String)
+    static FString HashAnsiString(const UTFCHAR* String)
     {
         int32 Len = wcslen(String);
         if (Len == 0) return "";
@@ -219,7 +220,7 @@ void FMD5::Update( const uint8* input, int32 inputLen )
     // Transform as many times as possible.
     if (inputLen >= partLen)
     {
-        FMemory::Memcpy(&Context.buffer[index], input, static_cast<SIZE_T>(partLen));
+        FMemory::Memcpy(&Context.buffer[index], input, static_cast<WSIZE__T>(partLen));
         Transform( Context.state, Context.buffer );
         for (i = partLen; i + 63 < inputLen; i += 64)
         {
@@ -233,7 +234,7 @@ void FMD5::Update( const uint8* input, int32 inputLen )
     }
 
     // Buffer remaining input.
-    FMemory::Memcpy(&Context.buffer[index], &input[i], static_cast<SIZE_T>(inputLen - i));
+    FMemory::Memcpy(&Context.buffer[index], &input[i], static_cast<WSIZE__T>(inputLen - i));
 }
 
 void FMD5::Final( uint8* digest )

@@ -216,10 +216,10 @@ bool FBase64::Decode(const FString& Source, FString& Dest)
         }
 
         const int32 cSize = TempDest.Num() + 1;
-        auto * AsTCHAR = new TCHAR[cSize];
-        std::mbstowcs (AsTCHAR, TempDest.GetData(), (size_t) cSize);
-        Dest = AsTCHAR;
-        delete[] AsTCHAR;
+        auto * AsUTFCHAR = new UTFCHAR[cSize];
+        std::mbstowcs (AsUTFCHAR, TempDest.GetData(), (size_t) cSize);
+        Dest = AsUTFCHAR;
+        delete[] AsUTFCHAR;
     }
 
     delete[] AsAnsi;

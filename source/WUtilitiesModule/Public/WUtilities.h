@@ -27,11 +27,11 @@ public:
         Value = Parameter;
         Size = SizeParameter;
     }
-    ANSICHAR* const GetValue()
+    ANSICHAR* const GetValue() const
     {
         return Value;
     }
-    int32 GetSize()
+    int32 GetSize() const
     {
         return Size;
     }
@@ -114,7 +114,7 @@ public:
     {
         return CharArray;
     }
-    const TCHAR* GetW()
+    const UTFCHAR* GetW()
     {
         return WCharArray;
     }
@@ -127,14 +127,14 @@ private:
     }
 
     ANSICHAR* CharArray = nullptr;
-    TCHAR* WCharArray = nullptr;
+    UTFCHAR* WCharArray = nullptr;
 };
 
 class UWUtilities
 {
 public:
     static void Print(EWLogType LogType, const FString& format);
-    static void Print(EWLogType LogType, const TCHAR* format);
+    static void Print(EWLogType LogType, const UTFCHAR* format);
 
     static int64 GetTimeStampInMS();
     static int32 GetSafeTimeStampInMS();

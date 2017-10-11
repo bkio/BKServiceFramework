@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.8)
 project(WUtilitiesModule)
 
+#Dependencies Start
+#set(WDepModsOf_WUtilitiesModule OTHERMODULE)
+#Dependencies End
+
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../binaries/${CMAKE_BUILD_TYPE})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../binaries/${CMAKE_BUILD_TYPE})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../binaries/${CMAKE_BUILD_TYPE})
@@ -22,3 +26,8 @@ file(GLOB Private_Files
 set(SOURCE_FILES ${Public_Files} ${Private_Files})
 
 add_library(WUtilitiesModule STATIC ${SOURCE_FILES})
+
+foreach(WModule ${WDepModsOf_WUtilitiesModule})
+    include_directories(${WModule}/Public)
+    target_link_libraries(WUtilitiesModule ${WModule})
+endforeach()

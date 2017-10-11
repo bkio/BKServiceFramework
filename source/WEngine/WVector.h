@@ -3,6 +3,7 @@
 #ifndef Pragma_Once_WVector
 #define Pragma_Once_WVector
 
+#include "WEngine.h"
 #include "WVector2D.h"
 #include "WString.h"
 #include "WMath.h"
@@ -83,7 +84,7 @@ public:
 public:
 
     void DiagnosticCheckNaN() const {}
-    void DiagnosticCheckNaN(const TCHAR* Message) const {}
+    void DiagnosticCheckNaN(const UTFCHAR* Message) const {}
 
     /** Default constructor (no initialization). */
     FVector();

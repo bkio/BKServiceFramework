@@ -7,6 +7,9 @@
 #include "WArray.h"
 #include <string>
 #include <cstdarg>
+#if PLATFORM_WINDOWS
+    #include "windows.h"
+#endif
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "ClangTidyInspection"
@@ -67,13 +70,13 @@ public:
     {
         Data = Other.Data;
     }
-    FString(const TCHAR* Other)
+    FString(const UTFCHAR* Other)
     {
         Data = Other;
     }
     FString(const ANSICHAR* Other)
     {
-        TCHAR Tmp[1024];
+        UTFCHAR Tmp[1024];
         int32 Length = swprintf(Tmp, L"%s", Other);
         Data = std::wstring(Tmp, Length);
     }
@@ -85,7 +88,19 @@ public:
     {
         Data = Other;
     }
-    FString(int32 InCount, const TCHAR* InSrc)
+    FString(const std::string& Other)
+    {
+        UTFCHAR Tmp[1024];
+        int32 Length = swprintf(Tmp, L"%s", Other.data());
+        Data = std::wstring(Tmp, Length);
+    }
+    FString(std::string&& Other)
+    {
+        UTFCHAR Tmp[1024];
+        int32 Length = swprintf(Tmp, L"%s", Other.data());
+        Data = std::wstring(Tmp, Length);
+    }
+    FString(int32 InCount, const UTFCHAR* InSrc)
     {
         AddUninitialized(InCount ? InCount + 1 : 0);
 
@@ -97,7 +112,7 @@ public:
             }
         }
     }
-    FString(const TCHAR* Other, int32 Size)
+    FString(const UTFCHAR* Other, int32 Size)
     {
         Data.resize(Size);
         for (int32 i = 0; i < Size; i++)
@@ -110,14 +125,14 @@ public:
         Data = Other.Data;
         return *this;
     }
-    FString& operator=(const TCHAR* Other)
+    FString& operator=(const UTFCHAR* Other)
     {
         Data = Other;
         return *this;
     }
     FString& operator=(const ANSICHAR* Other)
     {
-        TCHAR Tmp[1024];
+        UTFCHAR Tmp[1024];
         int32 Length = swprintf(Tmp, L"%s", Other);
         Data = std::wstring(Tmp, Length);
         return *this;
@@ -125,6 +140,13 @@ public:
     FString& operator=(const std::wstring& Other)
     {
         Data = Other;
+        return *this;
+    }
+    FString& operator=(const std::string& Other)
+    {
+        UTFCHAR Tmp[1024];
+        int32 Length = swprintf(Tmp, L"%s", Other.data());
+        Data = std::wstring(Tmp, Length);
         return *this;
     }
     bool operator==(const FString& Other)
@@ -136,7 +158,7 @@ public:
         return Data != Other.Data;
     }
 
-    const TCHAR* operator*() const
+    const UTFCHAR* operator*() const
     {
         return Data.data();
     }
@@ -152,17 +174,17 @@ public:
         Data += Str.Data;
         return *this;
     }
-    FString& operator/= (const TCHAR* Str)
+    FString& operator/= (const UTFCHAR* Str)
     {
         Data += L"/";
         Data += Str;
         return *this;
     }
-    TCHAR& operator[] (int32 Index)
+    UTFCHAR& operator[] (int32 Index)
     {
         return Data.at(Index);
     }
-    const TCHAR& operator[] (int32 Index) const
+    const UTFCHAR& operator[] (int32 Index) const
     {
         return Data.at(Index);
     }
@@ -171,12 +193,12 @@ public:
         Data += Str.Data;
         return *this;
     }
-    FString& operator+= (const TCHAR* Str)
+    FString& operator+= (const UTFCHAR* Str)
     {
         Data += Str;
         return *this;
     }
-    FString& operator+= (TCHAR Character)
+    FString& operator+= (UTFCHAR Character)
     {
         Data += Character;
         return *this;
@@ -187,20 +209,20 @@ public:
         NewString += Str;
         return NewString;
     }
-    FString operator+ (const TCHAR* Str)
+    FString operator+ (const UTFCHAR* Str)
     {
         FString NewString = Data;
         NewString += Str;
         return NewString;
     }
-    FString operator+ (TCHAR Character)
+    FString operator+ (UTFCHAR Character)
     {
         FString NewString = Data;
         NewString += Character;
         return NewString;
     }
 
-    FString& Append(const TCHAR* Text, int32 Count)
+    FString& Append(const UTFCHAR* Text, int32 Count)
     {
         Data.append(Text);
         return *this;
@@ -215,12 +237,12 @@ public:
         Data.append(Text.Data);
         return *this;
     }
-    FString& AppendChar(const TCHAR InChar)
+    FString& AppendChar(const UTFCHAR InChar)
     {
         Data += InChar;
         return *this;
     }
-    void AppendChars(const TCHAR* Array, int32 Count)
+    void AppendChars(const UTFCHAR* Array, int32 Count)
     {
         if (Count <= 0) return;
         int32 OldSize = Data.size();
@@ -233,9 +255,9 @@ public:
     void AppendInt( int32 InNum )
     {
         int64 Num						= InNum; // This avoids having to deal with negating -MAX_int32-1
-        const TCHAR* NumberChar[11]		= { L"0", L"1", L"2", L"3", L"4", L"5", L"6", L"7", L"8", L"9", L"-" };
+        const UTFCHAR* NumberChar[11]		= { L"0", L"1", L"2", L"3", L"4", L"5", L"6", L"7", L"8", L"9", L"-" };
         bool bIsNumberNegative			= false;
-        TCHAR TempNum[16];				// 16 is big enough
+        UTFCHAR TempNum[16];				// 16 is big enough
         int32 TempAt					= 16; // fill the temp string from the top down.
 
         // Correctly handle negative numbers and convert to positive integer.
@@ -269,7 +291,7 @@ public:
         Ret.AppendInt(Num);
         return Ret;
     }
-    bool Contains(const TCHAR* SubStr, int32 Size, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, ESearchDir::Type SearchDir = ESearchDir::FromStart)
+    bool Contains(const UTFCHAR* SubStr, int32 Size, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, ESearchDir::Type SearchDir = ESearchDir::FromStart)
     {
         if (SearchCase == ESearchCase::IgnoreCase)
         {
@@ -299,7 +321,7 @@ public:
             Data.resize(Slack);
         }
     }
-    bool EndsWith(const TCHAR* InSuffix, int32 Len, ESearchCase::Type SearchCase)
+    bool EndsWith(const UTFCHAR* InSuffix, int32 Len, ESearchCase::Type SearchCase)
     {
         if (Len >= Data.length())
         {
@@ -337,7 +359,7 @@ public:
     {
         return EndsWith(InSuffix.Data.data(), InSuffix.Data.length(), SearchCase);
     }
-    bool StartsWith(const TCHAR* InPrefix, int32 Len, ESearchCase::Type SearchCase)
+    bool StartsWith(const UTFCHAR* InPrefix, int32 Len, ESearchCase::Type SearchCase)
     {
         if (Len >= Data.length())
         {
@@ -375,11 +397,11 @@ public:
     {
         return StartsWith(InSuffix.Data.data(), InSuffix.Data.length(), SearchCase);
     }
-    const TCHAR* GetCharArray() const
+    const UTFCHAR* GetCharArray() const
     {
         return Data.data();
     }
-    void InsertAt(int32 Index, TCHAR Character)
+    void InsertAt(int32 Index, UTFCHAR Character)
     {
         Data.insert(Index, 1, Character);
     }
@@ -421,11 +443,11 @@ public:
     {
         return Data.substr(Start, Count);
     }
-    int32 ParseIntoArray(TArray<FString>& OutArray, const TCHAR** DelimArray, int32 NumDelims, bool InCullEmpty) const
+    int32 ParseIntoArray(TArray<FString>& OutArray, const UTFCHAR** DelimArray, int32 NumDelims, bool InCullEmpty) const
     {
         // Make sure the delimit string is not null or empty
         OutArray.Empty();
-        const TCHAR *Start = Data.data();
+        const UTFCHAR *Start = Data.data();
         const int32 Length = Data.length();
         if (Start)
         {
@@ -482,14 +504,14 @@ public:
 
         return OutArray.Num();
     }
-    int32 ParseIntoArray(TArray<FString>& OutArray, const TCHAR* pchDelim, bool InCullEmpty)
+    int32 ParseIntoArray(TArray<FString>& OutArray, const UTFCHAR* pchDelim, bool InCullEmpty)
     {
         OutArray.Reset();
-        const TCHAR* Start = Data.data();
+        const UTFCHAR* Start = Data.data();
         const int32 DelimLength = wcslen(pchDelim);
         if (Start && DelimLength)
         {
-            while(const TCHAR *At = wcsstr(Start,pchDelim) )
+            while(const UTFCHAR *At = wcsstr(Start,pchDelim) )
             {
                 if (!InCullEmpty || At-Start)
                 {
@@ -504,9 +526,9 @@ public:
         }
         return OutArray.Num();
     }
-    int32 ParseIntoArrayWS(TArray<FString>& OutArray, const TCHAR* pchExtraDelim, bool InCullEmpty) const
+    int32 ParseIntoArrayWS(TArray<FString>& OutArray, const UTFCHAR* pchExtraDelim, bool InCullEmpty) const
     {
-        static const TCHAR* WhiteSpace[] =
+        static const UTFCHAR* WhiteSpace[] =
         {
             L" ",
             L"\t",
@@ -528,7 +550,7 @@ public:
     int32 ParseIntoArrayLines(TArray<FString>& OutArray, bool InCullEmpty) const
     {
         // default array of LineEndings
-        static const TCHAR* LineEndings[] =
+        static const UTFCHAR* LineEndings[] =
         {
             L"\r\n",
             L"\r",
@@ -539,9 +561,9 @@ public:
         int32 NumLineEndings = 3;
         return ParseIntoArray(OutArray, LineEndings, NumLineEndings, InCullEmpty);
     }
-    static FString Printf(const TCHAR* Fmt, ...)
+    static FString Printf(const UTFCHAR* Fmt, ...)
     {
-        TCHAR Destination[1024];
+        UTFCHAR Destination[1024];
 
         va_list args;
         va_start(args, Fmt);
@@ -610,7 +632,7 @@ public:
         }
         return false;
     }
-    FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase)
+    FString Replace(const UTFCHAR* From, const UTFCHAR* To, ESearchCase::Type SearchCase)
     {
         std::wstring NewData = Data;
 
@@ -691,16 +713,16 @@ public:
         // First create the string
         FString TempString = FString::Printf(L"%f", InFloat);
 
-        const TCHAR Zero = '0';
-        const TCHAR Period = '.';
+        const UTFCHAR Zero = '0';
+        const UTFCHAR Period = '.';
 
         int32 TrimIndex = 0;
 
         // Find the first non-zero char in the array
         for (int32 Index = TempString.Len() - 2; Index >= 2; --Index )
         {
-            const TCHAR EachChar = TempString[Index];
-            const TCHAR NextChar = TempString[Index-1];
+            const UTFCHAR EachChar = TempString[Index];
+            const UTFCHAR NextChar = TempString[Index-1];
             if ((EachChar != Zero) || (NextChar == Period))
             {
                 TrimIndex = Index;
@@ -714,18 +736,40 @@ public:
         }
         return TempString;
     }
-    bool FindLastChar(TCHAR InChar, int32& Index) const
+    bool FindLastChar(UTFCHAR InChar, int32& Index) const
     {
         Index = Data.find_last_of(InChar);
         return Index != std::wstring::npos;
     }
 
-    typedef TCHAR* iterator;
-    typedef const TCHAR* const_iterator;
+#if PLATFORM_WINDOWS
+    static FString GetLastErrorAsString()
+    {
+        //Get the error message, if any.
+        DWORD errorMessageID = ::GetLastError();
+        if(errorMessageID == 0)
+            return L"No error.";
+
+        LPSTR messageBuffer = nullptr;
+        size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                     nullptr, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, nullptr);
+
+        std::string message(messageBuffer, size);
+        FString NewString = message;
+
+        //Free the buffer.
+        LocalFree(messageBuffer);
+
+        return NewString;
+    }
+#endif
+
+    typedef UTFCHAR* iterator;
+    typedef const UTFCHAR* const_iterator;
     iterator begin() { return &Data[0]; }
     const_iterator begin() const { return &Data[0]; }
     iterator end() { return &Data[Data.length()]; }
     const_iterator end() const { return &Data[Data.size()]; }
 };
 
-#endif
+#endif //Pragma_Once_WString
