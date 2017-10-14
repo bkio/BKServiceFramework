@@ -3,7 +3,7 @@
 #include "WUDPManager.h"
 #include "WMemory.h"
 
-bool UWUDPManager::InitializeSocket(int32 Port)
+bool UWUDPManager::InitializeSocket(uint16 Port)
 {
 #if PLATFORM_WINDOWS
     WSADATA WSAData{};
@@ -15,7 +15,7 @@ bool UWUDPManager::InitializeSocket(int32 Port)
     }
 #endif
 
-    UDPSocket = socket(AF_INET , SOCK_DGRAM , IPPROTO_UDP);
+    UDPSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 #if PLATFORM_WINDOWS
     if (UDPSocket == INVALID_SOCKET)
     {
@@ -34,9 +34,9 @@ bool UWUDPManager::InitializeSocket(int32 Port)
     FMemory::Memzero((ANSICHAR*)&UDPServer, sizeof(UDPServer));
     UDPServer.sin_family = AF_INET;
     UDPServer.sin_addr.s_addr = INADDR_ANY;
-    UDPServer.sin_port = htons(static_cast<u_short>(Port));
+    UDPServer.sin_port = Port;
 
-    int32 ret = bind(UDPSocket ,(struct sockaddr*)&UDPServer , sizeof(UDPServer));
+    int32 ret = bind(UDPSocket, (struct sockaddr*)&UDPServer, sizeof(UDPServer));
     if (ret == -1)
     {
         UWUtilities::Print(EWLogType::Error, FString(L"Socket binding failed with error: ") + UWUtilities::WGetSafeErrorMessage());
@@ -54,6 +54,7 @@ void UWUDPManager::CloseSocket()
     closesocket(UDPSocket);
     WSACleanup();
 #else
+    shutdown(UDPSocket, SHUT_RDWR);
     close(UDPSocket);
 #endif
 }
@@ -64,9 +65,13 @@ void UWUDPManager::ListenSocket()
     {
         auto Buffer = new ANSICHAR[1024];
         auto Client = new sockaddr;
+#if PLATFORM_WINDOWS
         int32 ClientLen = sizeof(*Client);
+#else
+        socklen_t ClientLen = sizeof(*Client);
+#endif
 
-        int32 RetrievedSize = recvfrom(UDPSocket, Buffer, 1024, 0, Client, &ClientLen);
+        int32 RetrievedSize = static_cast<int32>(recvfrom(UDPSocket, Buffer, 1024, 0, Client, &ClientLen));
         if (RetrievedSize < 0 || !bSystemStarted)
         {
             if (!bSystemStarted) return;
@@ -108,8 +113,13 @@ void UWUDPManager::Send(sockaddr* Client, FWCHARWrapper&& SendBuffer)
     if (Client == nullptr) return;
     if (SendBuffer.GetSize() == 0) return;
 
-    int32 ClientLength = sizeof(*Client);
-    int32 SentLength = sendto(UDPSocket, SendBuffer.GetValue(), SendBuffer.GetSize(), 0, Client, ClientLength);
+#if PLATFORM_WINDOWS
+    int32 ClientLen = sizeof(*Client);
+#else
+    socklen_t ClientLen = sizeof(*Client);
+#endif
+    int32 SentLength = static_cast<int32>(sendto(UDPSocket, SendBuffer.GetValue(), static_cast<size_t>(SendBuffer.GetSize()), 0, Client, ClientLen));
+
 #if PLATFORM_WINDOWS
     if (SentLength == SOCKET_ERROR)
     {
@@ -127,7 +137,7 @@ void UWUDPManager::Send(sockaddr* Client, FWCHARWrapper&& SendBuffer)
 UWUDPManager* UWUDPManager::ManagerInstance = nullptr;
 
 bool UWUDPManager::bSystemStarted = false;
-bool UWUDPManager::StartSystem(int32 Port)
+bool UWUDPManager::StartSystem(uint16 Port)
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
@@ -142,7 +152,7 @@ bool UWUDPManager::StartSystem(int32 Port)
 
     return true;
 }
-bool UWUDPManager::StartSystem_Internal(int32 Port)
+bool UWUDPManager::StartSystem_Internal(uint16 Port)
 {
     if (InitializeSocket(Port))
     {

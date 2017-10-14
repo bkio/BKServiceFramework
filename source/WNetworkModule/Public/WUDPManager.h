@@ -5,13 +5,12 @@
 
 #include "WEngine.h"
 #if PLATFORM_WINDOWS
-#pragma comment(lib, "ws2_32.lib")
-#include <ws2tcpip.h>
-#include <winsock2.h>
+    #pragma comment(lib, "ws2_32.lib")
+    #include <ws2tcpip.h>
+    #include <winsock2.h>
 #else
-#include <sys/socket.h>
+    #include <sys/socket.h>
     #include <netinet/in.h>
-    #include <netdb.h>
 #endif
 #include "WThread.h"
 #include "WUtilities.h"
@@ -47,13 +46,13 @@ class UWUDPManager
 {
 
 public:
-    static bool StartSystem(int32 Port);
+    static bool StartSystem(uint16 Port);
     static void EndSystem();
 
 private:
     static bool bSystemStarted;
 
-    bool StartSystem_Internal(int32 Port);
+    bool StartSystem_Internal(uint16 Port);
     void EndSystem_Internal();
 
     struct sockaddr_in UDPServer;
@@ -64,7 +63,7 @@ private:
     int32 UDPSocket;
 #endif
 
-    bool InitializeSocket(int32 Port);
+    bool InitializeSocket(uint16 Port);
     void CloseSocket();
     void ListenSocket();
     void Send(sockaddr* Client, FWCHARWrapper&& SendBuffer);

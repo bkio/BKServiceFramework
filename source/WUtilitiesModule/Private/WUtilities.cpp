@@ -97,15 +97,14 @@ FString UWUtilities::WGetSafeErrorMessage()
 {
     if (errno)
     {
+#if PLATFORM_WINDOWS
         ANSICHAR ErrorBuffer[512];
 
-#if PLATFORM_WINDOWS
         int32 Length = strerror_s(ErrorBuffer, 512, errno);
-#else
-        int32 Length = strerror_r(errno, ErrorBuffer, 512);
-#endif
-
         return FString(ErrorBuffer, Length);
+#else
+        return FString(strerror(errno));
+#endif
     }
 #if PLATFORM_WINDOWS
     return FString(L"Last Error Code: ") + FString::FromInt(static_cast<int32>(GetLastError()));

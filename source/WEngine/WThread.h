@@ -28,10 +28,9 @@ private:
 
 #if PLATFORM_WINDOWS
     HANDLE hThread;
-
-#if PLATFORM_WINDOWS
     static DWORD WINAPI Run(LPVOID pVoid)
 #else
+    pthread_t hThread;
     static void* Run(void* pVoid)
 #endif
     {
@@ -46,16 +45,12 @@ private:
             {
                 CloseHandle(wThread->hThread);
             }
+#else
+            pthread_exit(nullptr);
 #endif
-            wThread->hThread = nullptr;
         }
         return 0;
     }
-#else
-    pthread_t hThread;
-
-    static void* Run(void* pVoid);
-#endif
 
     WThreadCallback Callback;
 
@@ -80,19 +75,20 @@ public:
         sched_param hScheduleParameter;
         pthread_attr_getschedparam (&hThreadAttribute, &hScheduleParameter);
         hScheduleParameter.sched_priority = sched_get_priority_max(SCHED_FIFO);
+        pthread_attr_setschedparam (&hThreadAttribute, &hScheduleParameter);
 
-        pthread_create(&hThread, hScheduleParameter, &WThread::Run, this);
-        pthread_mutexattr_destroy(&hThreadAttribute);
+        pthread_create(&hThread, &hThreadAttribute, &WThread::Run, this);
+        pthread_attr_destroy(&hThreadAttribute);
 #endif
     }
 
     bool IsJoinable()
     {
-        return bThreadJoinable && hThread;
+        return bThreadJoinable;
     }
     void Join()
     {
-        if (!bThreadJoinable || hThread == nullptr) return;
+        if (!bThreadJoinable) return;
 
 #if PLATFORM_WINDOWS
         WaitForSingleObject(hThread, INFINITE);
