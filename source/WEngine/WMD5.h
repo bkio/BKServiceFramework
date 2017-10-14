@@ -49,21 +49,19 @@ public:
 
         FMD5 Md5Gen;
 
-        auto * AsAnsi = new ANSICHAR[Len];
+        auto AsAnsi = new ANSICHAR[Len];
         std::wcstombs(AsAnsi, String, static_cast<size_t>(Len));
 
         Md5Gen.Update((unsigned char*)AsAnsi, Len);
         Md5Gen.Final( Digest );
 
-        FString MD5;
-        for (int32 i = 0; i < 16; i++)
-        {
-            MD5 += FString::Printf(L"%02x", Digest[i]);
-        }
-
         delete[] AsAnsi;
 
-        return MD5;
+        std::stringstream Buf;
+        Buf.fill('0');
+        for (int32 i = 0; i < 16; i++)
+            Buf << std::hex << std::setfill('0') << std::setw(2) << (unsigned short)Digest[i];
+        return Buf.str();
     }
 private:
     struct FContext

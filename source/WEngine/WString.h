@@ -6,7 +6,11 @@
 #include "WEngine.h"
 #include "WArray.h"
 #include <string>
+#include <wchar.h>
 #include <cstdarg>
+#include <sstream>
+#include <regex>
+
 #if PLATFORM_WINDOWS
     #include "windows.h"
 #endif
@@ -72,9 +76,9 @@ public:
     }
     FString(const ANSICHAR* Other)
     {
-        UTFCHAR Tmp[1024];
-        int32 Length = swprintf(Tmp, L"%s", Other);
-        Data = std::wstring(Tmp, Length);
+        std::wstringstream Tmp;
+        Tmp << Other;
+        Data = Tmp.str();
     }
     FString(const std::wstring& Other)
     {
@@ -86,15 +90,15 @@ public:
     }
     FString(const std::string& Other)
     {
-        UTFCHAR Tmp[1024];
-        int32 Length = swprintf(Tmp, L"%s", Other.data());
-        Data = std::wstring(Tmp, Length);
+        std::wstringstream Tmp;
+        Tmp << Other.c_str();
+        Data = Tmp.str();
     }
     FString(std::string&& Other)
     {
-        UTFCHAR Tmp[1024];
-        int32 Length = swprintf(Tmp, L"%s", Other.data());
-        Data = std::wstring(Tmp, Length);
+        std::wstringstream Tmp;
+        Tmp << Other.c_str();
+        Data = Tmp.str();
     }
     FString(int32 InCount, const UTFCHAR* InSrc)
     {
@@ -136,9 +140,9 @@ public:
     }
     FString& operator=(const ANSICHAR* Other)
     {
-        UTFCHAR Tmp[1024];
-        int32 Length = swprintf(Tmp, L"%s", Other);
-        Data = std::wstring(Tmp, Length);
+        std::wstringstream Tmp;
+        Tmp << Other;
+        Data = Tmp.str();
         return *this;
     }
     FString& operator=(const std::wstring& Other)
@@ -148,9 +152,9 @@ public:
     }
     FString& operator=(const std::string& Other)
     {
-        UTFCHAR Tmp[1024];
-        int32 Length = swprintf(Tmp, L"%s", Other.data());
-        Data = std::wstring(Tmp, Length);
+        std::wstringstream Tmp;
+        Tmp << Other.c_str();
+        Data = Tmp.str();
         return *this;
     }
     bool operator==(const FString& Other)
@@ -535,28 +539,6 @@ public:
         // start with just the standard line endings
         int32 NumLineEndings = 3;
         return ParseIntoArray(OutArray, LineEndings, NumLineEndings, InCullEmpty);
-    }
-    static FString Printf(const UTFCHAR* Fmt, ...)
-    {
-        UTFCHAR Destination[1024];
-
-        va_list args;
-        va_start(args, Fmt);
-        int32 Len = swprintf(Destination, Fmt, args);
-        va_end(args);
-
-        return FString(Destination, Len);
-    }
-    static FString Printf(const ANSICHAR* Fmt, ...)
-    {
-        ANSICHAR Destination[1024];
-
-        va_list args;
-        va_start(args, Fmt);
-        int32 Len = sprintf(Destination, Fmt, args);
-        va_end(args);
-
-        return FString(Destination, Len);
     }
     void RemoveAt(int32 Index, int32 Count)
     {

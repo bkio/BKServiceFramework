@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include <cmath>
+#include <iomanip>
 #include "WMD5.h"
 #include "WBase64.h"
 #include "WVector2D.h"
@@ -122,9 +123,12 @@ FString UWUtilities::WGenerateMD5Hash(const TArray<uint8>& RawData)
     FMD5 Md5Gen;
     Md5Gen.Update(RawData.GetData(), RawData.Num());
     Md5Gen.Final(Digest);
-    FString CurrentChecksum;
-    for (int32 i = 0; i < 16; i++) CurrentChecksum += FString::Printf(L"%02x", Digest[i]);
-    return CurrentChecksum;
+
+    std::stringstream Buf;
+    Buf.fill('0');
+    for (int32 i = 0; i < 16; i++)
+        Buf << std::hex << std::setfill('0') << std::setw(2) << (unsigned short)Digest[i];
+    return Buf.str();
 }
 FWCHARWrapper UWUtilities::WBasicRawHash(FWCHARWrapper& Source, int32 FromSourceIndex, int32 Size)
 {

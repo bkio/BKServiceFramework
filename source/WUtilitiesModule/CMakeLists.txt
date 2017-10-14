@@ -22,7 +22,7 @@ file(GLOB Private_Files
         "Private/*.cpp"
         )
 
-set(SOURCE_FILES ${Public_Files} ${Private_Files})
+set(SOURCE_FILES ${Public_Files} ${Private_Files} Public/WFormat.h)
 
 add_library(WUtilitiesModule SHARED ${SOURCE_FILES})
 
