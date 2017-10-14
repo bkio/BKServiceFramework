@@ -34,7 +34,7 @@ bool UWUDPManager::InitializeSocket(uint16 Port)
     FMemory::Memzero((ANSICHAR*)&UDPServer, sizeof(UDPServer));
     UDPServer.sin_family = AF_INET;
     UDPServer.sin_addr.s_addr = INADDR_ANY;
-    UDPServer.sin_port = Port;
+    UDPServer.sin_port = htons(Port);
 
     int32 ret = bind(UDPSocket, (struct sockaddr*)&UDPServer, sizeof(UDPServer));
     if (ret == -1)
