@@ -415,13 +415,6 @@ public:
     */
     FVector2D GetAbs() const;
 
-    /**
-     * Get a textual representation of the vector.
-     *
-     * @return Text describing the vector.
-     */
-    FString ToString() const;
-
     static float GetRangePct(FVector2D const& Range, float Value);
 
     static float GetRangeValue(FVector2D const& Range, float Pct);
@@ -756,12 +749,6 @@ FVector2D FVector2D::GetSignVector() const
 FVector2D FVector2D::GetAbs() const
 {
     return {FMath::Abs(X), FMath::Abs(Y)};
-}
-
-
-FString FVector2D::ToString() const
-{
-    return FString::Printf(L"X=%3.3f Y=%3.3f", X, Y);
 }
 
 float FVector2D::GetRangePct(FVector2D const& Range, float Value)

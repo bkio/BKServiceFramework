@@ -13,15 +13,15 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMA
 set(WModules WUtilitiesModule;WNetworkModule)
 #Dependencies End
 
+set(SOURCE_FILES main.cpp)
+
 #Standart Source Files Start
 file(GLOB WEngine_Files
         "WEngine/*.h"
         "WEngine/*.cpp"
         )
-set(SOURCE_FILES ${WEngine_Files})
+set(SOURCE_FILES ${SOURCE_FILES} ${WEngine_Files})
 #Standart Source Files End
-
-set(SOURCE_FILES ${SOURCE_FILES} main.cpp) #main.cpp file
 
 include_directories(WEngine)
 

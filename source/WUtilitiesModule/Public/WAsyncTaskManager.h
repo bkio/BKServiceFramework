@@ -8,7 +8,28 @@
 #include "WThread.h"
 #include "WConditionVariable.h"
 
-typedef std::function<void()> WFutureAsyncTask;
+struct FWAsyncTaskParameter
+{
+
+public:
+    FWAsyncTaskParameter() = default;
+    virtual ~FWAsyncTaskParameter() = default;
+};
+typedef std::function<void(TArray<FWAsyncTaskParameter*>&)> WFutureAsyncTask;
+
+struct FWAwaitingTask
+{
+
+public:
+    WFutureAsyncTask FunctionPtr;
+    TArray<FWAsyncTaskParameter*> Parameters;
+
+    FWAwaitingTask(WFutureAsyncTask& Function, TArray<FWAsyncTaskParameter*>& Array)
+    {
+        FunctionPtr = Function;
+        Parameters = Array;
+    }
+};
 
 struct FWAsyncWorker
 {
@@ -16,7 +37,7 @@ struct FWAsyncWorker
 private:
     void ProcessData();
 
-    WFutureAsyncTask CurrentData;
+    FWAwaitingTask* CurrentData = nullptr;
     bool DataReady = false;
 
     WConditionVariable Condition;
@@ -25,10 +46,12 @@ private:
     WThread* WorkerThread;
 
 public:
+    FWAsyncWorker();
+
     void StartWorker();
     void EndWorker();
 
-    void SetData(WFutureAsyncTask& NewData);
+    void SetData(FWAwaitingTask* Task);
     void WorkersDen();
 };
 
@@ -42,19 +65,18 @@ public:
     static bool IsSystemStarted();
 
     static void PushFreeWorker(FWAsyncWorker* Worker);
-    static bool TryToGetAwaitingTask(WFutureAsyncTask& Destination);
+    static bool TryToGetAwaitingTask(FWAwaitingTask* Destination);
 
-    static void NewAsyncTask(WFutureAsyncTask& NewTask);
+    static void NewAsyncTask(WFutureAsyncTask& NewTask, TArray<FWAsyncTaskParameter*>& TaskParameters);
 
 private:
     static bool bSystemStarted;
 
     static UWAsyncTaskManager* ManagerInstance;
 
-    UWAsyncTaskManager() {}
-    ~UWAsyncTaskManager() {}
-    UWAsyncTaskManager(const UWAsyncTaskManager& Other) {}
-    UWAsyncTaskManager(UWAsyncTaskManager&& Other) {}
+    UWAsyncTaskManager() = default;
+    ~UWAsyncTaskManager() = default;
+    UWAsyncTaskManager(const UWAsyncTaskManager& Other);
     UWAsyncTaskManager& operator=(const UWAsyncTaskManager& Other)
     {
         return *this;
@@ -67,7 +89,7 @@ private:
     int32 WorkerThreadCount = 0;
 
     WSafeQueue<FWAsyncWorker*> FreeWorkers;
-    WSafeQueue<WFutureAsyncTask> AwaitingTasks;
+    WSafeQueue<FWAwaitingTask*> AwaitingTasks;
 };
 
 #endif //Pragma_Once_WAsyncTaskManager

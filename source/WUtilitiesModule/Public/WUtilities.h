@@ -5,6 +5,7 @@
 
 #include "WEngine.h"
 #include "WString.h"
+#include "WMutex.h"
 
 enum class EWLogType : uint8
 {
@@ -132,9 +133,14 @@ private:
 
 class UWUtilities
 {
+
+private:
+    static WMutex PrintMutex;
+
 public:
     static void Print(EWLogType LogType, const FString& format);
     static void Print(EWLogType LogType, const UTFCHAR* format);
+    static void Print(EWLogType LogType, const ANSICHAR* format);
 
     static int64 GetTimeStampInMS();
     static int32 GetSafeTimeStampInMS();

@@ -1,16 +1,15 @@
 // Copyright Pagansoft.com, All rights reserved.
 
 #include "WUDPManager.h"
-#include "WAsyncTaskManager.h"
 #include "WMemory.h"
 
 bool UWUDPManager::InitializeSocket(int32 Port)
 {
 #if PLATFORM_WINDOWS
-    WSADATA WSAData;
+    WSADATA WSAData{};
     if (WSAStartup(0x202, &WSAData) != 0)
     {
-        UWUtilities::Print(EWLogType::Error, FString::Printf(L"WSAStartup() failed with error: %d", WSAGetLastError()));
+        UWUtilities::Print(EWLogType::Error, FString(L"WSAStartup() failed with error: ") + UWUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
@@ -20,14 +19,14 @@ bool UWUDPManager::InitializeSocket(int32 Port)
 #if PLATFORM_WINDOWS
     if (UDPSocket == INVALID_SOCKET)
     {
-        UWUtilities::Print(EWLogType::Error, FString::Printf(L"Socket initialization failed with error: %d", WSAGetLastError()));
+        UWUtilities::Print(EWLogType::Error, FString(L"Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
 #else
     if (UDPSocket == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString::Printf(L"Socket initialization failed with error: %s", *UWUtilities::WGetSafeErrorMessage()));
+        UWUtilities::Print(EWLogType::Error, FString(L"Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
         return false;
     }
 #endif
@@ -35,23 +34,17 @@ bool UWUDPManager::InitializeSocket(int32 Port)
     FMemory::Memzero((ANSICHAR*)&UDPServer, sizeof(UDPServer));
     UDPServer.sin_family = AF_INET;
     UDPServer.sin_addr.s_addr = INADDR_ANY;
-    UDPServer.sin_port = htons(Port);
+    UDPServer.sin_port = htons(static_cast<u_short>(Port));
 
     int32 ret = bind(UDPSocket ,(struct sockaddr*)&UDPServer , sizeof(UDPServer));
-#if PLATFORM_WINDOWS
-    if (ret == SOCKET_ERROR)
-    {
-        UWUtilities::Print(EWLogType::Error, FString::Printf(L"Socket binding failed with error: %d", WSAGetLastError()));
-        WSACleanup();
-        return false;
-    }
-#else
     if (ret == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString::Printf(L"Socket binding failed with error: %s", *UWUtilities::WGetSafeErrorMessage()));
+        UWUtilities::Print(EWLogType::Error, FString(L"Socket binding failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+#if PLATFORM_WINDOWS
+        WSACleanup();
+#endif
         return false;
     }
-#endif
 
     return true;
 }
@@ -69,58 +62,63 @@ void UWUDPManager::ListenSocket()
 {
     while (bSystemStarted)
     {
-        fflush(stdout);
+        auto Buffer = new ANSICHAR[1024];
+        auto Client = new sockaddr;
+        int32 ClientLen = sizeof(*Client);
 
-        std::shared_ptr<sockaddr_in> Client(new struct sockaddr_in);
-        std::shared_ptr<ANSICHAR> Buffer(new ANSICHAR[1024]);
-        int32 ClientLength = sizeof(Client.get());
-
-        int32 RetrievedSize = recvfrom(UDPSocket, Buffer.get(), 1024, 0, (struct sockaddr*)Client.get(), &ClientLength);
-#if PLATFORM_WINDOWS
-        if (RetrievedSize == SOCKET_ERROR)
+        int32 RetrievedSize = recvfrom(UDPSocket, Buffer, 1024, 0, Client, &ClientLen);
+        if (RetrievedSize < 0 || !bSystemStarted)
         {
-            UWUtilities::Print(EWLogType::Error, FString::Printf(L"Socket receive failed with error: %d", WSAGetLastError()));
-            continue;
+            if (!bSystemStarted) return;
+            UWUtilities::Print(EWLogType::Error, FString(L"Socket receive failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+
+            delete[] Buffer;
+            delete (Client);
+            EndSystem();
+            return;
         }
-#else
-        if (RetrievedSize == -1)
-        {
-            UWUtilities::Print(EWLogType::Error, FString::Printf(L"Socket receive failed with error: %s", *UWUtilities::WGetSafeErrorMessage()));
-            continue;
-        }
-#endif
-        if (RetrievedSize <= 0) continue;
+        if (RetrievedSize == 0) continue;
 
-        if (!bSystemStarted) return;
+        FWUDPTaskParameter* TaskParameter = new FWUDPTaskParameter(RetrievedSize, Buffer, Client);
+        TArray<FWAsyncTaskParameter*> TaskParameterAsArray(TaskParameter);
 
-        /*UWAsyncTaskManager::NewAsyncTask([Client, Buffer, RetrievedSize]()
+        WFutureAsyncTask Lambda = [](TArray<FWAsyncTaskParameter*>& TaskParameters)
         {
-            if (Client && Buffer)
+            if (!bSystemStarted || !ManagerInstance) return;
+
+            if (TaskParameters.Num() > 0)
             {
-
+                if (FWUDPTaskParameter* Parameter = dynamic_cast<FWUDPTaskParameter*>(TaskParameters[0]))
+                {
+                    if (Parameter->Buffer && Parameter->Client && Parameter->BufferSize > 0)
+                    {
+                        ManagerInstance->Send(Parameter->Client, FWCHARWrapper(Parameter->Buffer, Parameter->BufferSize));
+                    }
+                }
             }
-        });*/
+        };
+        UWAsyncTaskManager::NewAsyncTask(Lambda, TaskParameterAsArray);
     }
 }
 
-void UWUDPManager::Send(std::shared_ptr<sockaddr_in> Client, const FWCHARWrapper& SendBuffer)
+void UWUDPManager::Send(sockaddr* Client, FWCHARWrapper&& SendBuffer)
 {
     if (!bSystemStarted) return;
 
-    if (!Client) return;
+    if (Client == nullptr) return;
     if (SendBuffer.GetSize() == 0) return;
 
-    int32 ClientLength = sizeof(Client.get());
-    int32 SentLength = sendto(UDPSocket, SendBuffer.GetValue(), SendBuffer.GetSize(), 0, (struct sockaddr*)Client.get(), ClientLength);
+    int32 ClientLength = sizeof(*Client);
+    int32 SentLength = sendto(UDPSocket, SendBuffer.GetValue(), SendBuffer.GetSize(), 0, Client, ClientLength);
 #if PLATFORM_WINDOWS
     if (SentLength == SOCKET_ERROR)
     {
-        UWUtilities::Print(EWLogType::Error, FString::Printf(L"Socket send failed with error: %d", WSAGetLastError()));
+        UWUtilities::Print(EWLogType::Error, FString(L"Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
     }
 #else
     if (SentLength == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"Socket send failed with error: %s", *UWUtilities::WGetSafeErrorMessage()));
+        UWUtilities::Print(EWLogType::Error, FString(L"Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
     }
 #endif
 }

@@ -5,6 +5,8 @@
 
 #include "WEngine.h"
 #if PLATFORM_WINDOWS
+#pragma comment(lib, "ws2_32.lib")
+#include <ws2tcpip.h>
 #include <winsock2.h>
 #else
 #include <sys/socket.h>
@@ -15,6 +17,31 @@
 #include "WUtilities.h"
 #include <iostream>
 #include <memory>
+#include <WAsyncTaskManager.h>
+
+struct FWUDPTaskParameter : public FWAsyncTaskParameter
+{
+
+public:
+    int32 BufferSize = 0;
+    ANSICHAR* Buffer = nullptr;
+    sockaddr* Client = nullptr;
+
+    FWUDPTaskParameter(int32 BufferSizeParameter, ANSICHAR* BufferParameter, sockaddr* ClientParameter)
+    {
+        BufferSize = BufferSizeParameter;
+        Buffer = BufferParameter;
+        Client = ClientParameter;
+    }
+    ~FWUDPTaskParameter()
+    {
+        if (Client)
+        {
+            delete (Client);
+        }
+        delete[] Buffer;
+    }
+};
 
 class UWUDPManager
 {
@@ -40,14 +67,14 @@ private:
     bool InitializeSocket(int32 Port);
     void CloseSocket();
     void ListenSocket();
-    void Send(std::shared_ptr<sockaddr_in> Client, const FWCHARWrapper& SendBuffer);
+    void Send(sockaddr* Client, FWCHARWrapper&& SendBuffer);
 
     WThread* UDPSystemThread;
 
     int32 WorkerThreadCount;
 
     static UWUDPManager* ManagerInstance;
-    UWUDPManager() {}
+    UWUDPManager() = default;
 };
 
 #endif

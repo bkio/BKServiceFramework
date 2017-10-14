@@ -12,7 +12,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../binaries/${
 
 include_directories(Public)
 include_directories(Private)
-include_directories(WEngine)
 
 file(GLOB Public_Files
         "Public/*.h"
@@ -25,7 +24,7 @@ file(GLOB Private_Files
 
 set(SOURCE_FILES ${Public_Files} ${Private_Files})
 
-add_library(WUtilitiesModule STATIC ${SOURCE_FILES})
+add_library(WUtilitiesModule SHARED ${SOURCE_FILES})
 
 foreach(WModule ${WDepModsOf_WUtilitiesModule})
     include_directories(${WModule}/Public)

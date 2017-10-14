@@ -12,6 +12,7 @@
 #else
     #include <pthread.h>
     #include <sched.h>
+    #include <unistd.h>
 #endif
 
 typedef std::function<void()> WThreadCallback;
@@ -23,10 +24,33 @@ private:
     WThread(const WThread&);
     const WThread& operator=(const WThread&);
 
+    int32 CurrentThreadNumber;
+
 #if PLATFORM_WINDOWS
     HANDLE hThread;
 
-    static DWORD WINAPI Run(LPVOID pVoid);
+#if PLATFORM_WINDOWS
+    static DWORD WINAPI Run(LPVOID pVoid)
+#else
+    static void* Run(void* pVoid)
+#endif
+    {
+        WThread* wThread = static_cast<WThread*>(pVoid);
+        if (wThread && wThread->Callback)
+        {
+            wThread->bThreadJoinable = true;
+            wThread->Callback();
+            wThread->bThreadJoinable = false;
+#if PLATFORM_WINDOWS
+            if (wThread->hThread)
+            {
+                CloseHandle(wThread->hThread);
+            }
+#endif
+            wThread->hThread = nullptr;
+        }
+        return 0;
+    }
 #else
     pthread_t hThread;
 
@@ -40,7 +64,7 @@ private:
 public:
     WThread(WThreadCallback ThreadCallback)
     {
-        Callback = ThreadCallback;
+        Callback = std::move(ThreadCallback);
 
 #if PLATFORM_WINDOWS
         DWORD threadID;
@@ -64,43 +88,39 @@ public:
 
     bool IsJoinable()
     {
-        return bThreadJoinable;
+        return bThreadJoinable && hThread;
     }
     void Join()
     {
-        if (!bThreadJoinable) return;
+        if (!bThreadJoinable || hThread == nullptr) return;
 
 #if PLATFORM_WINDOWS
-        if (hThread)
-        {
-            WaitForSingleObject(hThread, INFINITE);
-        }
+        WaitForSingleObject(hThread, INFINITE);
 #else
         pthread_join(hThread, nullptr);
 #endif
     }
-};
 
-#if PLATFORM_WINDOWS
-DWORD WINAPI WThread::Run(LPVOID pVoid)
-#else
-void* WThread::Run(void* pVoid)
-#endif
-{
-    WThread* wThread = static_cast<WThread*>(pVoid);
-    if (wThread && wThread->Callback)
+    int32 GetCurrentThreadNo()
     {
-        wThread->bThreadJoinable = true;
-        wThread->Callback();
-        wThread->bThreadJoinable = false;
+        return CurrentThreadNumber;
+    }
+
+    static void SleepThread(uint32 DurationMs)
+    {
 #if PLATFORM_WINDOWS
-        if (wThread->hThread)
-        {
-            CloseHandle(wThread->hThread);
-        }
+        Sleep(DurationMs);
+#else
+        usleep(DurationMs * 1000);
 #endif
     }
-    return 0;
-}
+
+    static void StartSystem()
+    {
+    }
+    static void EndSystem()
+    {
+    }
+};
 
 #endif //Pragma_Once_WThread

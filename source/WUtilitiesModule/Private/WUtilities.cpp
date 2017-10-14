@@ -3,6 +3,7 @@
 #include "WUtilities.h"
 #include <chrono>
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <cmath>
 #include "WMD5.h"
@@ -44,23 +45,40 @@ FScopeSafeCharArray::FScopeSafeCharArray(const FString& Parameter, bool UseWChar
 }
 FScopeSafeCharArray::~FScopeSafeCharArray()
 {
-    if (CharArray != nullptr)
+    if (CharArray)
     {
         delete[] CharArray;
     }
-    else if (WCharArray != nullptr)
+    else if (WCharArray)
     {
         delete[] WCharArray;
     }
 }
 
+WMutex UWUtilities::PrintMutex;
 void UWUtilities::Print(EWLogType LogType, const FString& Format)
 {
-    std::wcout << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error")) << std::wstring(*Format) << std::endl;
+    std::wstringstream Message;
+    Message << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error: ")) << std::wstring(*Format) << "\n";
+
+    WScopeGuard Guard(&PrintMutex);
+    std::wcout << Message.str();
 }
 void UWUtilities::Print(EWLogType LogType, const UTFCHAR* Format)
 {
-    std::wcout << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error")) << std::wstring(Format) << std::endl;
+    std::wstringstream Message;
+    Message << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error: ")) << std::wstring(Format) << "\n";
+
+    WScopeGuard Guard(&PrintMutex);
+    std::wcout << Message.str();
+}
+void UWUtilities::Print(EWLogType LogType, const ANSICHAR* Format)
+{
+    std::stringstream Message;
+    Message << (LogType == EWLogType::Log ? "Log: " : (LogType == EWLogType::Warning ? "Warning: " : "Error: ")) << std::string(Format) << "\n";
+
+    WScopeGuard Guard(&PrintMutex);
+    std::cout << Message.str();
 }
 
 int64 UWUtilities::GetTimeStampInMS()
@@ -81,14 +99,18 @@ FString UWUtilities::WGetSafeErrorMessage()
         ANSICHAR ErrorBuffer[512];
 
 #if PLATFORM_WINDOWS
-        strerror_s(ErrorBuffer, 512, errno);
+        int32 Length = strerror_s(ErrorBuffer, 512, errno);
 #else
-        strerror_r(errno, ErrorBuffer, 512);
+        int32 Length = strerror_r(errno, ErrorBuffer, 512);
 #endif
 
-        return FString::Printf(L"%s", (const ANSICHAR*)ErrorBuffer);
+        return FString(ErrorBuffer, Length);
     }
+#if PLATFORM_WINDOWS
+    return FString(L"Last Error Code: ") + FString::FromInt(static_cast<int32>(GetLastError()));
+#else
     return L"Error state has not been set.";
+#endif
 }
 FString UWUtilities::WGenerateMD5HashFromString(const FString& RawData)
 {
@@ -267,14 +289,14 @@ FString UWUtilities::ConvertIntegerToHex(int32 inputValue)
 
     for (int32 i = 7; i >= 0; i--)
     {
-        charData = (inputValue >> (i * 4)) & 0xf;
+        charData = static_cast<ANSICHAR>((inputValue >> (i * 4)) & 0xf);
         if (charData >= 0 && charData <= 9)
         {
             charData = charData + '0';
         }
         else if (charData >= 0xa && charData <= 0xf)
         {
-            charData = (charData + 'a' - 10);
+            charData = static_cast<ANSICHAR>(charData + 'a' - 10);
         }
         else
         {
@@ -287,7 +309,7 @@ FString UWUtilities::ConvertIntegerToHex(int32 inputValue)
 int32 UWUtilities::ConvertHexToInteger(const FString& InputData)
 {
     ANSICHAR newData[64];
-    uint8 iterations = InputData.Len();
+    auto iterations = static_cast<uint8>(InputData.Len());
     if (iterations > 64)
     {
         iterations = 64;
@@ -295,7 +317,7 @@ int32 UWUtilities::ConvertHexToInteger(const FString& InputData)
 
     for (int32 i = 0; i < iterations; i++)
     {
-        newData[i] = InputData[i];
+        newData[i] = (ANSICHAR) InputData[i];
     }
-    return std::strtoul(newData, nullptr, 16);
+    return static_cast<int32>(std::strtoul(newData, nullptr, 16));
 }

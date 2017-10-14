@@ -12,7 +12,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../binaries/${
 
 include_directories(Public)
 include_directories(Private)
-include_directories(WEngine)
 
 file(GLOB Public_Files
         "Public/*.h"
@@ -28,7 +27,7 @@ set(SOURCE_FILES ${Public_Files} ${Private_Files})
 add_library(WNetworkModule SHARED ${SOURCE_FILES})
 
 if(WIN32)
-    target_link_libraries(WNetworkModule ws2_32)
+    target_link_libraries(WNetworkModule ws2_32.lib)
     MESSAGE(STATUS "Platform: Windows")
 else()
     MESSAGE(STATUS "Platform: Non-Windows")

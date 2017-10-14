@@ -15,11 +15,42 @@ class WConditionVariable
 {
 
 public:
-    WConditionVariable();
-    ~WConditionVariable();
+    WConditionVariable()
+    {
+#if PLATFORM_WINDOWS
+        InitializeConditionVariable(&m_cond);
+#else
+        memset(&m_cond, 0, sizeof(pthread_cond_t));
 
-    void signal();
-    void wait(WScopeGuard& guard);
+        pthread_cond_init(&m_cond, NULL);
+#endif
+    }
+
+    ~WConditionVariable()
+    {
+        signal();
+#if PLATFORM_WINDOWS
+#else
+        pthread_cond_destroy(&m_cond);
+#endif
+    }
+
+    void signal()
+    {
+#if PLATFORM_WINDOWS
+        WakeAllConditionVariable(&m_cond);
+#else
+        pthread_cond_broadcast(&m_cond);
+#endif
+    }
+    void wait(WScopeGuard& guard)
+    {
+#if PLATFORM_WINDOWS
+        SleepConditionVariableCS(&m_cond, guard.handle()->handle(), INFINITE);
+#else
+        pthread_cond_wait(&m_cond, guard.handle()->handle());
+#endif
+    }
 
 private:
 #if PLATFORM_WINDOWS
@@ -28,42 +59,5 @@ private:
     pthread_cond_t  m_cond;
 #endif
 };
-
-WConditionVariable::WConditionVariable()
-{
-#if PLATFORM_WINDOWS
-    InitializeConditionVariable(&m_cond);
-#else
-    memset(&m_cond, 0, sizeof(pthread_cond_t));
-
-    pthread_cond_init(&m_cond, NULL);
-#endif
-}
-
-WConditionVariable::~WConditionVariable()
-{
-#if PLATFORM_WINDOWS
-#else
-    pthread_cond_destroy(&m_cond);
-#endif
-}
-
-void WConditionVariable::signal()
-{
-#if PLATFORM_WINDOWS
-    WakeConditionVariable(&m_cond);
-#else
-    pthread_cond_signal(&m_cond);
-#endif
-}
-
-void WConditionVariable::wait(WScopeGuard& guard)
-{
-#if PLATFORM_WINDOWS
-    SleepConditionVariableCS(&m_cond, guard.handle()->handle(), INFINITE);
-#else
-    pthread_cond_wait(&m_cond, guard.handle()->handle());
-#endif
-}
 
 #endif //Pragma_Once_WConditionVariable

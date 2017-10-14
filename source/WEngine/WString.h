@@ -66,10 +66,6 @@ public:
     {
         Data = Other.Data;
     }
-    FString(FString&& Other)
-    {
-        Data = Other.Data;
-    }
     FString(const UTFCHAR* Other)
     {
         Data = Other;
@@ -113,6 +109,14 @@ public:
         }
     }
     FString(const UTFCHAR* Other, int32 Size)
+    {
+        Data.resize(Size);
+        for (int32 i = 0; i < Size; i++)
+        {
+            Data[i] = Other[i];
+        }
+    }
+    FString(const ANSICHAR* Other, int32 Size)
     {
         Data.resize(Size);
         for (int32 i = 0; i < Size; i++)
@@ -168,12 +172,6 @@ public:
         Data += Str.Data;
         return *this;
     }
-    FString& operator/= (FString&& Str)
-    {
-        Data += L"/";
-        Data += Str.Data;
-        return *this;
-    }
     FString& operator/= (const UTFCHAR* Str)
     {
         Data += L"/";
@@ -203,24 +201,6 @@ public:
         Data += Character;
         return *this;
     }
-    FString operator+ (FString&& Str)
-    {
-        FString NewString = Data;
-        NewString += Str;
-        return NewString;
-    }
-    FString operator+ (const UTFCHAR* Str)
-    {
-        FString NewString = Data;
-        NewString += Str;
-        return NewString;
-    }
-    FString operator+ (UTFCHAR Character)
-    {
-        FString NewString = Data;
-        NewString += Character;
-        return NewString;
-    }
 
     FString& Append(const UTFCHAR* Text, int32 Count)
     {
@@ -228,11 +208,6 @@ public:
         return *this;
     }
     FString& Append(const FString& Text)
-    {
-        Data.append(Text.Data);
-        return *this;
-    }
-    FString& Append(FString&& Text)
     {
         Data.append(Text.Data);
         return *this;
@@ -572,6 +547,17 @@ public:
 
         return FString(Destination, Len);
     }
+    static FString Printf(const ANSICHAR* Fmt, ...)
+    {
+        ANSICHAR Destination[1024];
+
+        va_list args;
+        va_start(args, Fmt);
+        int32 Len = sprintf(Destination, Fmt, args);
+        va_end(args);
+
+        return FString(Destination, Len);
+    }
     void RemoveAt(int32 Index, int32 Count)
     {
         Data.erase(Index, Count);
@@ -702,40 +688,6 @@ public:
         auto last = Data.find_last_not_of(' ');
         return Data.substr(0, last + 1);
     }
-    static FString SanitizeFloat(double InFloat)
-    {
-        // Avoids negative zero
-        if( InFloat == 0 )
-        {
-            InFloat = 0;
-        }
-
-        // First create the string
-        FString TempString = FString::Printf(L"%f", InFloat);
-
-        const UTFCHAR Zero = '0';
-        const UTFCHAR Period = '.';
-
-        int32 TrimIndex = 0;
-
-        // Find the first non-zero char in the array
-        for (int32 Index = TempString.Len() - 2; Index >= 2; --Index )
-        {
-            const UTFCHAR EachChar = TempString[Index];
-            const UTFCHAR NextChar = TempString[Index-1];
-            if ((EachChar != Zero) || (NextChar == Period))
-            {
-                TrimIndex = Index;
-                break;
-            }
-        }
-        // If we changed something trim the string
-        if( TrimIndex != 0 )
-        {
-            TempString = TempString.Left( TrimIndex + 1 );
-        }
-        return TempString;
-    }
     bool FindLastChar(UTFCHAR InChar, int32& Index) const
     {
         Index = Data.find_last_of(InChar);
@@ -771,5 +723,24 @@ public:
     iterator end() { return &Data[Data.length()]; }
     const_iterator end() const { return &Data[Data.size()]; }
 };
+
+inline FString operator+ (const FString& Left, const FString& Right)
+{
+    FString NewString = Left;
+    NewString += Right;
+    return NewString;
+}
+inline FString operator+ (const FString& Left, UTFCHAR* Right)
+{
+    FString NewString = Left;
+    NewString += Right;
+    return NewString;
+}
+inline FString operator+ (const FString& Left, UTFCHAR Right)
+{
+    FString NewString = Left;
+    NewString += Right;
+    return NewString;
+}
 
 #endif //Pragma_Once_WString

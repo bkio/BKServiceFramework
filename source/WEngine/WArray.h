@@ -23,10 +23,6 @@ public:
     {
         Array = Other.Array;
     }
-    TArray<T>(TArray<T>&& Other) noexcept
-    {
-        Array = Other.Array;
-    }
     TArray<T>& operator=(const TArray<T>& Other)
     {
         Array = Other.Array;
@@ -39,6 +35,10 @@ public:
             Array.push_back(Other[i]);
         }
     }
+    explicit TArray(T Other)
+    {
+        Array.push_back(Other);
+    }
     bool operator==(const TArray<T>& Other)
     {
         return Array == Other.Array;
@@ -49,10 +49,6 @@ public:
     }
 
     void Add(const T& Item)
-    {
-        Array.push_back(Item);
-    }
-    void Add(T&& Item)
     {
         Array.push_back(Item);
     }
@@ -74,15 +70,6 @@ public:
         }
         return false;
     }
-    bool AddUnique(T&& Item)
-    {
-        if (std::find(Array.begin(), Array.end(), Item) == Array.end())
-        {
-            Array.push_back(Item);
-            return true;
-        }
-        return false;
-    }
     void Append(const TArray<T>& Other)
     {
         for (auto& Item : Other.Array)
@@ -90,21 +77,7 @@ public:
             Add(Item);
         }
     }
-    void Append(TArray<T>&& Other)
-    {
-        for (auto& Item : Other.Array)
-        {
-            Add(Item);
-        }
-    }
     void AppendUnique(const TArray<T>& Other)
-    {
-        for (auto& Item : Other.Array)
-        {
-            AddUnique(Item);
-        }
-    }
-    void AppendUnique(TArray<T>&& Other)
     {
         for (auto& Item : Other.Array)
         {
@@ -187,10 +160,6 @@ public:
     {
         Array.insert(Array.begin() + Index, Item);
     }
-    int32 Insert(T&& Item, int32 Index)
-    {
-        Array.insert(Array.begin() + Index, Item);
-    }
     int32 Insert(const T* Ptr, int32 Count, int32 Index)
     {
         std::vector<T> NewItems;
@@ -220,10 +189,6 @@ public:
     {
         Array.push_back(Item);
     }
-    void Push(T&& Item)
-    {
-        Array.push_back(Item);
-    }
     int32 Remove(const T& Item)
     {
         int32 RemovedNo = 0;
@@ -249,19 +214,7 @@ public:
     {
         return Array.at(Index);
     }
-    T* operator[](int32 Index)
-    {
-        return &Array.at(Index);
-    }
     TArray<T>& operator+= (const TArray<T>& Other)
-    {
-        if (Other != *this)
-        {
-            Append(Other);
-        }
-        return *this;
-    }
-    TArray<T>& operator+= (TArray<T>&& Other)
     {
         if (Other != *this)
         {
@@ -319,5 +272,27 @@ public:
     iterator end() { return &Array[Array.size()]; }
     const_iterator end() const { return &Array[Array.size()]; }
 };
+
+template <class T>
+inline TArray<T> operator+ (const TArray<T>& Left, const TArray<T>& Right)
+{
+    TArray<T> NewArray = Left;
+    NewArray += Right;
+    return NewArray;
+}
+template <class T>
+inline TArray<T> operator+ (const TArray<T>& Left, T Right)
+{
+    TArray<T> NewArray = Left;
+    NewArray.Add(Right);
+    return NewArray;
+}
+template <class T>
+inline TArray<T> operator+ (const TArray<T>& Left, T* Right)
+{
+    TArray<T> NewArray = Left;
+    NewArray += Right;
+    return NewArray;
+}
 
 #endif
