@@ -20,10 +20,14 @@ include_directories(Private)
 file(GLOB Public_Files
         "Public/*.h"
         "Public/*.cpp"
+        "Public/*/*.h"
+        "Public/*/*.cpp"
         )
 file(GLOB Private_Files
         "Private/*.h"
         "Private/*.cpp"
+        "Private/*/*.h"
+        "Private/*/*.cpp"
         )
 
 set(SOURCE_FILES ${Public_Files} ${Private_Files})

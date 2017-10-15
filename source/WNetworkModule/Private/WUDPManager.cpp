@@ -133,7 +133,6 @@ void UWUDPManager::Send(sockaddr* Client, FWCHARWrapper&& SendBuffer)
 #endif
 }
 
-
 UWUDPManager* UWUDPManager::ManagerInstance = nullptr;
 
 bool UWUDPManager::bSystemStarted = false;

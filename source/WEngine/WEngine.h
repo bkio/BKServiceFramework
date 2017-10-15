@@ -4,6 +4,7 @@
 #define Pragma_Once_WEngine
 
 #include <cstring>
+#include <string>
 
 #ifdef _WIN32
     #define PLATFORM_WINDOWS 1
