@@ -67,16 +67,13 @@ public:
     }
     void DeallocateValue()
     {
-        if (Value != nullptr)
-        {
-            delete[] Value;
-        }
+        delete[] Value;
         Size = 0;
     }
 
     bool bDeallocateValueOnDestructor = false;
 
-    FWCHARWrapper() {}
+    FWCHARWrapper() = default;
     FWCHARWrapper(ANSICHAR* const Parameter, int32 SizeParameter, bool _bDeallocateValueOnDestructor = false)
     {
         Value = Parameter;
@@ -108,7 +105,7 @@ public:
 class FScopeSafeCharArray
 {
 public:
-    FScopeSafeCharArray(const FString& Parameter, bool UseWChars = false);
+    explicit FScopeSafeCharArray(const FString& Parameter, bool UseWChars = false);
     ~FScopeSafeCharArray();
 
     const ANSICHAR* GetC()
@@ -120,7 +117,7 @@ public:
         return WCharArray;
     }
 private:
-    FScopeSafeCharArray();
+    FScopeSafeCharArray() = default;
     FScopeSafeCharArray(const FScopeSafeCharArray& InScopeLock);
     FScopeSafeCharArray& operator=(FScopeSafeCharArray& InScopeLock)
     {

@@ -11,6 +11,7 @@
 #include <iterator>
 #include <istream>
 #include <ostream>
+#include <memory>
 
 namespace WJson
 {
@@ -137,7 +138,7 @@ namespace WJson
         void Clear();
 
         bool Has(const std::string &name) const;
-        size_t GetCount() const;
+        size_t GetSize() const;
         Node Get(const std::string &name) const;
         Node Get(size_t index) const;
 
@@ -249,6 +250,39 @@ namespace WJson
 
         std::string error;
     };
+    Node Invalid()
+    {
+        return Node(Node::T_INVALID);
+    }
+    std::shared_ptr<Node> InvalidPtr()
+    {
+        return std::make_shared<Node>(Node::T_INVALID);
+    }
+    Node Null()
+    {
+        return Node(Node::T_NULL);
+    }
+    std::shared_ptr<Node> NullPtr()
+    {
+        return std::make_shared<Node>(Node::T_NULL);
+    }
+    Node Object()
+    {
+        return Node(Node::T_OBJECT);
+    }
+    std::shared_ptr<Node> ObjectPtr()
+    {
+        return std::make_shared<Node>(Node::T_OBJECT);
+    }
+    Node Array()
+    {
+        return Node(Node::T_ARRAY);
+    }
+    std::shared_ptr<Node> ArrayPtr()
+    {
+        return std::make_shared<Node>(Node::T_ARRAY);
+    }
 }
+#define NULL_WJSON_NODE std::shared_ptr<WJson::Node>(nullptr)
 
 #endif //Pragma_Once_WJson

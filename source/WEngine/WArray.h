@@ -156,6 +156,10 @@ public:
     {
         return Array.data();
     }
+    T* GetMutableData()
+    {
+        return Array.data();
+    }
     int32 Insert(const T& Item, int32 Index)
     {
         Array.insert(Array.begin() + Index, Item);
@@ -165,7 +169,16 @@ public:
         std::vector<T> NewItems;
         for (int32 i = 0; i < Count; i++)
         {
-            NewItems.push_back(Ptr + i);
+            NewItems.push_back(*(Ptr + i));
+        }
+        Array.insert(Array.begin() + Index, NewItems.begin(), NewItems.end());
+    }
+    int32 Insert(const T& Item, int32 Count, int32 Index)
+    {
+        std::vector<T> NewItems;
+        for (int32 i = 0; i < Count; i++)
+        {
+            NewItems.push_back(Item);
         }
         Array.insert(Array.begin() + Index, NewItems.begin(), NewItems.end());
     }

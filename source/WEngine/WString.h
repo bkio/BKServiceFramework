@@ -6,10 +6,9 @@
 #include "WEngine.h"
 #include "WArray.h"
 #include <string>
-#include <wchar.h>
 #include <cstdarg>
-#include <sstream>
 #include <regex>
+#include <codecvt>
 
 #if PLATFORM_WINDOWS
     #include "windows.h"
@@ -47,6 +46,19 @@ class FString
 private:
     std::wstring Data;
 
+    static std::wstring StringToWString(const std::string& t_str)
+    {
+        typedef std::codecvt_utf8<wchar_t> convert_type;
+        std::wstring_convert<convert_type, wchar_t> converter;
+        return converter.from_bytes(t_str);
+    }
+    static std::string WStringToString(const std::wstring& _str)
+    {
+        typedef std::codecvt_utf8<wchar_t> convert_type;
+        std::wstring_convert<convert_type, wchar_t> converter;
+        return converter.to_bytes(_str);
+    }
+
 public:
     int32 Len() const
     {
@@ -76,9 +88,7 @@ public:
     }
     FString(const ANSICHAR* Other)
     {
-        std::wstringstream Tmp;
-        Tmp << Other;
-        Data = Tmp.str();
+        Data = StringToWString(Other);
     }
     FString(const std::wstring& Other)
     {
@@ -90,15 +100,11 @@ public:
     }
     FString(const std::string& Other)
     {
-        std::wstringstream Tmp;
-        Tmp << Other.c_str();
-        Data = Tmp.str();
+        Data = StringToWString(Other);
     }
     FString(std::string&& Other)
     {
-        std::wstringstream Tmp;
-        Tmp << Other.c_str();
-        Data = Tmp.str();
+        Data = StringToWString(Other);
     }
     FString(int32 InCount, const UTFCHAR* InSrc)
     {
@@ -140,9 +146,7 @@ public:
     }
     FString& operator=(const ANSICHAR* Other)
     {
-        std::wstringstream Tmp;
-        Tmp << Other;
-        Data = Tmp.str();
+        Data = StringToWString(Other);
         return *this;
     }
     FString& operator=(const std::wstring& Other)
@@ -152,9 +156,7 @@ public:
     }
     FString& operator=(const std::string& Other)
     {
-        std::wstringstream Tmp;
-        Tmp << Other.c_str();
-        Data = Tmp.str();
+        Data = StringToWString(Other);
         return *this;
     }
     bool operator==(const FString& Other)
@@ -379,6 +381,10 @@ public:
     const UTFCHAR* GetCharArray() const
     {
         return Data.data();
+    }
+    const std::string GetAnsiCharArray() const
+    {
+        return WStringToString(Data);
     }
     void InsertAt(int32 Index, UTFCHAR Character)
     {

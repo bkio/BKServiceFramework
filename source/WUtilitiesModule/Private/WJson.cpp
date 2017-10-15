@@ -1,11 +1,11 @@
 // Copyright Pagansoft.com, All rights reserved.
 
 #include "WJson.h"
-#include <sstream>
 #include <fstream>
 #include <stack>
 #include <algorithm>
 #include <cassert>
+#include <sstream>
 
 namespace WJson
 {
@@ -312,9 +312,27 @@ namespace WJson
         }
         return false;
     }
-    size_t Node::GetCount() const
+    size_t Node::GetSize() const
     {
-        return data != nullptr ? data->children.size() : 0;
+        if (IsObject())
+        {
+            std::vector<std::string> Checked;
+
+            NamedNodeList &children = data->children;
+            for (NamedNodeList::const_iterator it = children.begin(); it != children.end(); ++it)
+            {
+                if(std::find(Checked.begin(), Checked.end(), (*it).first) == Checked.end())
+                {
+                    Checked.emplace_back((*it).first);
+                }
+            }
+            return Checked.size();
+        }
+        if (IsArray())
+        {
+            return data != nullptr ? data->children.size() : 0;
+        }
+        return 0;
     }
     Node Node::Get(const std::string &name) const
     {
@@ -446,24 +464,6 @@ namespace WJson
 
         return unescaped;
     }
-
-    Node Invalid()
-    {
-        return Node(Node::T_INVALID);
-    }
-    Node Null()
-    {
-        return Node(Node::T_NULL);
-    }
-    Node Object()
-    {
-        return Node(Node::T_OBJECT);
-    }
-    Node Array()
-    {
-        return Node(Node::T_ARRAY);
-    }
-
 
     Writer::Writer(const Format &format)
     {

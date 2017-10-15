@@ -3,6 +3,7 @@
 #ifndef Pragma_Once_WMath
 #define Pragma_Once_WMath
 
+#include <cmath>
 #include "WEngine.h"
 
 #pragma clang diagnostic push

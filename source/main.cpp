@@ -2,7 +2,6 @@
 
 #include "WEngine.h"
 #include "WUDPManager.h"
-#include "WAsyncTaskManager.h"
 
 void Start()
 {
@@ -21,14 +20,19 @@ void Restart()
     Stop();
     Start();
 }
-
 void Quit()
 {
     Stop();
 }
+void ClearUDPClientRecords()
+{
+    UWUDPManager::ClearClientRecords();
+}
 
 int main()
 {
+    setlocale(LC_CTYPE, "");
+
     UWUtilities::Print(EWLogType::Log, L"Application has started.");
 
     UWUtilities::Print(EWLogType::Log, L"Commands:");
@@ -37,6 +41,7 @@ int main()
     UWUtilities::Print(EWLogType::Log, L"1: Start");
     UWUtilities::Print(EWLogType::Log, L"2: Stop");
     UWUtilities::Print(EWLogType::Log, L"3: Restart");
+    UWUtilities::Print(EWLogType::Log, L"4: Clear UDP Client Records");
     UWUtilities::Print(EWLogType::Log, L"__________________");
 
     UWUtilities::Print(EWLogType::Log, L"Auto-start...");
@@ -65,6 +70,10 @@ int main()
         {
             Restart();
             UWUtilities::Print(EWLogType::Log, L"System restarted.");
+        }
+        else if (Signal == 4)
+        {
+            ClearUDPClientRecords();
         }
     }
 }

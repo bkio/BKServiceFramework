@@ -15,9 +15,10 @@
 #endif
 #include "WThread.h"
 #include "WUtilities.h"
+#include <WJson.h>
+#include <WAsyncTaskManager.h>
 #include <iostream>
 #include <memory>
-#include <WAsyncTaskManager.h>
 
 struct FWUDPTaskParameter : public FWAsyncTaskParameter
 {
@@ -43,12 +44,54 @@ public:
     }
 };
 
+struct WClientRecord
+{
+
+private:
+    WMutex LastClientsideTimestamp_Mutex;
+    uint16 LastClientsideTimestamp = 0;
+
+    WMutex LastInteraction_Mutex;
+    int64 LastInteraction = 0;
+
+public:
+    uint16 GetLastClientsideTimestamp()
+    {
+        return LastClientsideTimestamp;
+    }
+    void SetLastClientsideTimestamp(uint16 Timestamp)
+    {
+        WScopeGuard Guard(&LastClientsideTimestamp_Mutex);
+        LastClientsideTimestamp = Timestamp;
+    }
+
+    int64 GetLastInteraction()
+    {
+        return LastInteraction;
+    }
+
+    WClientRecord()
+    {
+        LastInteraction = UWUtilities::GetTimeStampInMS();
+    }
+    WClientRecord* UpdateLastInteraction()
+    {
+        {
+            WScopeGuard Guard(&LastInteraction_Mutex);
+            LastInteraction = UWUtilities::GetTimeStampInMS();
+        }
+        return this;
+    }
+};
+
 class UWUDPManager
 {
 
 public:
     static bool StartSystem(uint16 Port);
     static void EndSystem();
+
+    static void ClearClientRecords();
 
     /*
     * Server: if bIgnoreTimestamp == false && Timestamp == 0, sends one package with bReliable = true, bIgnoreTimestamp = true
@@ -91,10 +134,10 @@ public:
         "CharArray": "Demonstration"
     }
     */
-    static void AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter);
+    static std::shared_ptr<WJson::Node> AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* Client);
 
     //Do not forget to deallocate the result manually.
-    static FWCHARWrapper MakeByteArrayForNetworkData(class UWDataMap* Parameter, bool bReliable = false, bool bTimeOrderCriticalData = false);
+    static FWCHARWrapper MakeByteArrayForNetworkData(std::shared_ptr<WJson::Node> Parameter, bool bReliable = false, bool bTimeOrderCriticalData = false);
 
 private:
     static bool bSystemStarted;
@@ -102,7 +145,18 @@ private:
     bool StartSystem_Internal(uint16 Port);
     void EndSystem_Internal();
 
+    void HandleReliableData(uint32 MessageID, bool bSuccess);
+
     struct sockaddr_in UDPServer;
+
+    WMutex ClientsRecord_Mutex;
+    std::map<ANSICHAR*, WClientRecord*> ClientRecords;
+
+    WMutex LastServersideGeneratedTimestamp_Mutex;
+    uint16 LastServersideGeneratedTimestamp = 0;
+
+    WMutex LastServersideMessageID_Mutex;
+    uint32 LastServersideMessageID = 0;
 
 #if PLATFORM_WINDOWS
     SOCKET UDPSocket;
@@ -113,7 +167,7 @@ private:
     bool InitializeSocket(uint16 Port);
     void CloseSocket();
     void ListenSocket();
-    void Send(sockaddr* Client, FWCHARWrapper&& SendBuffer);
+    void Send(sockaddr* Client, const FWCHARWrapper& SendBuffer);
 
     WThread* UDPSystemThread;
 
