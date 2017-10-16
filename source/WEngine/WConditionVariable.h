@@ -4,11 +4,6 @@
 #define Pragma_Once_WConditionVariable
 
 #include "WEngine.h"
-#if PLATFORM_WINDOWS
-    #include <windows.h>
-#else
-    #include <pthread.h>
-#endif
 #include "WMutex.h"
 
 class WConditionVariable
@@ -45,18 +40,14 @@ public:
     }
     void wait(WScopeGuard& guard)
     {
-#if PLATFORM_WINDOWS
-        SleepConditionVariableCS(&m_cond, guard.handle()->handle(), INFINITE);
-#else
-        pthread_cond_wait(&m_cond, guard.handle()->handle());
-#endif
+        guard.SleepWithCondition(&m_cond);
     }
 
 private:
 #if PLATFORM_WINDOWS
-    CONDITION_VARIABLE      m_cond;
+    CONDITION_VARIABLE m_cond{};
 #else
-    pthread_cond_t  m_cond;
+    pthread_cond_t m_cond;
 #endif
 };
 

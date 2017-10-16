@@ -17,6 +17,8 @@
 #include "WUtilities.h"
 #include <WJson.h>
 #include <WAsyncTaskManager.h>
+#include <unordered_map>
+#include <unordered_set>
 #include <iostream>
 #include <memory>
 
@@ -44,15 +46,47 @@ public:
     }
 };
 
-struct WClientRecord
+struct WUDPRecord
+{
+
+protected:
+    WMutex LastInteraction_Mutex;
+    int64 LastInteraction = 0;
+
+    WUDPRecord();
+
+    virtual bool ResetterFunction() = 0;
+    virtual uint32 TimeoutValueMS() = 0;
+
+public:
+    int64 GetLastInteraction()
+    {
+        return LastInteraction;
+    }
+    void UpdateLastInteraction()
+    {
+        WScopeGuard Guard(&LastInteraction_Mutex);
+        LastInteraction = UWUtilities::GetTimeStampInMS();
+    }
+
+    WMutex Dangerzone_Mutex;
+
+    ~WUDPRecord();
+};
+
+struct WClientRecord : public WUDPRecord
 {
 
 private:
     WMutex LastClientsideTimestamp_Mutex;
     uint16 LastClientsideTimestamp = 0;
 
-    WMutex LastInteraction_Mutex;
-    int64 LastInteraction = 0;
+    bool ResetterFunction() override
+    {
+        SetLastClientsideTimestamp(0);
+        return false;
+    }
+    uint32 TimeoutValueMS() override { return 10000; }
 
 public:
     uint16 GetLastClientsideTimestamp()
@@ -65,23 +99,39 @@ public:
         LastClientsideTimestamp = Timestamp;
     }
 
-    int64 GetLastInteraction()
+    WClientRecord() = default;
+};
+
+struct WReliableConnectionRecord : public WUDPRecord
+{
+
+private:
+    WMutex LastClientsideMessageID_Mutex;
+    uint32 LastClientsideMessageID = 0;
+
+    bool ResetterFunction() override
     {
-        return LastInteraction;
+        return true;
+    }
+    uint32 TimeoutValueMS() override { return 5000; }
+
+public:
+    WReliableConnectionRecord() = default;
+    explicit WReliableConnectionRecord(uint32 MessageID)
+    {
+        LastClientsideMessageID = MessageID;
     }
 
-    WClientRecord()
+    uint32 GetLastClientsideMessageID()
     {
-        LastInteraction = UWUtilities::GetTimeStampInMS();
+        return LastClientsideMessageID;
     }
-    WClientRecord* UpdateLastInteraction()
+    void SetLastClientsideMessageID(uint32 MessageID)
     {
-        {
-            WScopeGuard Guard(&LastInteraction_Mutex);
-            LastInteraction = UWUtilities::GetTimeStampInMS();
-        }
-        return this;
+        WScopeGuard Guard(&LastClientsideMessageID_Mutex);
+        LastClientsideMessageID = MessageID;
     }
+
 };
 
 class UWUDPManager
@@ -139,18 +189,27 @@ public:
     //Do not forget to deallocate the result manually.
     static FWCHARWrapper MakeByteArrayForNetworkData(std::shared_ptr<WJson::Node> Parameter, bool bReliable = false, bool bTimeOrderCriticalData = false);
 
+    static void AddNewUDPRecord(WUDPRecord* NewRecord);
+    static void RemoveUDPRecord(WUDPRecord* OldRecord);
+
 private:
     static bool bSystemStarted;
 
     bool StartSystem_Internal(uint16 Port);
     void EndSystem_Internal();
 
-    void HandleReliableData(uint32 MessageID, bool bSuccess);
+    void HandleReliableData(sockaddr* Client, uint32 MessageID, bool bSuccess);
 
     struct sockaddr_in UDPServer;
 
     WMutex ClientsRecord_Mutex;
-    std::map<ANSICHAR*, WClientRecord*> ClientRecords;
+    std::unordered_map<ANSICHAR*, WClientRecord*> ClientRecords;
+
+    WMutex ReliableConnectionRecords_Mutex;
+    std::unordered_map<ANSICHAR*, WReliableConnectionRecord*> ReliableConnectionRecords;
+
+    WMutex UDPRecordsForTimeoutCheck_Mutex;
+    std::unordered_set<WUDPRecord*> UDPRecordsForTimeoutCheck;
 
     WMutex LastServersideGeneratedTimestamp_Mutex;
     uint16 LastServersideGeneratedTimestamp = 0;
@@ -168,6 +227,9 @@ private:
     void CloseSocket();
     void ListenSocket();
     void Send(sockaddr* Client, const FWCHARWrapper& SendBuffer);
+
+    void ClearReliableConnections();
+    void ClearUDPRecordsForTimeoutCheck();
 
     WThread* UDPSystemThread;
 

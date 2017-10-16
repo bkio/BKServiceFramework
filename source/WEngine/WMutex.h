@@ -16,13 +16,12 @@ class WMutex
 private:
 
 #if PLATFORM_WINDOWS
-    CRITICAL_SECTION _mutex; /**< Windows mutex */
+    CRITICAL_SECTION _mutex{};
 #else
-    pthread_mutex_t _mutex; /**< Posix mutex */
+    pthread_mutex_t _mutex{};
 #endif
 
-    volatile bool _locked;
-
+    bool _locked = false;
 
     void init()
     {
@@ -45,7 +44,7 @@ public:
         init();
     }
 
-    WMutex(const WMutex &in_mutex)
+    WMutex(const WMutex& in_mutex)
     {
         init();
 
@@ -59,7 +58,7 @@ public:
         }
     }
 
-    WMutex& operator=(const WMutex &in_mutex)
+    WMutex& operator=(const WMutex& in_mutex)
     {
         if (in_mutex._locked && !_locked)
         {
@@ -116,39 +115,54 @@ public:
         return pthread_mutex_unlock(&_mutex) == 0;
 #endif
     }
-
-    bool isLocked() const
-    {
-        return _locked;
-    }
 };
 
-class WScopeGuard
+#define WScopeGuard volatile WScopeGuard_Internal
+class WScopeGuard_Internal
 {
 
 private:
-    WMutex* RelativeMutex;
-
-    WScopeGuard(const WScopeGuard &InGuard)
-    {
-        RelativeMutex = InGuard.RelativeMutex;
-    }
-    WScopeGuard& operator=(const WScopeGuard &InGuard)
-    {
-        RelativeMutex = InGuard.RelativeMutex;
-        return *this;
-    }
+    WMutex* RelativeMutex = nullptr;
 
 public:
-    WScopeGuard(WMutex* Mutex)
+    explicit WScopeGuard_Internal(WMutex* Mutex, bool bDoNoLock = false)
+    {
+        RelativeMutex = Mutex;
+        if (!bDoNoLock && RelativeMutex != nullptr)
+        {
+            RelativeMutex->lock();
+        }
+    }
+    volatile WScopeGuard_Internal& operator=(WMutex* Mutex) volatile noexcept
     {
         RelativeMutex = Mutex;
         if (RelativeMutex != nullptr)
         {
             RelativeMutex->lock();
         }
+        return *this;
     }
-    ~WScopeGuard()
+    WScopeGuard_Internal(WScopeGuard_Internal&& InGuard) noexcept
+    {
+        RelativeMutex = InGuard.RelativeMutex;
+    }
+    WScopeGuard_Internal& operator=(WScopeGuard_Internal&& InGuard) noexcept
+    {
+        RelativeMutex = InGuard.RelativeMutex;
+        return *this;
+    }
+    //There must not be an existing Mutex assigned to this.
+    void SetMutex(WMutex* Mutex) volatile
+    {
+        if (RelativeMutex == nullptr && Mutex != nullptr)
+        {
+            RelativeMutex = Mutex;
+        }
+    }
+
+    WScopeGuard_Internal() = default;
+
+    ~WScopeGuard_Internal()
     {
         if (RelativeMutex != nullptr)
         {
@@ -156,10 +170,20 @@ public:
         }
     }
 
-    WMutex* handle()
+#if PLATFORM_WINDOWS
+    void SleepWithCondition(CONDITION_VARIABLE* Condition) volatile
+#else
+    void SleepWithCondition(pthread_cond_t* Condition)
+#endif
     {
-        return RelativeMutex;
-    };
+        if (Condition == nullptr) return;
+
+#if PLATFORM_WINDOWS
+        SleepConditionVariableCS(Condition, RelativeMutex->handle(), INFINITE);
+#else
+        pthread_cond_wait(Condition, RelativeMutex->handle());
+#endif
+    }
 };
 
 #endif //Pragma_Once_WMutex

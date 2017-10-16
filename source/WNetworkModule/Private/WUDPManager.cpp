@@ -186,6 +186,8 @@ void UWUDPManager::EndSystem()
 }
 void UWUDPManager::EndSystem_Internal()
 {
+    ClearUDPRecordsForTimeoutCheck();
+    ClearReliableConnections();
     CloseSocket();
     if (UDPSystemThread != nullptr)
     {
@@ -208,10 +210,42 @@ void UWUDPManager::ClearClientRecords()
     {
         if (It.second != nullptr)
         {
+            WScopeGuard Dangerouszone_Guard(&It.second->Dangerzone_Mutex);
             delete (It.second);
         }
     }
     ManagerInstance->ClientRecords.clear();
+}
+void UWUDPManager::ClearReliableConnections()
+{
+    if (!bSystemStarted) return;
+
+    WScopeGuard Guard(&ReliableConnectionRecords_Mutex);
+    for (auto& It : ReliableConnectionRecords)
+    {
+        if (It.second != nullptr)
+        {
+            WScopeGuard Dangerzone_Guard(&It.second->Dangerzone_Mutex);
+            delete (It.second);
+        }
+    }
+    ReliableConnectionRecords.clear();
+}
+void UWUDPManager::ClearUDPRecordsForTimeoutCheck()
+{
+    if (!bSystemStarted) return;
+
+    WScopeGuard Guard(&UDPRecordsForTimeoutCheck_Mutex);
+    for (auto& It : UDPRecordsForTimeoutCheck)
+    {
+        WUDPRecord* Record = It;
+        if (Record != nullptr)
+        {
+            WScopeGuard Dangerzone_Guard(&Record->Dangerzone_Mutex);
+            delete (Record);
+        }
+    }
+    ReliableConnectionRecords.clear();
 }
 
 std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* Client)
@@ -240,7 +274,7 @@ std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHA
     {
         if (bReliable)
         {
-            ManagerInstance->HandleReliableData(MessageID, false);
+            ManagerInstance->HandleReliableData(Client, MessageID, false);
         }
         return NULL_WJSON_NODE;
     }
@@ -254,7 +288,7 @@ std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHA
         {
             if (bReliable)
             {
-                ManagerInstance->HandleReliableData(MessageID, false);
+                ManagerInstance->HandleReliableData(Client, MessageID, false);
             }
             return NULL_WJSON_NODE;
         }
@@ -262,64 +296,69 @@ std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHA
     //
 
     //Timestamp operation starts.
-    WClientRecord* ClientRecord = nullptr;
     {
-        WScopeGuard Guard(&ManagerInstance->ClientsRecord_Mutex);
-        auto It = ManagerInstance->ClientRecords.find(Client->sa_data);
-        if (It != ManagerInstance->ClientRecords.end())
+        WScopeGuard ClientRecord_Dangerzone_Guard;
+        WClientRecord* ClientRecord = nullptr;
         {
-            if (It->second == nullptr)
+            WScopeGuard Guard(&ManagerInstance->ClientsRecord_Mutex);
+            auto It = ManagerInstance->ClientRecords.find(Client->sa_data);
+            if (It != ManagerInstance->ClientRecords.end())
             {
-                It->second = new WClientRecord();
+                if (It->second == nullptr)
+                {
+                    It->second = new WClientRecord();
+                }
+                else
+                {
+                    It->second->UpdateLastInteraction();
+                }
+                ClientRecord = It->second;
             }
             else
             {
-                It->second->UpdateLastInteraction();
+                ClientRecord = new WClientRecord();
+                ManagerInstance->ClientRecords.insert(std::pair<ANSICHAR*, WClientRecord*>(Client->sa_data, ClientRecord));
             }
-            ClientRecord = It->second;
+            ClientRecord_Dangerzone_Guard.SetMutex(&ClientRecord->Dangerzone_Mutex);
+        }
+
+        uint16 Timestamp = 0;
+        if (!bIgnoreTimestamp)
+        {
+            if (Parameter.GetSize() < (AfterChecksumStartIx + 3 /* + 2 + 1 */))
+            {
+                if (bReliable)
+                {
+                    ManagerInstance->HandleReliableData(Client, MessageID, false);
+                }
+                return NULL_WJSON_NODE;
+            }
+
+            FMemory::Memcpy(&Timestamp, Parameter.GetValue() + AfterChecksumStartIx, 2);
+
+            const uint16 LastClientsideTimestamp = ClientRecord->GetLastClientsideTimestamp();
+            if (LastClientsideTimestamp != 0 && Timestamp < LastClientsideTimestamp)
+            {
+                if (bReliable)
+                {
+                    ManagerInstance->HandleReliableData(Client, MessageID, false);
+                }
+                return NULL_WJSON_NODE;
+            }
+
+            ClientRecord->SetLastClientsideTimestamp(Timestamp);
         }
         else
         {
-            ClientRecord = new WClientRecord();
-            ManagerInstance->ClientRecords.insert(std::pair<ANSICHAR*, WClientRecord*>(Client->sa_data, ClientRecord));
+            ClientRecord->SetLastClientsideTimestamp(0);
         }
-    }
-    uint16 Timestamp = 0;
-    if (!bIgnoreTimestamp)
-    {
-        if (Parameter.GetSize() < (AfterChecksumStartIx + 3 /* + 2 + 1 */))
-        {
-            if (bReliable)
-            {
-                ManagerInstance->HandleReliableData(MessageID, false);
-            }
-            return NULL_WJSON_NODE;
-        }
-
-        FMemory::Memcpy(&Timestamp, Parameter.GetValue() + AfterChecksumStartIx, 2);
-
-        const uint16 LastClientsideTimestamp = ClientRecord->GetLastClientsideTimestamp();
-        if (LastClientsideTimestamp != 0 && Timestamp < LastClientsideTimestamp)
-        {
-            if (bReliable)
-            {
-                ManagerInstance->HandleReliableData(MessageID, false);
-            }
-            return NULL_WJSON_NODE;
-        }
-
-        ClientRecord->SetLastClientsideTimestamp(Timestamp);
-    }
-    else
-    {
-        ClientRecord->SetLastClientsideTimestamp(0);
     }
     //
 
     //Reliable confirmation
     if (bReliable)
     {
-        ManagerInstance->HandleReliableData(MessageID, true);
+        ManagerInstance->HandleReliableData(Client, MessageID, true);
     }
     //
 
@@ -520,7 +559,7 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(std::shared_ptr<WJson::N
     {
         uint32 MessageID;
         {
-            WScopeGuard Guard(&ManagerInstance->LastServersideGeneratedTimestamp_Mutex);
+            WScopeGuard Guard(&ManagerInstance->LastServersideMessageID_Mutex);
 
             if (ManagerInstance->LastServersideMessageID == (uint32)4294967295) ManagerInstance->LastServersideMessageID = 0;
             else ManagerInstance->LastServersideMessageID++;
@@ -697,7 +736,60 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(std::shared_ptr<WJson::N
     return FWCHARWrapper(ResultArray, Result.Num(), false);
 }
 
-void UWUDPManager::HandleReliableData(uint32 MessageID, bool bSuccess)
+void UWUDPManager::AddNewUDPRecord(WUDPRecord* NewRecord)
 {
+    if (!bSystemStarted || ManagerInstance == nullptr || NewRecord == nullptr) return;
+
+    WScopeGuard Guard(&ManagerInstance->UDPRecordsForTimeoutCheck_Mutex);
+    ManagerInstance->UDPRecordsForTimeoutCheck.insert(NewRecord);
+
+}
+void UWUDPManager::RemoveUDPRecord(WUDPRecord* OldRecord)
+{
+    if (!bSystemStarted || ManagerInstance == nullptr || OldRecord == nullptr) return;
+
+    WScopeGuard Record_Dangerzone_Guard(&OldRecord->Dangerzone_Mutex);
+    WScopeGuard Guard(&ManagerInstance->UDPRecordsForTimeoutCheck_Mutex);
+    ManagerInstance->UDPRecordsForTimeoutCheck.erase(OldRecord);
+}
+
+WUDPRecord::WUDPRecord() : LastInteraction(UWUtilities::GetTimeStampInMS())
+{
+    UWUDPManager::AddNewUDPRecord(this);
+}
+WUDPRecord::~WUDPRecord()
+{
+    UWUDPManager::RemoveUDPRecord(this);
+}
+
+void UWUDPManager::HandleReliableData(sockaddr* Client, uint32 MessageID, bool bSuccess)
+{
+    if (!bSystemStarted) return;
+
+    WScopeGuard ReliableConnectionRecords_Dangerzone_Guard;
+    WReliableConnectionRecord* ReliableConnection = nullptr;
+    {
+        WScopeGuard Guard(&ManagerInstance->ReliableConnectionRecords_Mutex);
+        auto It = ManagerInstance->ReliableConnectionRecords.find(Client->sa_data);
+        if (It != ManagerInstance->ReliableConnectionRecords.end())
+        {
+            if (It->second == nullptr)
+            {
+                It->second = new WReliableConnectionRecord();
+            }
+            else
+            {
+                It->second->UpdateLastInteraction();
+            }
+            ReliableConnection = It->second;
+        }
+        else
+        {
+            ReliableConnection = new WReliableConnectionRecord();
+            ManagerInstance->ReliableConnectionRecords.insert(std::pair<ANSICHAR*, WReliableConnectionRecord*>(Client->sa_data, ReliableConnection));
+        }
+        ReliableConnectionRecords_Dangerzone_Guard.SetMutex(&ReliableConnection->Dangerzone_Mutex);
+    }
+
 
 }
