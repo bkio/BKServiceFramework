@@ -104,7 +104,7 @@ void UWUDPManager::ListenSocket()
                         std::shared_ptr<WJson::Node> Result = AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
                         if (Result != nullptr)
                         {
-                            FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Result, false, true);
+                            FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, Result, true);
                             ManagerInstance->Send(Parameter->Client, WrappedFinalData);
                             WrappedFinalData.DeallocateValue();
                         }
@@ -197,7 +197,7 @@ void UWUDPManager::EndSystem_Internal()
         }
         delete (UDPSystemThread);
     }
-    LastServersideMessageID = 0;
+    LastServersideMessageID = 1;
     LastServersideGeneratedTimestamp = 0;
 }
 
@@ -223,10 +223,16 @@ void UWUDPManager::ClearReliableConnections()
     WScopeGuard Guard(&ReliableConnectionRecords_Mutex);
     for (auto& It : ReliableConnectionRecords)
     {
-        if (It.second != nullptr)
+        if (It.second.Num() > 0)
         {
-            WScopeGuard Dangerzone_Guard(&It.second->Dangerzone_Mutex);
-            delete (It.second);
+            for (WReliableConnectionRecord* Record : It.second)
+            {
+                if (Record != nullptr)
+                {
+                    WScopeGuard Dangerzone_Guard(&Record->Dangerzone_Mutex);
+                    delete (Record);
+                }
+            }
         }
     }
     ReliableConnectionRecords.clear();
@@ -235,17 +241,7 @@ void UWUDPManager::ClearUDPRecordsForTimeoutCheck()
 {
     if (!bSystemStarted) return;
 
-    WScopeGuard Guard(&UDPRecordsForTimeoutCheck_Mutex);
-    for (auto& It : UDPRecordsForTimeoutCheck)
-    {
-        WUDPRecord* Record = It;
-        if (Record != nullptr)
-        {
-            WScopeGuard Dangerzone_Guard(&Record->Dangerzone_Mutex);
-            delete (Record);
-        }
-    }
-    ReliableConnectionRecords.clear();
+    UDPRecordsForTimeoutCheck.clear();
 }
 
 std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* Client)
@@ -256,9 +252,15 @@ std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHA
     //Boolean flags operation starts.
     TArray<bool> ResultOfDecompress;
     if (!UWUtilities::DecompressBitAsBoolArray(ResultOfDecompress, Parameter, 0, 0)) return NULL_WJSON_NODE;
-    bool bReliable = ResultOfDecompress[0];
-    bool bIgnoreTimestamp = ResultOfDecompress[1];
+    bool bReliableSYN = ResultOfDecompress[0];
+    bool bReliableSYNSuccess = ResultOfDecompress[1];
+    bool bReliableSYNFailure = ResultOfDecompress[2];
+    bool bReliableSYNACKSuccess = ResultOfDecompress[3];
+    bool bReliableACK = ResultOfDecompress[4];
+    bool bIgnoreTimestamp = ResultOfDecompress[5];
     //
+
+    bool bReliable = bReliableSYN || bReliableSYNSuccess || bReliableSYNFailure || bReliableSYNACKSuccess || bReliableACK;
 
     //Reliable operation starts.
     uint32 MessageID = 0;
@@ -268,13 +270,43 @@ std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHA
     }
     //
 
+    if (!bReliableSYN && MessageID > 0)
+    {
+        if (bReliableSYNSuccess)
+        {
+            ManagerInstance->HandleReliableSYNSuccess(Client, MessageID);
+        }
+        else if (bReliableSYNFailure)
+        {
+            ManagerInstance->HandleReliableSYNFailure(Client, MessageID);
+        }
+        else if (bReliableSYNACKSuccess)
+        {
+            ManagerInstance->HandleReliableSYNACKSuccess(Client, MessageID);
+        }
+        else if (bReliableACK)
+        {
+            ManagerInstance->HandleReliableACKArrival(Client, MessageID);
+        }
+        else
+        {
+            return NULL_WJSON_NODE;
+        }
+
+        return WJson::ValidationPtr();
+    }
+    else if (!bReliableSYN && MessageID == 0)
+    {
+        return NULL_WJSON_NODE;
+    }
+
     //Checksum operations start.
     const int32 AfterChecksumStartIx = bReliable ? 9 : 5;
     if (Parameter.GetSize() < (AfterChecksumStartIx + 1))
     {
-        if (bReliable)
+        if (bReliableSYN)
         {
-            ManagerInstance->HandleReliableData(Client, MessageID, false);
+            ManagerInstance->AsReceiverReliableSYNFailure(Client, MessageID);
         }
         return NULL_WJSON_NODE;
     }
@@ -286,9 +318,9 @@ std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHA
     {
         if (Hashed.GetArrayElement(i) != Parameter.GetArrayElement(i + ChecksumStartIx))
         {
-            if (bReliable)
+            if (bReliableSYN)
             {
-                ManagerInstance->HandleReliableData(Client, MessageID, false);
+                ManagerInstance->AsReceiverReliableSYNFailure(Client, MessageID);
             }
             return NULL_WJSON_NODE;
         }
@@ -327,9 +359,9 @@ std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHA
         {
             if (Parameter.GetSize() < (AfterChecksumStartIx + 3 /* + 2 + 1 */))
             {
-                if (bReliable)
+                if (bReliableSYN)
                 {
-                    ManagerInstance->HandleReliableData(Client, MessageID, false);
+                    ManagerInstance->AsReceiverReliableSYNFailure(Client, MessageID);
                 }
                 return NULL_WJSON_NODE;
             }
@@ -339,9 +371,9 @@ std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHA
             const uint16 LastClientsideTimestamp = ClientRecord->GetLastClientsideTimestamp();
             if (LastClientsideTimestamp != 0 && Timestamp < LastClientsideTimestamp)
             {
-                if (bReliable)
+                if (bReliableSYN)
                 {
-                    ManagerInstance->HandleReliableData(Client, MessageID, false);
+                    ManagerInstance->AsReceiverReliableSYNFailure(Client, MessageID);
                 }
                 return NULL_WJSON_NODE;
             }
@@ -356,9 +388,9 @@ std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHA
     //
 
     //Reliable confirmation
-    if (bReliable)
+    if (bReliableSYN)
     {
-        ManagerInstance->HandleReliableData(Client, MessageID, true);
+        ManagerInstance->AsReceiverReliableSYNSuccess(Client, MessageID);
     }
     //
 
@@ -530,23 +562,41 @@ std::shared_ptr<WJson::Node> UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHA
     return ResultMap;
 }
 
-FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(std::shared_ptr<WJson::Node> Parameter, bool bReliable, bool bTimeOrderCriticalData)
+FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(
+        sockaddr* Client,
+        std::shared_ptr<WJson::Node> Parameter,
+        bool bTimeOrderCriticalData,
+        bool bReliableSYN,
+        bool bReliableSYNSuccess,
+        bool bReliableSYNFailure,
+        bool bReliableSYNACKSuccess,
+        bool bReliableACK,
+        int32 ReliableMessageID)
 {
     if (!bSystemStarted || ManagerInstance == nullptr) return FWCHARWrapper();
-    if (Parameter == nullptr || Parameter->GetType() != WJson::Node::Type::T_OBJECT) return FWCHARWrapper();
+    if (Parameter == nullptr || Client == nullptr ||
+            (Parameter->GetType() != WJson::Node::Type::T_OBJECT &&
+                    (Parameter->GetType() == WJson::Node::Type::T_VALIDATION && ReliableMessageID == 0)))
+        return FWCHARWrapper();
 
     TArray<ANSICHAR> Result;
 
     if (ManagerInstance->LastServersideGeneratedTimestamp == 65535)
     {
-        bReliable = true;
+        bReliableSYN = true;
         bTimeOrderCriticalData = false;
     }
 
     //Boolean flags operation starts.
     TArray<bool> Flags;
-    Flags.Add(bReliable);
+    Flags.Add(bReliableSYN);
+    Flags.Add(bReliableSYNSuccess);
+    Flags.Add(bReliableSYNFailure);
+    Flags.Add(bReliableSYNACKSuccess);
+    Flags.Add(bReliableACK);
     Flags.Add(!bTimeOrderCriticalData);
+
+    bool bReliable = bReliableSYN || bReliableSYNSuccess || bReliableSYNFailure || bReliableSYNACKSuccess || bReliableACK;
 
     FWCHARWrapper CompressedFlags(new ANSICHAR[1], 1, true);
     if (!UWUtilities::CompressBooleanAsBit(CompressedFlags, Flags)) return FWCHARWrapper();
@@ -555,13 +605,20 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(std::shared_ptr<WJson::N
     //
 
     //Reliable operations start.
+    bool bReliableValidation = false;
+    uint32 MessageID = 0;
     if (bReliable)
     {
-        uint32 MessageID;
+        if (ReliableMessageID != 0)
+        {
+            MessageID = (uint32)ReliableMessageID;
+            bReliableValidation = true;
+        }
+        else
         {
             WScopeGuard Guard(&ManagerInstance->LastServersideMessageID_Mutex);
 
-            if (ManagerInstance->LastServersideMessageID == (uint32)4294967295) ManagerInstance->LastServersideMessageID = 0;
+            if (ManagerInstance->LastServersideMessageID == (uint32)4294967295) ManagerInstance->LastServersideMessageID = 1;
             else ManagerInstance->LastServersideMessageID++;
 
             MessageID = ManagerInstance->LastServersideMessageID;
@@ -573,167 +630,177 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(std::shared_ptr<WJson::N
     }
     //
 
-    //Checksum initial operation starts.
-    int32 ChecksumInsertIx = Result.Num();
-    //
-
-    //Timestamp operations start.
-    if (bTimeOrderCriticalData)
+    if (!bReliableValidation)
     {
-        uint16 Timestamp;
+        //Checksum initial operation starts.
+        int32 ChecksumInsertIx = Result.Num();
+        //
+
+        //Timestamp operations start.
+        if (bTimeOrderCriticalData)
         {
-            WScopeGuard Guard(&ManagerInstance->LastServersideGeneratedTimestamp_Mutex);
-
-            if (ManagerInstance->LastServersideGeneratedTimestamp == (uint16)65535) ManagerInstance->LastServersideGeneratedTimestamp = 0;
-            else ManagerInstance->LastServersideGeneratedTimestamp++;
-
-            Timestamp = ManagerInstance->LastServersideGeneratedTimestamp;
-        }
-
-        FWCHARWrapper ConvertedTimestamp(new ANSICHAR[2], 2, true);
-        FMemory::Memcpy(ConvertedTimestamp.GetValue(), &Timestamp, 2);
-        for (int32 i = 0; i < 2; i++) Result.Add(ConvertedTimestamp.GetArrayElement(i));
-    }
-    //
-
-    //Generic parts encoding starts.
-    for (const WJson::NamedNode& NamedNode : *Parameter.get())
-    {
-        ANSICHAR InfoByte;
-
-        std::string KeyString = NamedNode.first;
-        if (KeyString == "CharArray")
-        {
-            std::string ValueString = NamedNode.second.ToString("");
-            auto Length = (ANSICHAR)ValueString.length();
-            if (Length > 0 && Length < 32)
+            uint16 Timestamp;
             {
-                InfoByte = 2;
-                InfoByte |= Length << 3;
-                Result.Add(InfoByte);
+                WScopeGuard Guard(&ManagerInstance->LastServersideGeneratedTimestamp_Mutex);
 
-                for (int32 i = 0; i < Length; i++) Result.Add(ValueString[i]);
+                if (ManagerInstance->LastServersideGeneratedTimestamp == (uint16)65535) ManagerInstance->LastServersideGeneratedTimestamp = 0;
+                else ManagerInstance->LastServersideGeneratedTimestamp++;
+
+                Timestamp = ManagerInstance->LastServersideGeneratedTimestamp;
             }
+
+            FWCHARWrapper ConvertedTimestamp(new ANSICHAR[2], 2, true);
+            FMemory::Memcpy(ConvertedTimestamp.GetValue(), &Timestamp, 2);
+            for (int32 i = 0; i < 2; i++) Result.Add(ConvertedTimestamp.GetArrayElement(i));
         }
-        else
+        //
+
+        //Generic parts encoding starts.
+        for (const WJson::NamedNode& NamedNode : *Parameter.get())
         {
-            WJson::Node ValueList = NamedNode.second;
-            if (ValueList.GetType() == WJson::Node::Type::T_ARRAY)
+            ANSICHAR InfoByte;
+
+            std::string KeyString = NamedNode.first;
+            if (KeyString == "CharArray")
             {
-                auto Length = (ANSICHAR)ValueList.GetSize();
+                std::string ValueString = NamedNode.second.ToString("");
+                auto Length = (ANSICHAR)ValueString.length();
                 if (Length > 0 && Length < 32)
                 {
-                    if (KeyString == "BooleanArray")
+                    InfoByte = 2;
+                    InfoByte |= Length << 3;
+                    Result.Add(InfoByte);
+
+                    for (int32 i = 0; i < Length; i++) Result.Add(ValueString[i]);
+                }
+            }
+            else
+            {
+                WJson::Node ValueList = NamedNode.second;
+                if (ValueList.GetType() == WJson::Node::Type::T_ARRAY)
+                {
+                    auto Length = (ANSICHAR)ValueList.GetSize();
+                    if (Length > 0 && Length < 32)
                     {
-                        InfoByte = 0;
-
-                        auto ByteSizeOfCompressed = static_cast<uint8>(UWUtilities::GetDestinationLengthBeforeCompressBoolArray(Length));
-                        if (ByteSizeOfCompressed <= 0) continue;
-
-                        TArray<bool> DecompressedArray;
-                        for (int32 i = 0; i < Length; i++)
+                        if (KeyString == "BooleanArray")
                         {
-                            if (WJson::Node AsValue = ValueList.Get(static_cast<size_t>(i)))
+                            InfoByte = 0;
+
+                            auto ByteSizeOfCompressed = static_cast<uint8>(UWUtilities::GetDestinationLengthBeforeCompressBoolArray(Length));
+                            if (ByteSizeOfCompressed <= 0) continue;
+
+                            TArray<bool> DecompressedArray;
+                            for (int32 i = 0; i < Length; i++)
                             {
-                                if (AsValue.IsBoolean())
+                                if (WJson::Node AsValue = ValueList.Get(static_cast<size_t>(i)))
                                 {
-                                    DecompressedArray.Add(AsValue.ToBoolean(false));
+                                    if (AsValue.IsBoolean())
+                                    {
+                                        DecompressedArray.Add(AsValue.ToBoolean(false));
+                                    }
                                 }
                             }
-                        }
-                        if (DecompressedArray.Num() == 0) continue;
+                            if (DecompressedArray.Num() == 0) continue;
 
-                        FWCHARWrapper CompressedArray(new ANSICHAR[ByteSizeOfCompressed], ByteSizeOfCompressed, true);
-                        if (!UWUtilities::CompressBooleanAsBit(CompressedArray, DecompressedArray)) continue;
-                        if (CompressedArray.GetSize() == 0) continue;
+                            FWCHARWrapper CompressedArray(new ANSICHAR[ByteSizeOfCompressed], ByteSizeOfCompressed, true);
+                            if (!UWUtilities::CompressBooleanAsBit(CompressedArray, DecompressedArray)) continue;
+                            if (CompressedArray.GetSize() == 0) continue;
 
-                        InfoByte |= Length << 3;
-                        Result.Add(InfoByte);
+                            InfoByte |= Length << 3;
+                            Result.Add(InfoByte);
 
-                        for (int32 i = 0; i < CompressedArray.GetSize(); i++) Result.Add(CompressedArray.GetArrayElement(i));
-                    }
-                    else
-                    {
-                        uint8 UnitSize;
-                        uint8 BasicType = 0;
-                        if (KeyString == "ByteArray")
-                        {
-                            InfoByte = 1;
-                            UnitSize = 1;
-                            BasicType = 0;
+                            for (int32 i = 0; i < CompressedArray.GetSize(); i++) Result.Add(CompressedArray.GetArrayElement(i));
                         }
-                        else if (KeyString == "ShortArray")
+                        else
                         {
-                            InfoByte = 3;
-                            UnitSize = 2;
-                            BasicType = 1;
-                        }
-                        else if (KeyString == "IntegerArray")
-                        {
-                            InfoByte = 4;
-                            UnitSize = 4;
-                            BasicType = 2;
-                        }
-                        else if (KeyString == "FloatArray")
-                        {
-                            InfoByte = 5;
-                            UnitSize = 4;
-                            BasicType = 3;
-                        }
-                        else continue;
-
-                        InfoByte |= Length << 3;
-                        Result.Add(InfoByte);
-
-                        bool bFilled = false;
-                        for (int32 i = 0; i < Length; i++)
-                        {
-                            if (WJson::Node CurrentData = ValueList.Get(static_cast<size_t>(i)))
+                            uint8 UnitSize;
+                            uint8 BasicType = 0;
+                            if (KeyString == "ByteArray")
                             {
-                                FWCHARWrapper ConvertedValue(new ANSICHAR[UnitSize], UnitSize, true);
-
-                                if (BasicType == 0)
-                                {
-                                    auto Val = static_cast<uint8>(CurrentData.ToInteger(0));
-                                    FMemory::Memcpy(ConvertedValue.GetValue(), &Val, UnitSize);
-                                }
-                                else if (BasicType == 1 || BasicType == 2)
-                                {
-                                    int32 Val = CurrentData.ToInteger(0);
-                                    FMemory::Memcpy(ConvertedValue.GetValue(), &Val, UnitSize);
-                                }
-                                else
-                                {
-                                    float Val = CurrentData.ToFloat(0.0f);
-                                    FMemory::Memcpy(ConvertedValue.GetValue(), &Val, UnitSize);
-                                }
-
-                                for (int32 j = 0; j < UnitSize; j++) Result.Add(ConvertedValue.GetArrayElement(j));
-                                bFilled = true;
+                                InfoByte = 1;
+                                UnitSize = 1;
+                                BasicType = 0;
                             }
+                            else if (KeyString == "ShortArray")
+                            {
+                                InfoByte = 3;
+                                UnitSize = 2;
+                                BasicType = 1;
+                            }
+                            else if (KeyString == "IntegerArray")
+                            {
+                                InfoByte = 4;
+                                UnitSize = 4;
+                                BasicType = 2;
+                            }
+                            else if (KeyString == "FloatArray")
+                            {
+                                InfoByte = 5;
+                                UnitSize = 4;
+                                BasicType = 3;
+                            }
+                            else continue;
+
+                            InfoByte |= Length << 3;
+                            Result.Add(InfoByte);
+
+                            bool bFilled = false;
+                            for (int32 i = 0; i < Length; i++)
+                            {
+                                if (WJson::Node CurrentData = ValueList.Get(static_cast<size_t>(i)))
+                                {
+                                    FWCHARWrapper ConvertedValue(new ANSICHAR[UnitSize], UnitSize, true);
+
+                                    if (BasicType == 0)
+                                    {
+                                        auto Val = static_cast<uint8>(CurrentData.ToInteger(0));
+                                        FMemory::Memcpy(ConvertedValue.GetValue(), &Val, UnitSize);
+                                    }
+                                    else if (BasicType == 1 || BasicType == 2)
+                                    {
+                                        int32 Val = CurrentData.ToInteger(0);
+                                        FMemory::Memcpy(ConvertedValue.GetValue(), &Val, UnitSize);
+                                    }
+                                    else
+                                    {
+                                        float Val = CurrentData.ToFloat(0.0f);
+                                        FMemory::Memcpy(ConvertedValue.GetValue(), &Val, UnitSize);
+                                    }
+
+                                    for (int32 j = 0; j < UnitSize; j++) Result.Add(ConvertedValue.GetArrayElement(j));
+                                    bFilled = true;
+                                }
+                            }
+                            if (!bFilled) Result.RemoveAt(Result.Num() - 1);
                         }
-                        if (!bFilled) Result.RemoveAt(Result.Num() - 1);
                     }
                 }
             }
         }
+        //
+
+        //Checksum final operation starts.
+        int32 ChecksumDestinationSize = Result.Num() - ChecksumInsertIx;
+        if (ChecksumDestinationSize == 0) return FWCHARWrapper();
+
+        FWCHARWrapper WCHARWrapper(Result.GetMutableData() + ChecksumInsertIx, ChecksumDestinationSize, false);
+
+        FWCHARWrapper Hashed = UWUtilities::WBasicRawHash(WCHARWrapper, 0, ChecksumDestinationSize);
+
+        Result.Insert(Hashed.GetValue(), 4, ChecksumInsertIx);
+        //
     }
-    //
-
-    //Checksum final operation starts.
-    int32 ChecksumDestinationSize = Result.Num() - ChecksumInsertIx;
-    if (ChecksumDestinationSize == 0) return FWCHARWrapper();
-
-    FWCHARWrapper WCHARWrapper(Result.GetMutableData() + ChecksumInsertIx, ChecksumDestinationSize, false);
-
-    FWCHARWrapper Hashed = UWUtilities::WBasicRawHash(WCHARWrapper, 0, ChecksumDestinationSize);
-
-    Result.Insert(Hashed.GetValue(), 4, ChecksumInsertIx);
-    //
 
     auto ResultArray = new ANSICHAR[Result.Num()];
     FMemory::Memcpy(ResultArray, Result.GetData(), static_cast<WSIZE__T>(Result.Num()));
-    return FWCHARWrapper(ResultArray, Result.Num(), false);
+
+    FWCHARWrapper ResultWrapper(ResultArray, Result.Num(), false);
+    if (bReliableSYN)
+    {
+        ManagerInstance->HandleReliableSYNDeparture(Client, ResultWrapper, MessageID);
+    }
+
+    return ResultWrapper;
 }
 
 void UWUDPManager::AddNewUDPRecord(WUDPRecord* NewRecord)
@@ -762,34 +829,220 @@ WUDPRecord::~WUDPRecord()
     UWUDPManager::RemoveUDPRecord(this);
 }
 
-void UWUDPManager::HandleReliableData(sockaddr* Client, uint32 MessageID, bool bSuccess)
+bool WReliableConnectionRecord::ResetterFunction()
 {
-    if (!bSystemStarted) return;
+    if (HandshakingStatus == 3) return true;
+    if (++FailureTrialCount >= 5) return true;
+    return !UWUDPManager::ReliableDataTimedOut(this);
+}
+bool UWUDPManager::ReliableDataTimedOut(WReliableConnectionRecord* Record)
+{
+    if (!bSystemStarted || ManagerInstance == nullptr || Record == nullptr || Record->GetBuffer() == nullptr || !Record->GetBuffer()->IsValid()) return false;
 
-    WScopeGuard ReliableConnectionRecords_Dangerzone_Guard;
+    Record->UpdateLastInteraction();
+    ManagerInstance->Send(Record->GetClient(), *Record->GetBuffer());
+    return true;
+}
+WReliableConnectionRecord* UWUDPManager::Create_AddOrGet_ReliableConnectionRecord(sockaddr* Client, uint32 MessageID, FWCHARWrapper& Buffer, uint8 EnsureHandshakingStatusEqualsTo, bool bIgnoreFailure)
+{
+    //If EnsureHandshakingStatusEqualsTo = 0: Function can create a new record.
+    //Otherwise will only try to get from existing records and if found, will ensure HandshakingStatus = EnsureHandshakingStatusEqualsTo, otherwise returns null.
+    //HandshakingStatus_Mutex may be locked after. Do not forget to try unlocking it.
+
     WReliableConnectionRecord* ReliableConnection = nullptr;
     {
         WScopeGuard Guard(&ManagerInstance->ReliableConnectionRecords_Mutex);
         auto It = ManagerInstance->ReliableConnectionRecords.find(Client->sa_data);
         if (It != ManagerInstance->ReliableConnectionRecords.end())
         {
-            if (It->second == nullptr)
+            for (WReliableConnectionRecord* Record : It->second)
             {
-                It->second = new WReliableConnectionRecord();
+                Record->HandshakingStatus_Mutex.lock();
+                WScopeGuard ClientRecord_Dangerzone_Guard(&Record->Dangerzone_Mutex);
+                if (Record != nullptr &&
+                    Record->GetClientsideMessageID() == MessageID &&
+                    Record->HandshakingStatus == EnsureHandshakingStatusEqualsTo &&
+                    (bIgnoreFailure || Record->FailureTrialCount < 5))
+                {
+                    ReliableConnection = Record;
+                    if (Buffer.IsValid())
+                    {
+                        ReliableConnection->ReplaceBuffer(Buffer);
+                    }
+                    ReliableConnection->UpdateLastInteraction();
+                }
+                else
+                {
+                    Record->HandshakingStatus_Mutex.unlock();
+                }
             }
-            else
-            {
-                It->second->UpdateLastInteraction();
-            }
-            ReliableConnection = It->second;
         }
-        else
+        if (EnsureHandshakingStatusEqualsTo == 0 && ReliableConnection == nullptr)
         {
-            ReliableConnection = new WReliableConnectionRecord();
-            ManagerInstance->ReliableConnectionRecords.insert(std::pair<ANSICHAR*, WReliableConnectionRecord*>(Client->sa_data, ReliableConnection));
+            ReliableConnection = new WReliableConnectionRecord(MessageID, *Client, Buffer);
+            ManagerInstance->ReliableConnectionRecords.insert(std::pair<ANSICHAR*, TArray<WReliableConnectionRecord*>>(Client->sa_data, TArray<WReliableConnectionRecord*>(ReliableConnection)));
         }
-        ReliableConnectionRecords_Dangerzone_Guard.SetMutex(&ReliableConnection->Dangerzone_Mutex);
+    }
+    return ReliableConnection;
+}
+void UWUDPManager::CloseCase(WReliableConnectionRecord* Record)
+{
+    if (ManagerInstance == nullptr || Record == nullptr) return;
+
+    WScopeGuard ClientRecord_Dangerzone_Guard(&Record->Dangerzone_Mutex);
+
+    WScopeGuard Guard(&ManagerInstance->ReliableConnectionRecords_Mutex);
+    ManagerInstance->ReliableConnectionRecords.erase(Record->GetClient()->sa_data);
+
+    if (Record)
+    {
+        delete (Record);
+    }
+}
+void UWUDPManager::AsReceiverReliableSYNSuccess(sockaddr* Client, uint32 MessageID) //Receiver
+{
+    if (!bSystemStarted) return;
+
+    //Send SYN-ACK
+
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::ValidationPtr(), false, false, true, false, false, false, MessageID);
+
+    WReliableConnectionRecord* Record = nullptr;
+    if ((Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, 0, false)))
+    {
+        Record->HandshakingStatus = 2;
+        Send(Client, WrappedFinalData);
+        Record->FailureTrialCount = 0;
+        Record->HandshakingStatus_Mutex.unlock();
+    }
+    else if ((Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, 2, false)))
+    {
+        Send(Client, WrappedFinalData);
+        Record->FailureTrialCount = 0;
+        Record->HandshakingStatus_Mutex.unlock();
     }
 
+    WrappedFinalData.DeallocateValue();
+}
+void UWUDPManager::AsReceiverReliableSYNFailure(sockaddr* Client, uint32 MessageID) //Receiver
+{
+    if (!bSystemStarted) return;
 
+    //Send SYN-fail
+
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::ValidationPtr(), false, false, false, true, false, false, MessageID);
+
+    WReliableConnectionRecord* Record = nullptr;
+    if ((Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, 0, true)))
+    {
+        Send(Client, WrappedFinalData);
+        //We are receiver, to receive actual buffer again, we should not increase FailureCount.
+        Record->FailureTrialCount = 0;
+        Record->HandshakingStatus_Mutex.unlock();
+    }
+
+    WrappedFinalData.DeallocateValue();
+}
+void UWUDPManager::HandleReliableSYNDeparture(sockaddr* Client, FWCHARWrapper& Buffer, uint32 MessageID) //Sender
+{
+    //This is called by MakeByteArrayForNetworkData
+    if (!bSystemStarted) return;
+
+    //Set the case
+
+    WReliableConnectionRecord* Record = nullptr;
+    if ((Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, Buffer, 0, true)))
+    {
+        Record->HandshakingStatus = 1;
+        Record->FailureTrialCount = 0; //To reset, just in case.
+        Record->HandshakingStatus_Mutex.unlock();
+    }
+}
+void UWUDPManager::HandleReliableSYNSuccess(sockaddr* Client, uint32 MessageID) //Sender
+{
+    if (!bSystemStarted) return;
+
+    //Send ACK
+
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::ValidationPtr(), false, false, false, false, true, false, MessageID);
+
+    WReliableConnectionRecord* Record = nullptr;
+    if ((Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, 1, false)))
+    {
+        Record->HandshakingStatus = 3;
+        Send(Client, WrappedFinalData);
+        Record->FailureTrialCount = 0;
+        Record->HandshakingStatus_Mutex.unlock();
+    }
+    else if ((Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, 3, false)))
+    {
+        Send(Client, WrappedFinalData);
+        Record->FailureTrialCount = 0;
+        Record->HandshakingStatus_Mutex.unlock();
+    }
+
+    WrappedFinalData.DeallocateValue();
+}
+void UWUDPManager::HandleReliableSYNFailure(sockaddr* Client, uint32 MessageID) //Sender
+{
+    if (!bSystemStarted) return;
+
+    //Re-send SYN(Buffer)
+
+    FWCHARWrapper NullBuffer;
+
+    WReliableConnectionRecord* Record = nullptr;
+    if ((Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, NullBuffer, 1, false)))
+    {
+        Send(Client, *Record->GetBuffer());
+        Record->FailureTrialCount++;
+        Record->HandshakingStatus_Mutex.unlock();
+    }
+}
+void UWUDPManager::HandleReliableSYNACKSuccess(sockaddr* Client, uint32 MessageID) //Receiver
+{
+    if (!bSystemStarted) return;
+
+    //ACK received. Send ACK-ACK, then close the case.
+
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::ValidationPtr(), false, false, false, false, false, true, MessageID);
+
+    WReliableConnectionRecord* Record = nullptr;
+    if ((Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, 2, false)))
+    {
+        Record->HandshakingStatus = 4;
+        Send(Client, WrappedFinalData);
+        Record->FailureTrialCount = 0;
+        Record->HandshakingStatus_Mutex.unlock();
+    }
+    else if ((Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, 4, false)))
+    {
+        Send(Client, WrappedFinalData);
+        Record->FailureTrialCount = 0;
+        Record->HandshakingStatus_Mutex.unlock();
+    }
+
+    WrappedFinalData.DeallocateValue();
+
+    if (Record)
+    {
+        CloseCase(Record);
+    }
+}
+void UWUDPManager::HandleReliableACKArrival(sockaddr *Client, uint32 MessageID) //Sender
+{
+    if (!bSystemStarted) return;
+
+    //ACK-ACK received. Close the case.
+
+    FWCHARWrapper NullBuffer;
+
+    WReliableConnectionRecord* Record = nullptr;
+    if ((Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, NullBuffer, 3, false)))
+    {
+        Send(Client, *Record->GetBuffer());
+        Record->FailureTrialCount = 0;
+        Record->HandshakingStatus_Mutex.unlock();
+        CloseCase(Record);
+    }
 }

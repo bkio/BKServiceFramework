@@ -106,6 +106,10 @@ namespace WJson
             {
                 return std::string("null");
             }
+            else if (IsValidation())
+            {
+                return std::string("validation");
+            }
             else
             {
                 return data->valueStr;
@@ -507,6 +511,7 @@ namespace WJson
             case Node::T_NULL: // Fallthrough
             case Node::T_STRING: // Fallthrough
             case Node::T_NUMBER: // Fallthrough
+            case Node::T_VALIDATION: // Fallthrough
             case Node::T_BOOL:
                 WriteValue(node, stream); break;
         }

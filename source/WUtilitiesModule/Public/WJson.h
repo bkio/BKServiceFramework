@@ -68,7 +68,8 @@ namespace WJson
             T_NULL,
             T_STRING,
             T_NUMBER,
-            T_BOOL
+            T_BOOL,
+            T_VALIDATION
         };
 
         Node();
@@ -97,6 +98,7 @@ namespace WJson
         inline bool IsString() const { return (GetType() == T_STRING);  }
         inline bool IsNumber() const { return (GetType() == T_NUMBER);  }
         inline bool IsBoolean()   const { return (GetType() == T_BOOL);    }
+        inline bool IsValidation() const { return (GetType() == T_VALIDATION);  }
 
         inline bool IsContainer() const { return (IsObject() || IsArray()); }
         inline bool IsValue() const { return (IsNull() || IsString() || IsNumber() || IsBoolean()); }
@@ -281,6 +283,14 @@ namespace WJson
     std::shared_ptr<Node> ArrayPtr()
     {
         return std::make_shared<Node>(Node::T_ARRAY);
+    }
+    Node Validation()
+    {
+        return Node(Node::T_VALIDATION);
+    }
+    std::shared_ptr<Node> ValidationPtr()
+    {
+        return std::make_shared<Node>(Node::T_VALIDATION);
     }
 }
 #define NULL_WJSON_NODE std::shared_ptr<WJson::Node>(nullptr)

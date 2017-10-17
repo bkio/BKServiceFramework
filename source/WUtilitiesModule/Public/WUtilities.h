@@ -71,6 +71,11 @@ public:
         Size = 0;
     }
 
+    bool IsValid()
+    {
+        return Size > 0 && Value != nullptr;
+    }
+
     bool bDeallocateValueOnDestructor = false;
 
     FWCHARWrapper() = default;
