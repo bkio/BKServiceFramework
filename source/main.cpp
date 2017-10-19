@@ -7,11 +7,13 @@ void Start()
 {
     WThread::StartSystem();
     UWAsyncTaskManager::StartSystem(4);
+    UWScheduledAsyncTaskManager::StartSystem(20);
     UWUDPManager::StartSystem(45000);
 }
 void Stop()
 {
     UWUDPManager::EndSystem();
+    UWScheduledAsyncTaskManager::EndSystem();
     UWAsyncTaskManager::EndSystem();
     WThread::EndSystem();
 }

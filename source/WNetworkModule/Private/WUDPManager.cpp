@@ -1,7 +1,6 @@
 // Copyright Pagansoft.com, All rights reserved.
 
 #include "WUDPManager.h"
-#include "WMemory.h"
 #include "WMath.h"
 
 bool UWUDPManager::InitializeSocket(uint16 Port)
@@ -104,7 +103,7 @@ void UWUDPManager::ListenSocket()
                         std::shared_ptr<WJson::Node> Result = AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
                         if (Result != nullptr)
                         {
-                            FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, Result, true);
+                            FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Parameter->Client, Result, true);
                             ManagerInstance->Send(Parameter->Client, WrappedFinalData);
                             WrappedFinalData.DeallocateValue();
                         }
@@ -166,6 +165,46 @@ bool UWUDPManager::StartSystem_Internal(uint16 Port)
     if (InitializeSocket(Port))
     {
         UDPSystemThread = new WThread(std::bind(&UWUDPManager::ListenSocket, this));
+
+        TArray<FWAsyncTaskParameter*> NoParameter;
+        WFutureAsyncTask Lambda = [](TArray<FWAsyncTaskParameter*>& TaskParameters)
+        {
+            if (!bSystemStarted || ManagerInstance == nullptr) return;
+
+            int64 CurrentTimestamp = UWUtilities::GetTimeStampInMS();
+
+            WUDPRecord* Record = nullptr;
+            WScopeGuard Guard(&ManagerInstance->UDPRecordsForTimeoutCheck_Mutex);
+            for (auto It = ManagerInstance->UDPRecordsForTimeoutCheck.begin(); It != ManagerInstance->UDPRecordsForTimeoutCheck.end();)
+            {
+                if ((Record = (*It)))
+                {
+                    bool bDeleted = false;
+
+                    WScopeGuard DangerZoneGuard(&Record->Dangerzone_Mutex);
+                    if ((CurrentTimestamp - Record->GetLastInteraction()) >= Record->TimeoutValueMS())
+                    {
+                        if (Record->ResetterFunction())
+                        {
+                            delete (Record);
+                            It = ManagerInstance->UDPRecordsForTimeoutCheck.erase(It);
+                            bDeleted = true;
+                        }
+                    }
+
+                    if (!bDeleted)
+                    {
+                        ++It;
+                    }
+                }
+                else
+                {
+                    It = ManagerInstance->UDPRecordsForTimeoutCheck.erase(It);
+                }
+            }
+        };
+        UWScheduledAsyncTaskManager::NewScheduledAsyncTask(Lambda, NoParameter, 100, true);
+
         return true;
     }
     return false;
@@ -855,25 +894,33 @@ WReliableConnectionRecord* UWUDPManager::Create_AddOrGet_ReliableConnectionRecor
         auto It = ManagerInstance->ReliableConnectionRecords.find(Client->sa_data);
         if (It != ManagerInstance->ReliableConnectionRecords.end())
         {
-            for (WReliableConnectionRecord* Record : It->second)
+            WReliableConnectionRecord* Record = nullptr;
+            for (int32 i = It->second.Num() - 1; i >= 0; i--)
             {
-                Record->HandshakingStatus_Mutex.lock();
-                WScopeGuard ClientRecord_Dangerzone_Guard(&Record->Dangerzone_Mutex);
-                if (Record != nullptr &&
-                    Record->GetClientsideMessageID() == MessageID &&
-                    Record->HandshakingStatus == EnsureHandshakingStatusEqualsTo &&
-                    (bIgnoreFailure || Record->FailureTrialCount < 5))
+                if ((Record = It->second[i]))
                 {
-                    ReliableConnection = Record;
-                    if (Buffer.IsValid())
+                    Record->HandshakingStatus_Mutex.lock();
+                    WScopeGuard ClientRecord_Dangerzone_Guard(&Record->Dangerzone_Mutex);
+                    if (Record->GetClientsideMessageID() == MessageID &&
+                        Record->HandshakingStatus == EnsureHandshakingStatusEqualsTo &&
+                        (bIgnoreFailure || Record->FailureTrialCount < 5))
                     {
-                        ReliableConnection->ReplaceBuffer(Buffer);
+                        ReliableConnection = Record;
+                        if (Buffer.IsValid())
+                        {
+                            ReliableConnection->ReplaceBuffer(Buffer);
+                        }
+                        ReliableConnection->UpdateLastInteraction();
                     }
-                    ReliableConnection->UpdateLastInteraction();
+                    else
+                    {
+                        Record->HandshakingStatus_Mutex.unlock();
+                    }
                 }
                 else
                 {
-                    Record->HandshakingStatus_Mutex.unlock();
+                    It->second.RemoveAt(i);
+                    delete (Record);
                 }
             }
         }
@@ -892,7 +939,11 @@ void UWUDPManager::CloseCase(WReliableConnectionRecord* Record)
     WScopeGuard ClientRecord_Dangerzone_Guard(&Record->Dangerzone_Mutex);
 
     WScopeGuard Guard(&ManagerInstance->ReliableConnectionRecords_Mutex);
-    ManagerInstance->ReliableConnectionRecords.erase(Record->GetClient()->sa_data);
+    auto It = ManagerInstance->ReliableConnectionRecords.find(Record->GetClient()->sa_data);
+    if (It != ManagerInstance->ReliableConnectionRecords.end())
+    {
+        It->second.Remove(Record);
+    }
 
     if (Record)
     {

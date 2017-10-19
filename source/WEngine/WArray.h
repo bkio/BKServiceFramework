@@ -196,7 +196,11 @@ public:
     }
     const T& Pop()
     {
-        return Array.pop_back();
+        if (!Array.empty())
+        {
+            return Array.pop_back();
+        }
+        return nullptr;
     }
     void Push(const T& Item)
     {

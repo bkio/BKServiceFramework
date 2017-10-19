@@ -5,31 +5,7 @@
 
 #include "WEngine.h"
 #include "WSafeQueue.h"
-#include "WThread.h"
-#include "WConditionVariable.h"
-
-struct FWAsyncTaskParameter
-{
-
-public:
-    FWAsyncTaskParameter() = default;
-    virtual ~FWAsyncTaskParameter() = default;
-};
-typedef std::function<void(TArray<FWAsyncTaskParameter*>&)> WFutureAsyncTask;
-
-struct FWAwaitingTask
-{
-
-public:
-    WFutureAsyncTask FunctionPtr;
-    TArray<FWAsyncTaskParameter*> Parameters;
-
-    FWAwaitingTask(WFutureAsyncTask& Function, TArray<FWAsyncTaskParameter*>& Array)
-    {
-        FunctionPtr = Function;
-        Parameters = Array;
-    }
-};
+#include "WTaskDefines.h"
 
 struct FWAsyncWorker
 {

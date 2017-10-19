@@ -17,6 +17,7 @@
 #include "WUtilities.h"
 #include <WJson.h>
 #include <WAsyncTaskManager.h>
+#include <WScheduledAsyncTaskManager.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
@@ -51,15 +52,15 @@ struct WUDPRecord
 {
 
 protected:
-    WMutex LastInteraction_Mutex; //TODO: Locking this should cover all object modification.
+    WMutex LastInteraction_Mutex;
     int64 LastInteraction = 0;
 
     WUDPRecord();
 
+public:
     virtual bool ResetterFunction() = 0; //If returns true, deletes the record after execution.
     virtual uint32 TimeoutValueMS() = 0;
 
-public:
     int64 GetLastInteraction()
     {
         return LastInteraction;
@@ -70,7 +71,7 @@ public:
         LastInteraction = UWUtilities::GetTimeStampInMS();
     }
 
-    WMutex Dangerzone_Mutex; //TODO: Should be locked before check for LastInteraction
+    WMutex Dangerzone_Mutex;
 
     ~WUDPRecord();
 };

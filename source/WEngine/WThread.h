@@ -24,7 +24,7 @@ private:
     WThread(const WThread&);
     const WThread& operator=(const WThread&);
 
-    int32 CurrentThreadNumber;
+    int32 CurrentThreadNumber = 0;
 
 #if PLATFORM_WINDOWS
     HANDLE hThread;
@@ -34,7 +34,7 @@ private:
     static void* Run(void* pVoid)
 #endif
     {
-        WThread* wThread = static_cast<WThread*>(pVoid);
+        auto wThread = static_cast<WThread*>(pVoid);
         if (wThread && wThread->Callback)
         {
             wThread->bThreadJoinable = true;
@@ -57,7 +57,7 @@ private:
     bool bThreadJoinable = false;
 
 public:
-    WThread(WThreadCallback ThreadCallback)
+    explicit WThread(WThreadCallback ThreadCallback)
     {
         Callback = std::move(ThreadCallback);
 
