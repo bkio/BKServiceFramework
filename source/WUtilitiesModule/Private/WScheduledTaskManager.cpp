@@ -1,6 +1,6 @@
 // Copyright Pagansoft.com, All rights reserved.
 
-#include "WScheduledAsyncTaskManager.h"
+#include "WScheduledTaskManager.h"
 #include "WAsyncTaskManager.h"
 
 UWScheduledAsyncTaskManager* UWScheduledAsyncTaskManager::ManagerInstance = nullptr;
@@ -52,7 +52,7 @@ void UWScheduledAsyncTaskManager::EndSystem_Internal()
     {
         if ((AwaitingScheduledTask = AwaitingScheduledTasks[i]))
         {
-            for (FWAsyncTaskParameter *Param : AwaitingScheduledTask->Parameters)
+            for (FWAsyncTaskParameter* Param : AwaitingScheduledTask->Parameters)
             {
                 if (Param != nullptr)
                 {

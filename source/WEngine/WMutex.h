@@ -173,7 +173,7 @@ public:
 #if PLATFORM_WINDOWS
     void SleepWithCondition(CONDITION_VARIABLE* Condition) volatile
 #else
-    void SleepWithCondition(pthread_cond_t* Condition)
+    void SleepWithCondition(pthread_cond_t* Condition) volatile
 #endif
     {
         if (Condition == nullptr) return;

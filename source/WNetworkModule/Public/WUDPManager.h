@@ -17,7 +17,7 @@
 #include "WUtilities.h"
 #include <WJson.h>
 #include <WAsyncTaskManager.h>
-#include <WScheduledAsyncTaskManager.h>
+#include <WScheduledTaskManager.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
