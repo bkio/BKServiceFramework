@@ -15,157 +15,11 @@
 #endif
 #include "WThread.h"
 #include "WUtilities.h"
-#include <WJson.h>
-#include <WAsyncTaskManager.h>
-#include <WScheduledTaskManager.h>
+#include "WNetworkHelper.h"
+#include "WJson.h"
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
-#include <memory>
-#include <WMemory.h>
-
-struct FWUDPTaskParameter : public FWAsyncTaskParameter
-{
-
-public:
-    int32 BufferSize = 0;
-    ANSICHAR* Buffer = nullptr;
-    sockaddr* Client = nullptr;
-
-    FWUDPTaskParameter(int32 BufferSizeParameter, ANSICHAR* BufferParameter, sockaddr* ClientParameter)
-    {
-        BufferSize = BufferSizeParameter;
-        Buffer = BufferParameter;
-        Client = ClientParameter;
-    }
-    ~FWUDPTaskParameter() override
-    {
-        if (Client)
-        {
-            delete (Client);
-        }
-        delete[] Buffer;
-    }
-};
-
-struct WUDPRecord
-{
-
-protected:
-    WMutex LastInteraction_Mutex;
-    int64 LastInteraction = 0;
-
-    WUDPRecord();
-
-public:
-    virtual bool ResetterFunction() = 0; //If returns true, deletes the record after execution.
-    virtual uint32 TimeoutValueMS() = 0;
-
-    int64 GetLastInteraction()
-    {
-        return LastInteraction;
-    }
-    virtual void UpdateLastInteraction()
-    {
-        WScopeGuard Guard(&LastInteraction_Mutex);
-        LastInteraction = UWUtilities::GetTimeStampInMS();
-    }
-
-    WMutex Dangerzone_Mutex;
-
-    ~WUDPRecord();
-};
-
-struct WClientRecord : public WUDPRecord
-{
-
-private:
-    WMutex LastClientsideTimestamp_Mutex;
-    uint16 LastClientsideTimestamp = 0;
-
-    bool ResetterFunction() override
-    {
-        SetLastClientsideTimestamp(0);
-        return false;
-    }
-    uint32 TimeoutValueMS() override { return 10000; }
-
-public:
-    uint16 GetLastClientsideTimestamp()
-    {
-        return LastClientsideTimestamp;
-    }
-    void SetLastClientsideTimestamp(uint16 Timestamp)
-    {
-        WScopeGuard Guard(&LastClientsideTimestamp_Mutex);
-        LastClientsideTimestamp = Timestamp;
-    }
-
-    WClientRecord() = default;
-};
-
-struct WReliableConnectionRecord : public WUDPRecord
-{
-
-private:
-    uint32 ClientsideMessageID = 0;
-
-    sockaddr Client{};
-
-    FWCHARWrapper Buffer;
-
-    bool ResetterFunction() override;
-
-    uint32 TimeoutValueMS() override { return 2000; }
-
-    WReliableConnectionRecord() = default;
-
-public:
-    WReliableConnectionRecord(uint32 MessageID, sockaddr& ClientRef, FWCHARWrapper& BufferRef)
-    {
-        ClientsideMessageID = MessageID;
-
-        Client = ClientRef;
-
-        if (BufferRef.GetSize() > 0)
-        {
-            Buffer.SetValue(new ANSICHAR[BufferRef.GetSize()], BufferRef.GetSize());
-            FMemory::Memcpy(Buffer.GetValue(), BufferRef.GetValue(), static_cast<WSIZE__T>(BufferRef.GetSize()));
-            Buffer.bDeallocateValueOnDestructor = true;
-        }
-    }
-
-    //1: SYN
-    //2: SYN-ACK
-    //3: ACK
-    //4: ACK-ACK
-    uint8 HandshakingStatus = 0;
-    WMutex HandshakingStatus_Mutex;
-
-    uint8 FailureTrialCount = 0;
-
-    uint32 GetClientsideMessageID()
-    {
-        return ClientsideMessageID;
-    }
-    sockaddr* GetClient()
-    {
-        return &Client;
-    }
-    FWCHARWrapper* GetBuffer()
-    {
-        return &Buffer;
-    }
-    void ReplaceBuffer(FWCHARWrapper& NewBuffer)
-    {
-        if (NewBuffer.GetSize() > 0)
-        {
-            Buffer.DeallocateValue();
-            Buffer.SetValue(new ANSICHAR[NewBuffer.GetSize()], NewBuffer.GetSize());
-            FMemory::Memcpy(Buffer.GetValue(), NewBuffer.GetValue(), static_cast<WSIZE__T>(NewBuffer.GetSize()));
-        }
-    }
-};
 
 class UWUDPManager
 {
@@ -217,12 +71,12 @@ public:
 	"CharArray": "Demonstration"
 	}
 	*/
-    static std::shared_ptr<WJson::Node> AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* Client);
+    static WJson::Node AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* Client);
 
     //Do not forget to deallocate the result manually.
     static FWCHARWrapper MakeByteArrayForNetworkData(
             sockaddr* Client,
-            std::shared_ptr<WJson::Node> Parameter,
+            WJson::Node Parameter,
             bool bTimeOrderCriticalData = false,
             bool bReliableSYN = false,
             bool bReliableSYNSuccess = false,
@@ -232,7 +86,6 @@ public:
             int32 ReliableMessageID = 0);
 
     static void AddNewUDPRecord(WUDPRecord* NewRecord);
-    static void RemoveUDPRecord(WUDPRecord* OldRecord);
 
     static bool ReliableDataTimedOut(WReliableConnectionRecord* Record);
 
@@ -253,19 +106,19 @@ private:
 
     void HandleReliableSYNACKSuccess(sockaddr* Client, uint32 MessageID);
 
-    void HandleReliableACKArrival(sockaddr *Client, uint32 MessageID);
+    void HandleReliableACKArrival(sockaddr* Client, uint32 MessageID);
     //
 
-    WReliableConnectionRecord* Create_AddOrGet_ReliableConnectionRecord(sockaddr* Client, uint32 MessageID, FWCHARWrapper& Buffer, uint8 EnsureHandshakingStatusEqualsTo = 0, bool bIgnoreFailure = false);
+    WReliableConnectionRecord* Create_AddOrGet_ReliableConnectionRecord(sockaddr* Client, uint32 MessageID, FWCHARWrapper& Buffer, bool bAsSender, uint8 EnsureHandshakingStatusEqualsTo = 0, bool bIgnoreFailure = false);
     void CloseCase(WReliableConnectionRecord* Record);
 
-    struct sockaddr_in UDPServer;
+    struct sockaddr_in UDPServer{};
 
     WMutex ClientsRecord_Mutex;
-    std::unordered_map<ANSICHAR*, WClientRecord*> ClientRecords;
+    std::unordered_map<std::string, WClientRecord*> ClientRecords;
 
     WMutex ReliableConnectionRecords_Mutex;
-    std::unordered_map<ANSICHAR*, TArray<WReliableConnectionRecord*>> ReliableConnectionRecords;
+    std::unordered_map<std::string, WReliableConnectionRecord*> ReliableConnectionRecords;
 
     WMutex UDPRecordsForTimeoutCheck_Mutex;
     std::unordered_set<WUDPRecord*> UDPRecordsForTimeoutCheck;
@@ -277,7 +130,7 @@ private:
     uint32 LastServersideMessageID = 1;
 
 #if PLATFORM_WINDOWS
-    SOCKET UDPSocket;
+    SOCKET UDPSocket{};
 #else
     int32 UDPSocket;
 #endif
@@ -285,12 +138,13 @@ private:
     bool InitializeSocket(uint16 Port);
     void CloseSocket();
     void ListenSocket();
+    uint32 ListenerStopped();
     void Send(sockaddr* Client, const FWCHARWrapper& SendBuffer);
 
     void ClearReliableConnections();
     void ClearUDPRecordsForTimeoutCheck();
 
-    WThread* UDPSystemThread;
+    WThread* UDPSystemThread{};
 
     static UWUDPManager* ManagerInstance;
     UWUDPManager() = default;

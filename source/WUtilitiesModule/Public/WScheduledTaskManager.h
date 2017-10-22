@@ -20,7 +20,8 @@ public:
 private:
     static bool bSystemStarted;
 
-    void Tick();
+    void TickerRun();
+    uint32 TickerStop();
 
     WThread* TickThread = nullptr;
 

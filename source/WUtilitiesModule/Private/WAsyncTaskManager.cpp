@@ -32,20 +32,29 @@ bool UWAsyncTaskManager::IsSystemStarted()
 
 void UWAsyncTaskManager::StartSystem_Internal(int32 WorkerThreadNo)
 {
+    StartWorkers(WorkerThreadNo);
+}
+void UWAsyncTaskManager::StartWorkers(int32 WorkerThreadNo)
+{
     if (WorkerThreadNo <= 0) WorkerThreadNo = 1;
     WorkerThreadCount = WorkerThreadNo;
 
-    AsyncWorkers = new FWAsyncWorker[WorkerThreadCount];
+    AsyncWorkers = new FWAsyncWorker*[WorkerThreadCount];
     for (int32 i = 0; i < WorkerThreadCount; i++)
     {
-        AsyncWorkers[i].StartWorker();
+        AsyncWorkers[i] = new FWAsyncWorker;
+        AsyncWorkers[i]->StartWorker();
     }
 }
 void UWAsyncTaskManager::EndSystem_Internal()
 {
     for (int32 i = 0; i < WorkerThreadCount; i++)
     {
-        AsyncWorkers[i].EndWorker();
+        if (AsyncWorkers[i])
+        {
+            AsyncWorkers[i]->EndWorker();
+            delete (AsyncWorkers[i]);
+        }
     }
     delete[] AsyncWorkers;
 
@@ -81,7 +90,7 @@ void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<FWAsyncT
     FWAsyncWorker* PossibleFreeWorker = nullptr;
     if (ManagerInstance->FreeWorkers.Pop(PossibleFreeWorker) && PossibleFreeWorker != nullptr)
     {
-        PossibleFreeWorker->SetData(AsTask);
+        PossibleFreeWorker->SetData(AsTask, true);
     }
     else
     {
@@ -91,21 +100,47 @@ void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<FWAsyncT
 bool UWAsyncTaskManager::TryToGetAwaitingTask(FWAwaitingTask* Destination)
 {
     if (!bSystemStarted || ManagerInstance == nullptr) return false;
-    return ManagerInstance->AwaitingTasks.Pop(Destination);
+    if (!ManagerInstance->AwaitingTasks.Pop(Destination)) return false;
+    return Destination != nullptr;
+}
+uint32 UWAsyncTaskManager::AsyncWorkerStopped(FWAsyncWorker* StoppedWorker)
+{
+    if (!bSystemStarted || ManagerInstance == nullptr || StoppedWorker == nullptr) return 0;
+
+    if (ManagerInstance->AsyncWorkers == nullptr)
+    {
+        ManagerInstance->StartWorkers(ManagerInstance->WorkerThreadCount);
+    }
+
+    for (int32 i = 0; i < ManagerInstance->WorkerThreadCount; i++)
+    {
+        if (ManagerInstance->AsyncWorkers[i] == StoppedWorker)
+        {
+            delete (ManagerInstance->AsyncWorkers[i]);
+            ManagerInstance->AsyncWorkers[i] = new FWAsyncWorker;
+            ManagerInstance->AsyncWorkers[i]->StartWorker();
+            return 0;
+        }
+    }
+
+    return 0;
 }
 
 FWAsyncWorker::FWAsyncWorker()
 {
     UWAsyncTaskManager::PushFreeWorker(this);
 }
-void FWAsyncWorker::SetData(FWAwaitingTask* Task)
+void FWAsyncWorker::SetData(FWAwaitingTask* Task, bool bSendSignal)
 {
     if (Task == nullptr) return;
 
     WScopeGuard Lock(&Mutex);
     CurrentData = Task;
     DataReady = true;
-    Condition.signal();
+    if (bSendSignal)
+    {
+        Condition.signal();
+    }
 }
 void FWAsyncWorker::WorkersDen()
 {
@@ -122,6 +157,10 @@ void FWAsyncWorker::WorkersDen()
         ProcessData();
     }
 }
+uint32 FWAsyncWorker::WorkersStopCallback()
+{
+    return UWAsyncTaskManager::AsyncWorkerStopped(this);
+}
 void FWAsyncWorker::ProcessData()
 {
     if (CurrentData)
@@ -129,23 +168,25 @@ void FWAsyncWorker::ProcessData()
         if (CurrentData->FunctionPtr)
         {
             CurrentData->FunctionPtr(CurrentData->Parameters);
-            for (FWAsyncTaskParameter* Param : CurrentData->Parameters)
+            for (FWAsyncTaskParameter* Parameter : CurrentData->Parameters)
             {
-                if (Param != nullptr)
+                if (Parameter)
                 {
-                    delete (Param);
+                    delete (Parameter);
                 }
             }
             CurrentData->Parameters.Empty();
         }
         delete (CurrentData);
+        CurrentData = nullptr;
     }
     DataReady = false;
 
     FWAwaitingTask *PossibleAwaitingTask = nullptr;
     if (UWAsyncTaskManager::TryToGetAwaitingTask(PossibleAwaitingTask))
     {
-        SetData(PossibleAwaitingTask);
+        SetData(PossibleAwaitingTask, false);
+        ProcessData();
     }
     else
     {
@@ -154,7 +195,7 @@ void FWAsyncWorker::ProcessData()
 }
 void FWAsyncWorker::StartWorker()
 {
-    WorkerThread = new WThread(std::bind(&FWAsyncWorker::WorkersDen, this));
+    WorkerThread = new WThread(std::bind(&FWAsyncWorker::WorkersDen, this), std::bind(&FWAsyncWorker::WorkersStopCallback, this));
 }
 void FWAsyncWorker::EndWorker()
 {

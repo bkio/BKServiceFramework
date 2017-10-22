@@ -233,44 +233,11 @@ public:
             Data[OldSize + i] = Array[i];
         }
     }
-    void AppendInt( int32 InNum )
-    {
-        int64 Num						= InNum; // This avoids having to deal with negating -MAX_int32-1
-        const UTFCHAR* NumberChar[11]		= { L"0", L"1", L"2", L"3", L"4", L"5", L"6", L"7", L"8", L"9", L"-" };
-        bool bIsNumberNegative			= false;
-        UTFCHAR TempNum[16];				// 16 is big enough
-        int32 TempAt					= 16; // fill the temp string from the top down.
-
-        // Correctly handle negative numbers and convert to positive integer.
-        if( Num < 0 )
-        {
-            bIsNumberNegative = true;
-            Num = -Num;
-        }
-
-        TempNum[--TempAt] = 0; // NULL terminator
-
-        // Convert to string assuming base ten and a positive integer.
-        do
-        {
-            TempNum[--TempAt] = *NumberChar[Num % 10];
-            Num /= 10;
-        }
-        while( Num );
-
-        // Append sign as we're going to reverse string afterwards.
-        if( bIsNumberNegative )
-        {
-            TempNum[--TempAt] = *NumberChar[10];
-        }
-
-        Data += TempNum + TempAt;
-    }
     static FString FromInt( int32 Num )
     {
-        FString Ret;
-        Ret.AppendInt(Num);
-        return Ret;
+        std::wstringstream StringStream;
+        StringStream << Num;
+        return StringStream.str();
     }
     bool Contains(const UTFCHAR* SubStr, int32 Size, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, ESearchDir::Type SearchDir = ESearchDir::FromStart)
     {
@@ -385,6 +352,10 @@ public:
     const std::string GetAnsiCharArray() const
     {
         return WStringToString(Data);
+    }
+    std::wstring GetRawData() const
+    {
+        return Data;
     }
     void InsertAt(int32 Index, UTFCHAR Character)
     {

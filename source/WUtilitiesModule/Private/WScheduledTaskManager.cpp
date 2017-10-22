@@ -34,7 +34,7 @@ bool UWScheduledAsyncTaskManager::IsSystemStarted()
 void UWScheduledAsyncTaskManager::StartSystem_Internal(uint32 SleepDurationMs)
 {
     SleepMsBetweenCheck = SleepDurationMs;
-    TickThread = new WThread(std::bind(&UWScheduledAsyncTaskManager::Tick, this));
+    TickThread = new WThread(std::bind(&UWScheduledAsyncTaskManager::TickerRun, this), std::bind(&UWScheduledAsyncTaskManager::TickerStop, this));
 }
 void UWScheduledAsyncTaskManager::EndSystem_Internal()
 {
@@ -80,7 +80,7 @@ void UWScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask& NewTas
     ManagerInstance->AwaitingScheduledTasks.Add(AsTask);
 }
 
-void UWScheduledAsyncTaskManager::Tick()
+void UWScheduledAsyncTaskManager::TickerRun()
 {
     while (bSystemStarted)
     {
@@ -113,4 +113,10 @@ void UWScheduledAsyncTaskManager::Tick()
             }
         }
     }
+}
+uint32 UWScheduledAsyncTaskManager::TickerStop()
+{
+    if (!bSystemStarted) return 0;
+    if (TickThread) delete (TickThread);
+    TickThread = new WThread(std::bind(&UWScheduledAsyncTaskManager::TickerRun, this), std::bind(&UWScheduledAsyncTaskManager::TickerStop, this));
 }

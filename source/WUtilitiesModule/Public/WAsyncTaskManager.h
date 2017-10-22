@@ -27,8 +27,9 @@ public:
     void StartWorker();
     void EndWorker();
 
-    void SetData(FWAwaitingTask* Task);
+    void SetData(FWAwaitingTask* Task, bool bSendSignal);
     void WorkersDen();
+    uint32 WorkersStopCallback();
 };
 
 class UWAsyncTaskManager
@@ -58,10 +59,15 @@ private:
         return *this;
     }
 
+    friend class FWAsyncWorker;
+    static uint32 AsyncWorkerStopped(FWAsyncWorker* StoppedWorker);
+
     void StartSystem_Internal(int32 WorkerThreadNo);
     void EndSystem_Internal();
 
-    FWAsyncWorker* AsyncWorkers = nullptr;
+    void StartWorkers(int32 WorkerThreadNo);
+
+    FWAsyncWorker** AsyncWorkers = nullptr;
     int32 WorkerThreadCount = 0;
 
     WSafeQueue<FWAsyncWorker*> FreeWorkers;

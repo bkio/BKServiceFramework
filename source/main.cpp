@@ -1,11 +1,12 @@
 // Copyright Pagansoft.com, All rights reserved.
 
 #include "WEngine.h"
+#include "WAsyncTaskManager.h"
+#include "WScheduledTaskManager.h"
 #include "WUDPManager.h"
 
 void Start()
 {
-    WThread::StartSystem();
     UWAsyncTaskManager::StartSystem(4);
     UWScheduledAsyncTaskManager::StartSystem(20);
     UWUDPManager::StartSystem(45000);
@@ -15,7 +16,6 @@ void Stop()
     UWUDPManager::EndSystem();
     UWScheduledAsyncTaskManager::EndSystem();
     UWAsyncTaskManager::EndSystem();
-    WThread::EndSystem();
 }
 void Restart()
 {
@@ -25,10 +25,6 @@ void Restart()
 void Quit()
 {
     Stop();
-}
-void ClearUDPClientRecords()
-{
-    UWUDPManager::ClearClientRecords();
 }
 
 int main()
@@ -43,7 +39,6 @@ int main()
     UWUtilities::Print(EWLogType::Log, L"1: Start");
     UWUtilities::Print(EWLogType::Log, L"2: Stop");
     UWUtilities::Print(EWLogType::Log, L"3: Restart");
-    UWUtilities::Print(EWLogType::Log, L"4: Clear UDP Client Records");
     UWUtilities::Print(EWLogType::Log, L"__________________");
 
     UWUtilities::Print(EWLogType::Log, L"Auto-start...");
@@ -72,10 +67,6 @@ int main()
         {
             Restart();
             UWUtilities::Print(EWLogType::Log, L"System restarted.");
-        }
-        else if (Signal == 4)
-        {
-            ClearUDPClientRecords();
         }
     }
 }

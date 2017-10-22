@@ -76,7 +76,7 @@ public:
         return Size > 0 && Value != nullptr;
     }
 
-    bool bDeallocateValueOnDestructor = false;
+    volatile bool bDeallocateValueOnDestructor = false;
 
     FWCHARWrapper() = default;
     FWCHARWrapper(ANSICHAR* const Parameter, int32 SizeParameter, bool _bDeallocateValueOnDestructor = false)
@@ -85,13 +85,28 @@ public:
         Size = SizeParameter;
         bDeallocateValueOnDestructor = _bDeallocateValueOnDestructor;
     }
-    FWCHARWrapper(const FWCHARWrapper &Other)
+    FWCHARWrapper(const FWCHARWrapper& Other)
     {
         Value = Other.Value;
         Size = Other.Size;
         bDeallocateValueOnDestructor = Other.bDeallocateValueOnDestructor;
     }
-    FWCHARWrapper& operator=(const FWCHARWrapper &Other)
+    FWCHARWrapper(FWCHARWrapper&& Other) noexcept
+    {
+        Value = Other.Value;
+        Size = Other.Size;
+        bDeallocateValueOnDestructor = Other.bDeallocateValueOnDestructor;
+    }
+    explicit FWCHARWrapper(FWCHARWrapper* Other)
+    {
+        if (Other)
+        {
+            Value = Other->Value;
+            Size = Other->Size;
+            bDeallocateValueOnDestructor = Other->bDeallocateValueOnDestructor;
+        }
+    }
+    FWCHARWrapper& operator=(const FWCHARWrapper& Other)
     {
         Value = Other.Value;
         Size = Other.Size;

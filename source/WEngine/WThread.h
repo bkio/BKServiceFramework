@@ -15,7 +15,8 @@
     #include <unistd.h>
 #endif
 
-typedef std::function<void()> WThreadCallback;
+typedef std::function<void()> WThreadRunCallback;
+typedef std::function<uint32()> WThreadStopCallback;
 
 class WThread
 {
@@ -23,8 +24,6 @@ class WThread
 private:
     WThread(const WThread&);
     const WThread& operator=(const WThread&);
-
-    int32 CurrentThreadNumber = 0;
 
 #if PLATFORM_WINDOWS
     HANDLE hThread;
@@ -35,35 +34,62 @@ private:
 #endif
     {
         auto wThread = static_cast<WThread*>(pVoid);
-        if (wThread && wThread->Callback)
+        if (wThread)
         {
-            wThread->bThreadJoinable = true;
-            wThread->Callback();
-            wThread->bThreadJoinable = false;
-#if PLATFORM_WINDOWS
-            if (wThread->hThread)
+            if (wThread->RunCallback)
             {
-                CloseHandle(wThread->hThread);
+                wThread->bThreadJoinable = true;
+                try
+                {
+                    wThread->RunCallback();
+                }
+                catch (std::bad_alloc& ba)
+                {
+                    UWUtilities::Print(EWLogType::Error, FString("Error: Thread out-of-memory: ") + FString(ba.what()));
+                    CleanThread(wThread);
+                    if (wThread->StopCallback)
+                    {
+                        return wThread->StopCallback();
+                    }
+                }
+                wThread->bThreadJoinable = false;
+                CleanThread(wThread);
             }
-#else
-            pthread_exit(nullptr);
-#endif
+            if (wThread->StopCallback)
+            {
+               return wThread->StopCallback();
+            }
         }
+
         return 0;
     }
 
-    WThreadCallback Callback;
+    static void CleanThread(WThread* wThread)
+    {
+#if PLATFORM_WINDOWS
+        if (wThread->hThread)
+        {
+            CloseHandle(wThread->hThread);
+        }
+#else
+        pthread_exit(nullptr);
+#endif
+    }
+
+    WThreadRunCallback RunCallback;
+    WThreadStopCallback StopCallback;
 
     bool bThreadJoinable = false;
 
 public:
-    explicit WThread(WThreadCallback ThreadCallback)
+    explicit WThread(WThreadRunCallback _RunCallback, WThreadStopCallback _StopCallback)
     {
-        Callback = std::move(ThreadCallback);
+        RunCallback = std::move(_RunCallback);
+        StopCallback = std::move(_StopCallback);
 
 #if PLATFORM_WINDOWS
         DWORD threadID;
-        hThread = CreateThread(nullptr, 0, &WThread::Run, this, STACK_SIZE_PARAM_IS_A_RESERVATION, &threadID);
+        hThread = CreateThread(nullptr, 67108863, &WThread::Run, this, STACK_SIZE_PARAM_IS_A_RESERVATION, &threadID);
         if (hThread)
         {
             SetThreadPriority(hThread, THREAD_PRIORITY_HIGHEST);
@@ -76,6 +102,8 @@ public:
         pthread_attr_getschedparam (&hThreadAttribute, &hScheduleParameter);
         hScheduleParameter.sched_priority = sched_get_priority_max(SCHED_FIFO);
         pthread_attr_setschedparam (&hThreadAttribute, &hScheduleParameter);
+
+		pthread_attr_setstacksize(&hThreadAttribute, 67108863);
 
         pthread_create(&hThread, &hThreadAttribute, &WThread::Run, this);
         pthread_attr_destroy(&hThreadAttribute);
@@ -97,11 +125,6 @@ public:
 #endif
     }
 
-    int32 GetCurrentThreadNo()
-    {
-        return CurrentThreadNumber;
-    }
-
     static void SleepThread(uint32 DurationMs)
     {
 #if PLATFORM_WINDOWS
@@ -109,13 +132,6 @@ public:
 #else
         usleep(DurationMs * 1000);
 #endif
-    }
-
-    static void StartSystem()
-    {
-    }
-    static void EndSystem()
-    {
     }
 };
 

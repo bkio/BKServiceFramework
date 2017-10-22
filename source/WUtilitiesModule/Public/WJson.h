@@ -256,43 +256,22 @@ namespace WJson
     {
         return Node(Node::T_INVALID);
     }
-    std::shared_ptr<Node> InvalidPtr()
-    {
-        return std::make_shared<Node>(Node::T_INVALID);
-    }
     Node Null()
     {
         return Node(Node::T_NULL);
-    }
-    std::shared_ptr<Node> NullPtr()
-    {
-        return std::make_shared<Node>(Node::T_NULL);
     }
     Node Object()
     {
         return Node(Node::T_OBJECT);
     }
-    std::shared_ptr<Node> ObjectPtr()
-    {
-        return std::make_shared<Node>(Node::T_OBJECT);
-    }
     Node Array()
     {
         return Node(Node::T_ARRAY);
-    }
-    std::shared_ptr<Node> ArrayPtr()
-    {
-        return std::make_shared<Node>(Node::T_ARRAY);
     }
     Node Validation()
     {
         return Node(Node::T_VALIDATION);
     }
-    std::shared_ptr<Node> ValidationPtr()
-    {
-        return std::make_shared<Node>(Node::T_VALIDATION);
-    }
 }
-#define NULL_WJSON_NODE std::shared_ptr<WJson::Node>(nullptr)
 
 #endif //Pragma_Once_WJson

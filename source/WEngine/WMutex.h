@@ -123,6 +123,7 @@ class WScopeGuard_Internal
 
 private:
     WMutex* RelativeMutex = nullptr;
+    bool bRedirected = false;
 
 public:
     explicit WScopeGuard_Internal(WMutex* Mutex, bool bDoNoLock = false)
@@ -151,12 +152,20 @@ public:
         RelativeMutex = InGuard.RelativeMutex;
         return *this;
     }
-    //There must not be an existing Mutex assigned to this.
-    void SetMutex(WMutex* Mutex) volatile
+    void SetMutex(WMutex* Mutex, volatile WScopeGuard_Internal* OldGuard) volatile
     {
-        if (RelativeMutex == nullptr && Mutex != nullptr)
+        if (RelativeMutex != nullptr)
+        {
+            RelativeMutex->unlock();
+        }
+
+        if (Mutex != nullptr)
         {
             RelativeMutex = Mutex;
+        }
+        if (OldGuard != nullptr)
+        {
+            OldGuard->bRedirected = true;
         }
     }
 
@@ -164,7 +173,7 @@ public:
 
     ~WScopeGuard_Internal()
     {
-        if (RelativeMutex != nullptr)
+        if (RelativeMutex != nullptr && !bRedirected)
         {
             RelativeMutex->unlock();
         }

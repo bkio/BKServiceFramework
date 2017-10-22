@@ -52,12 +52,12 @@ namespace WJson
     Node::Node() : data(nullptr)
     {
     }
-    Node::Node(Type type) : data(nullptr)
+    Node::Node(Type type)
     {
         if (type != T_INVALID)
-        {
             data = new Data(type);
-        }
+        else
+            data = nullptr;
     }
     Node::Node(const Node &other) : data(other.data)
     {
