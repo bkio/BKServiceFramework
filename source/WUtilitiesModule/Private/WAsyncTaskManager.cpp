@@ -182,7 +182,7 @@ void FWAsyncWorker::ProcessData()
     }
     DataReady = false;
 
-    FWAwaitingTask *PossibleAwaitingTask = nullptr;
+    FWAwaitingTask* PossibleAwaitingTask = nullptr;
     if (UWAsyncTaskManager::TryToGetAwaitingTask(PossibleAwaitingTask))
     {
         SetData(PossibleAwaitingTask, false);

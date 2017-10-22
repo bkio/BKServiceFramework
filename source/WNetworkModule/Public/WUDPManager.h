@@ -114,6 +114,8 @@ private:
 
     struct sockaddr_in UDPServer{};
 
+    WMutex SendMutex;
+
     WMutex ClientsRecord_Mutex;
     std::unordered_map<std::string, WClientRecord*> ClientRecords;
 

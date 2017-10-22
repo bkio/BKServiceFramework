@@ -33,6 +33,9 @@ bool UWUDPManager::InitializeSocket(uint16 Port)
     }
 #endif
 
+    int32 optval = 1;
+    setsockopt(UDPSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&optval, sizeof(int32));
+
     FMemory::Memzero((ANSICHAR*)&UDPServer, sizeof(UDPServer));
     UDPServer.sin_family = AF_INET;
     UDPServer.sin_addr.s_addr = INADDR_ANY;
@@ -132,7 +135,11 @@ void UWUDPManager::Send(sockaddr* Client, const FWCHARWrapper& SendBuffer)
 #else
     socklen_t ClientLen = sizeof(*Client);
 #endif
-    auto SentLength = static_cast<int32>(sendto(UDPSocket, SendBuffer.GetValue(), static_cast<size_t>(SendBuffer.GetSize()), 0, Client, ClientLen));
+    int32 SentLength;
+    WScopeGuard SendGuard(&SendMutex);
+    {
+        SentLength = static_cast<int32>(sendto(UDPSocket, SendBuffer.GetValue(), static_cast<size_t>(SendBuffer.GetSize()), 0, Client, ClientLen));
+    }
 
 #if PLATFORM_WINDOWS
     if (SentLength == SOCKET_ERROR)
@@ -390,7 +397,6 @@ WJson::Node UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
 
     //Timestamp operation starts.
     {
-        WScopeGuard ClientRecord_Dangerzone_Guard;
         WClientRecord* ClientRecord = nullptr;
         {
             std::string ClientKey = WNetworkHelper::GetAddressPortFromClient(Client, MessageID, true);
@@ -414,7 +420,6 @@ WJson::Node UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
                 ClientRecord = new WClientRecord(ClientKey);
                 ManagerInstance->ClientRecords.insert(std::pair<std::string, WClientRecord*>(ClientKey, ClientRecord));
             }
-            ClientRecord_Dangerzone_Guard.SetMutex(&ClientRecord->Dangerzone_Mutex, &Guard);
         }
 
         uint16 Timestamp = 0;
@@ -880,12 +885,10 @@ WUDPRecord::WUDPRecord() : LastInteraction(UWUtilities::GetTimeStampInMS())
 }
 WUDPRecord::~WUDPRecord()
 {
-    UWUtilities::Print(EWLogType::Log, "~WUDPRecord()");
 }
 
 bool WReliableConnectionRecord::ResetterFunction()
 {
-    UWUtilities::Print(EWLogType::Log, L"ResetterFunction");
     if (GetHandshakingStatus() == 3) return true;
     if (++FailureTrialCount >= 5)
     {
@@ -898,8 +901,6 @@ bool WReliableConnectionRecord::ResetterFunction()
 bool UWUDPManager::ReliableDataTimedOut(WReliableConnectionRecord* Record)
 {
     if (!bSystemStarted || ManagerInstance == nullptr || Record == nullptr || Record->GetBuffer() == nullptr || !Record->GetBuffer()->IsValid()) return false;
-
-    UWUtilities::Print(EWLogType::Log, L"ReliableDataTimedOut");
 
     Record->UpdateLastInteraction();
     ManagerInstance->Send(Record->GetClient(), *Record->GetBuffer());
@@ -969,7 +970,7 @@ void UWUDPManager::AsReceiverReliableSYNSuccess(sockaddr* Client, uint32 Message
     if (!bSystemStarted) return;
 
     //Send SYN-ACK
-    UWUtilities::Print(EWLogType::Log, L"Send SYN-ACK");
+    //UWUtilities::Print(EWLogType::Log, L"Send SYN-ACK: " + FString::FromInt(MessageID));
 
     FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::Validation(), false, false, true, false, false, false, MessageID);
 
@@ -997,7 +998,7 @@ void UWUDPManager::AsReceiverReliableSYNFailure(sockaddr* Client, uint32 Message
     if (!bSystemStarted) return;
 
     //Send SYN-fail
-    UWUtilities::Print(EWLogType::Log, L"Send SYN-fail");
+    //UWUtilities::Print(EWLogType::Log, L"Send SYN-fail: " + FString::FromInt(MessageID));
 
     FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::Validation(), false, false, false, true, false, false, MessageID);
 
@@ -1017,7 +1018,7 @@ void UWUDPManager::HandleReliableSYNDeparture(sockaddr* Client, FWCHARWrapper& B
     if (!bSystemStarted) return;
 
     //Set the case
-    UWUtilities::Print(EWLogType::Log, L"SYNDeparture");
+    //UWUtilities::Print(EWLogType::Log, L"SYNDeparture: " + FString::FromInt(MessageID));
 
     WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, Buffer, true, 0, true);
     if (Record)
@@ -1031,7 +1032,7 @@ void UWUDPManager::HandleReliableSYNSuccess(sockaddr* Client, uint32 MessageID) 
     if (!bSystemStarted) return;
 
     //Send ACK
-    UWUtilities::Print(EWLogType::Log, L"Send ACK");
+    //UWUtilities::Print(EWLogType::Log, L"Send ACK: " + FString::FromInt(MessageID));
 
     FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::Validation(), false, false, false, false, true, false, MessageID);
 
@@ -1059,7 +1060,7 @@ void UWUDPManager::HandleReliableSYNFailure(sockaddr* Client, uint32 MessageID) 
     if (!bSystemStarted) return;
 
     //Re-send SYN(Buffer)
-    UWUtilities::Print(EWLogType::Log, L"Re-send SYN(Buffer)");
+    //UWUtilities::Print(EWLogType::Log, L"Re-send SYN(Buffer): " + FString::FromInt(MessageID));
 
     FWCHARWrapper NullBuffer;
 
@@ -1075,7 +1076,7 @@ void UWUDPManager::HandleReliableSYNACKSuccess(sockaddr* Client, uint32 MessageI
     if (!bSystemStarted) return;
 
     //ACK received. Send ACK-ACK, then close the case.
-    UWUtilities::Print(EWLogType::Log, L"ACK received. Send ACK-ACK, then close the case.");
+    //UWUtilities::Print(EWLogType::Log, L"ACK received. Send ACK-ACK, then close the case: " + FString::FromInt(MessageID));
 
     FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::Validation(), false, false, false, false, false, true, MessageID);
 
@@ -1108,7 +1109,7 @@ void UWUDPManager::HandleReliableACKArrival(sockaddr* Client, uint32 MessageID) 
     if (!bSystemStarted) return;
 
     //ACK-ACK received. Close the case.
-    UWUtilities::Print(EWLogType::Log, L"ACK-ACK received. Close the case.");
+    //UWUtilities::Print(EWLogType::Log, L"ACK-ACK received. Close the case: " + FString::FromInt(MessageID));
 
     FWCHARWrapper NullBuffer;
 

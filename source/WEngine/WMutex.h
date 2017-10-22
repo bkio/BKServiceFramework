@@ -152,22 +152,6 @@ public:
         RelativeMutex = InGuard.RelativeMutex;
         return *this;
     }
-    void SetMutex(WMutex* Mutex, volatile WScopeGuard_Internal* OldGuard) volatile
-    {
-        if (RelativeMutex != nullptr)
-        {
-            RelativeMutex->unlock();
-        }
-
-        if (Mutex != nullptr)
-        {
-            RelativeMutex = Mutex;
-        }
-        if (OldGuard != nullptr)
-        {
-            OldGuard->bRedirected = true;
-        }
-    }
 
     WScopeGuard_Internal() = default;
 
