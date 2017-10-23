@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
-project(WNetworkModule)
+project(WHTTPModule)
 
 #Dependencies Start
-set(WDepModsOf_WNetworkModule WUtilitiesModule)
+set(WDepModsOf_WHTTPModule WUtilitiesModule)
 #Dependencies End
 
 if(WIN32)
@@ -28,16 +28,16 @@ file(GLOB Private_Files
 
 set(SOURCE_FILES ${Public_Files} ${Private_Files})
 
-add_library(WNetworkModule SHARED ${SOURCE_FILES})
+add_library(WHTTPModule SHARED ${SOURCE_FILES})
 
 if(WIN32)
-    target_link_libraries(WNetworkModule ws2_32.lib)
+    target_link_libraries(WHTTPModule ws2_32.lib)
     MESSAGE(STATUS "Platform: Windows")
 else()
     MESSAGE(STATUS "Platform: Non-Windows")
 endif()
 
-foreach(WModule ${WDepModsOf_WNetworkModule})
+foreach(WModule ${WDepModsOf_WHTTPModule})
     include_directories(${WModule}/Public)
-    target_link_libraries(WNetworkModule ${WModule})
+    target_link_libraries(WHTTPModule ${WModule})
 endforeach()

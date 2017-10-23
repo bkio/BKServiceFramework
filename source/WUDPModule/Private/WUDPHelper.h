@@ -9,16 +9,16 @@
 #include "WEngine.h"
 #include "WString.h"
 #if PLATFORM_WINDOWS
-    #pragma comment(lib, "ws2_32.lib")
-    #include <winsock2.h>
+#pragma comment(lib, "ws2_32.lib")
+#include <winsock2.h>
 #include <WMemory.h>
 #include <WTaskDefines.h>
 
 #else
-    #include <netinet/in.h>
+#include <netinet/in.h>
 #endif
 
-class WNetworkHelper
+class WUDPHelper
 {
 
 public:
@@ -247,5 +247,5 @@ public:
     }
 };
 
-#endif //WNetworkHelper
+#endif //WUDPHelper
 #pragma clang diagnostic pop

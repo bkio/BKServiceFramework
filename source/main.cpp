@@ -4,15 +4,18 @@
 #include "WAsyncTaskManager.h"
 #include "WScheduledTaskManager.h"
 #include "WUDPManager.h"
+#include "WHTTPManager.h"
 
 void Start()
 {
     UWAsyncTaskManager::StartSystem(4);
     UWScheduledAsyncTaskManager::StartSystem(20);
     UWUDPManager::StartSystem(45000);
+    UWHTTPManager::StartSystem(8080);
 }
 void Stop()
 {
+    UWHTTPManager::EndSystem();
     UWUDPManager::EndSystem();
     UWScheduledAsyncTaskManager::EndSystem();
     UWAsyncTaskManager::EndSystem();

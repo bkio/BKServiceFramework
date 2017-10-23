@@ -14,7 +14,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMA
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMAKE_BUILD_TYPE})
 
 #Dependencies Start
-set(WModules WUtilitiesModule;WNetworkModule)
+set(WModules WUtilitiesModule;WUDPModule;WHTTPModule)
 #Dependencies End
 
 set(SOURCE_FILES main.cpp)

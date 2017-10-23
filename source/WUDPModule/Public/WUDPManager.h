@@ -13,9 +13,9 @@
     #include <netinet/in.h>
     #include <arpa/inet.h>
 #endif
+#include "../Private/WUDPHelper.h"
 #include "WThread.h"
 #include "WUtilities.h"
-#include "WNetworkHelper.h"
 #include "WJson.h"
 #include <unordered_map>
 #include <unordered_set>
@@ -152,4 +152,4 @@ private:
     UWUDPManager() = default;
 };
 
-#endif
+#endif //Pragma_Once_WUDPManager

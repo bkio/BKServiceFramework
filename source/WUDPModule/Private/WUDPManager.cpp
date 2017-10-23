@@ -11,7 +11,7 @@ bool UWUDPManager::InitializeSocket(uint16 Port)
     WSADATA WSAData{};
     if (WSAStartup(0x202, &WSAData) != 0)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"WSAStartup() failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPManager: WSAStartup() failed with error: ") + UWUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
@@ -21,14 +21,14 @@ bool UWUDPManager::InitializeSocket(uint16 Port)
 #if PLATFORM_WINDOWS
     if (UDPSocket == INVALID_SOCKET)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPManager: Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
 #else
     if (UDPSocket == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPManager: Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
         return false;
     }
 #endif
@@ -44,7 +44,7 @@ bool UWUDPManager::InitializeSocket(uint16 Port)
     int32 ret = bind(UDPSocket, (struct sockaddr*)&UDPServer, sizeof(UDPServer));
     if (ret == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"Socket binding failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPManager: Socket binding failed with error: ") + UWUtilities::WGetSafeErrorMessage());
 #if PLATFORM_WINDOWS
         WSACleanup();
 #endif
@@ -79,9 +79,9 @@ void UWUDPManager::ListenSocket()
         auto RetrievedSize = static_cast<int32>(recvfrom(UDPSocket, Buffer, 1024, 0, Client, &ClientLen));
         if (RetrievedSize < 0 || !bSystemStarted)
         {
-            if (!bSystemStarted) return;
             delete[] Buffer;
             delete (Client);
+            if (!bSystemStarted) return;
             continue;
         }
         if (RetrievedSize == 0) continue;
@@ -101,13 +101,7 @@ void UWUDPManager::ListenSocket()
                     {
                         FWCHARWrapper WrappedBuffer(Parameter->Buffer, Parameter->BufferSize);
 
-                        WJson::Node Result = AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
-                        /*if (Result.IsValid())
-                        {
-                            FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Parameter->Client, Result, true);
-                            ManagerInstance->Send(Parameter->Client, WrappedFinalData);
-                            WrappedFinalData.DeallocateValue();
-                        }*/
+                        AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
                     }
                 }
             }
@@ -144,12 +138,12 @@ void UWUDPManager::Send(sockaddr* Client, const FWCHARWrapper& SendBuffer)
 #if PLATFORM_WINDOWS
     if (SentLength == SOCKET_ERROR)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPManager: Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
     }
 #else
     if (SentLength == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPManager: Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
     }
 #endif
 }
@@ -399,7 +393,7 @@ WJson::Node UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     {
         WClientRecord* ClientRecord = nullptr;
         {
-            std::string ClientKey = WNetworkHelper::GetAddressPortFromClient(Client, MessageID, true);
+            std::string ClientKey = WUDPHelper::GetAddressPortFromClient(Client, MessageID, true);
 
             WScopeGuard Guard(&ManagerInstance->ClientsRecord_Mutex);
             auto It = ManagerInstance->ClientRecords.find(ClientKey);
@@ -912,7 +906,7 @@ WReliableConnectionRecord* UWUDPManager::Create_AddOrGet_ReliableConnectionRecor
     //Otherwise will only try to get from existing records and if found, will ensure HandshakingStatus = EnsureHandshakingStatusEqualsTo, otherwise returns null.
     //HandshakingStatus_Mutex may be locked after. Do not forget to try unlocking it.
 
-    std::string ClientKey = WNetworkHelper::GetAddressPortFromClient(Client, MessageID);
+    std::string ClientKey = WUDPHelper::GetAddressPortFromClient(Client, MessageID);
 
     WReliableConnectionRecord* ReliableConnection = nullptr;
     {
