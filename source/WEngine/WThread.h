@@ -49,7 +49,11 @@ private:
                     CleanThread(wThread);
                     if (wThread->StopCallback)
                     {
+#if PLATFORM_WINDOWS
+                        return wThread->StopCallback();
+#else
                         return reinterpret_cast<void *>(wThread->StopCallback());
+#endif
                     }
                 }
                 wThread->bThreadJoinable = false;
@@ -57,11 +61,19 @@ private:
             }
             if (wThread->StopCallback)
             {
-               return reinterpret_cast<void *>(wThread->StopCallback());
+#if PLATFORM_WINDOWS
+                return wThread->StopCallback();
+#else
+                return reinterpret_cast<void *>(wThread->StopCallback());
+#endif
             }
         }
 
+#if PLATFORM_WINDOWS
+        return 0;
+#else
         return nullptr;
+#endif
     }
 
     static void CleanThread(WThread* wThread)
