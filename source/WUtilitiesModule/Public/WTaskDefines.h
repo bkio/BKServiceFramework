@@ -24,6 +24,9 @@ public:
     uint32 WaitTimeMs = 0;
     bool bLoop = false;
 
+    bool bQueued = false;
+    int64 QueuedTimestamp = 0;
+
     WFutureAsyncTask FunctionPtr;
     TArray<FWAsyncTaskParameter*> Parameters;
 

@@ -95,11 +95,7 @@ public:
             }
             else return false;
         }
-
-        auto Headers = Parser.GetHeaders();
-
-        auto ConnectionIterator = Headers.find("Connection");
-        return !(ConnectionIterator != Headers.end() && ConnectionIterator->second == "close");
+        return true;
     }
 
     void SendData(const std::string& Body, const std::string& Header)
