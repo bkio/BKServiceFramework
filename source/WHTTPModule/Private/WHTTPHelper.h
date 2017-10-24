@@ -11,9 +11,10 @@
 #include <ws2tcpip.h>
 #include <winsock2.h>
 #else
-#include <sys/socket.h>
-    #include <netinet/in.h>
+    #include <sys/socket.h>
     #include <arpa/inet.h>
+    #include <netinet/in.h>
+    #include <netinet/tcp.h>
 #endif
 
 #define HTTP_BUFFER_SIZE 2048
@@ -52,7 +53,11 @@ public:
     }
     ~FWHTTPClient() override
     {
+#if PLATFORM_WINDOWS
         closesocket(ClientSocket);
+#else
+        close(ClientSocket);
+#endif
     }
 
     bool Initialize()

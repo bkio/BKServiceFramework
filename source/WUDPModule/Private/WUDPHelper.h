@@ -8,6 +8,7 @@
 
 #include "WEngine.h"
 #include "WString.h"
+#include "WMemory.h"
 #if PLATFORM_WINDOWS
 #pragma comment(lib, "ws2_32.lib")
 #include <winsock2.h>

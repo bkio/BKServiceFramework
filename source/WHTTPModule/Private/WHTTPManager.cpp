@@ -82,7 +82,7 @@ void UWHTTPManager::ListenSocket()
 #if PLATFORM_WINDOWS
         if (ListenResult == SOCKET_ERROR)
 #else
-        if (ClientSocket == -1)
+        if (ListenResult == -1)
 #endif
         {
             delete[] Buffer;

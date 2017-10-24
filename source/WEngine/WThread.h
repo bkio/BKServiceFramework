@@ -29,7 +29,7 @@ private:
     HANDLE hThread;
     static DWORD WINAPI Run(LPVOID pVoid)
 #else
-    pthread_t hThread;
+    pthread_t hThread{};
     static void* Run(void* pVoid)
 #endif
     {
@@ -49,7 +49,7 @@ private:
                     CleanThread(wThread);
                     if (wThread->StopCallback)
                     {
-                        return wThread->StopCallback();
+                        return reinterpret_cast<void *>(wThread->StopCallback());
                     }
                 }
                 wThread->bThreadJoinable = false;
@@ -57,11 +57,11 @@ private:
             }
             if (wThread->StopCallback)
             {
-               return wThread->StopCallback();
+               return reinterpret_cast<void *>(wThread->StopCallback());
             }
         }
 
-        return 0;
+        return nullptr;
     }
 
     static void CleanThread(WThread* wThread)
@@ -95,10 +95,10 @@ public:
             SetThreadPriority(hThread, THREAD_PRIORITY_HIGHEST);
         }
 #else
-        pthread_attr_t hThreadAttribute;
+        pthread_attr_t hThreadAttribute{};
         pthread_attr_init (&hThreadAttribute);
 
-        sched_param hScheduleParameter;
+        sched_param hScheduleParameter{};
         pthread_attr_getschedparam (&hThreadAttribute, &hScheduleParameter);
         hScheduleParameter.sched_priority = sched_get_priority_max(SCHED_FIFO);
         pthread_attr_setschedparam (&hThreadAttribute, &hScheduleParameter);
