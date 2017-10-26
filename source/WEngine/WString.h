@@ -46,6 +46,7 @@ class FString
 private:
     std::wstring Data;
 
+public:
     static std::wstring StringToWString(const std::string& t_str)
     {
         typedef std::codecvt_utf8<wchar_t> convert_type;
@@ -59,7 +60,6 @@ private:
         return converter.to_bytes(_str);
     }
 
-public:
     int32 Len() const
     {
         return Data.length();
@@ -235,9 +235,39 @@ public:
     }
     static FString FromInt( int32 Num )
     {
-        std::wstringstream StringStream;
-        StringStream << Num;
-        return StringStream.str();
+        std::wstringstream Stream;
+        Stream << Num;
+        return Stream.str();
+    }
+    static FString FromInt( int64 Num )
+    {
+        std::wstringstream Stream;
+        Stream << Num;
+        return Stream.str();
+    }
+    static FString FromInt( uint32 Num )
+    {
+        std::wstringstream Stream;
+        Stream << Num;
+        return Stream.str();
+    }
+    static FString FromInt( uint64 Num )
+    {
+        std::wstringstream Stream;
+        Stream << Num;
+        return Stream.str();
+    }
+    static FString FromFloat( float Num )
+    {
+        std::wstringstream Stream;
+        Stream << Num;
+        return Stream.str();
+    }
+    static FString FromFloat( double Num )
+    {
+        std::wstringstream Stream;
+        Stream << Num;
+        return Stream.str();
     }
     bool Contains(const UTFCHAR* SubStr, int32 Size, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, ESearchDir::Type SearchDir = ESearchDir::FromStart)
     {

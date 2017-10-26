@@ -34,7 +34,7 @@ public:
 	* if bIgnoreTimestamp == false && Timestamp == 0, sends one package with bReliableSYN = true, bIgnoreTimestamp = true
 
 	[Inclusive:Inclusive]	[Description]
-	[0:0 Byte]				[Boolean Protocol Flags] { bReliableSYN, bReliableSYNSuccess, bReliableSYNFailure, bReliableSYNACKSuccess, bReliableACK, bIgnoreTimestamp }
+	[0:0 Byte]				[Boolean Protocol Flags] { bReliableSYN, bReliableSYNSuccess, bReliableSYNFailure, bReliableSYNACKSuccess, bReliableACK, bIgnoreTimestamp, bDoubleContentCount }
 	[1:4 Byte]				[Message ID] (If one of bReliable(s) = true)
 	[A:B Byte]				[Checksum] ((If bReliableSYN = true & other bReliable(s) = false) | all-bReliable(s) = false)
 	[C:D Byte]				[Timestamp] (If bIgnoreTimestamp = false)
@@ -54,7 +54,10 @@ public:
 	if bIgnoreTimestamp = true  & [Message ID] exists: : 9th
 	else: 5th
 
-	0th Byte: 0-2 Bits: Variable Type (Max 7), 3-7 Bits Variable Content Count (Max 31)
+	if (bDoubleContentCount)
+     [0:1 Byte]: 0-2 Bits: Variable Type (Max 7), 3-15 Bits Variable Content Count (Max 8191)
+    else
+     0th Byte: 0-2 Bits: Variable Type (Max 7), 3-7 Bits Variable Content Count (Max 31)
 
 	Variable Types:
 	0->Boolean Array	Variable Content Count: Number of booleans (per: 1 bit)
@@ -83,7 +86,8 @@ public:
             bool bReliableSYNFailure = false,
             bool bReliableSYNACKSuccess = false,
             bool bReliableACK = false,
-            int32 ReliableMessageID = 0);
+            int32 ReliableMessageID = 0,
+            bool bDoubleContentCount = false);
 
     static void AddNewUDPRecord(WUDPRecord* NewRecord);
 

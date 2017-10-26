@@ -81,15 +81,20 @@ void UWUtilities::Print(EWLogType LogType, const ANSICHAR* Format)
     std::cout << Message.str();
 }
 
-int64 UWUtilities::GetTimeStampInMS()
+uint64 UWUtilities::GetTimeStampInMS()
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    return static_cast<uint64>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
 }
-int32 UWUtilities::GetSafeTimeStampInMS()
+uint32 UWUtilities::GetSafeTimeStampInMS()
 {
-    int64 currentTime = GetTimeStampInMS();
-    const int32 MaxInt = 2147483647;
-    return (int32)(currentTime > MaxInt ? (currentTime % MaxInt) : currentTime);
+    uint64 CurrentTime = GetTimeStampInMS();
+    const uint64 MaxInt = 2147483647;
+    return (uint32)(CurrentTime > MaxInt ? (CurrentTime % MaxInt) : CurrentTime);
+}
+double UWUtilities::GetTimeStampInMSDetailed()
+{
+    double NS = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+    return NS / 1000000.0f;
 }
 
 FString UWUtilities::WGetSafeErrorMessage()

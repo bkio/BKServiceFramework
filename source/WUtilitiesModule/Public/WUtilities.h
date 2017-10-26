@@ -159,8 +159,9 @@ public:
     static void Print(EWLogType LogType, const UTFCHAR* format);
     static void Print(EWLogType LogType, const ANSICHAR* format);
 
-    static int64 GetTimeStampInMS();
-    static int32 GetSafeTimeStampInMS();
+    static uint64 GetTimeStampInMS();
+    static uint32 GetSafeTimeStampInMS();
+    static double GetTimeStampInMSDetailed();
 
     static FString WGetSafeErrorMessage();
     static FString WGenerateMD5HashFromString(const FString& RawData);

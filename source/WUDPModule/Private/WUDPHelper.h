@@ -75,7 +75,7 @@ struct WUDPRecord
 
 protected:
     WMutex LastInteraction_Mutex;
-    int64 LastInteraction = 0;
+    uint64 LastInteraction = 0;
 
     EWReliableRecordType Type;
 
@@ -85,7 +85,7 @@ public:
     virtual bool ResetterFunction() = 0; //If returns true, deletes the record after execution.
     virtual uint32 TimeoutValueMS() = 0;
 
-    int64 GetLastInteraction()
+    uint64 GetLastInteraction()
     {
         return LastInteraction;
     }

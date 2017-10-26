@@ -11,7 +11,7 @@ void Start()
     UWAsyncTaskManager::StartSystem(4);
     UWScheduledAsyncTaskManager::StartSystem(20);
     UWUDPManager::StartSystem(45000);
-    UWHTTPManager::StartSystem(8080);
+    UWHTTPManager::StartSystem(8080, 2500);
 }
 void Stop()
 {

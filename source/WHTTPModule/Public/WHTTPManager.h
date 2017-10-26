@@ -16,18 +16,19 @@ class UWHTTPManager
 {
 
 public:
-    static bool StartSystem(uint16 Port);
+    static bool StartSystem(uint16 Port, uint32 TimeoutMs);
     static void EndSystem();
 
 private:
     static bool bSystemStarted;
 
-    bool StartSystem_Internal(uint16 Port);
+    bool StartSystem_Internal(uint16 Port, uint32 TimeoutMs);
     void EndSystem_Internal();
 
     struct sockaddr_in HTTPServer{};
 
     uint16 HTTPPort = 80;
+    uint32 TimeoutInMs = 2500;
 
 #if PLATFORM_WINDOWS
     SOCKET HTTPSocket{};

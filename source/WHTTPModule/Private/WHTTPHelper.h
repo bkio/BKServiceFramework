@@ -5,6 +5,7 @@
 
 #include "WEngine.h"
 #include "WHTTPRequestParser.h"
+#include "WScheduledTaskManager.h"
 
 #if PLATFORM_WINDOWS
 #pragma comment(lib, "ws2_32.lib")
@@ -29,7 +30,7 @@ private:
     int32 ClientSocket = 0;
 #endif
 
-    bool bInitialized = false;
+    sockaddr* Client = nullptr;
 
     std::string ClientIP;
 
@@ -39,25 +40,76 @@ private:
     ANSICHAR RecvBuffer[HTTP_BUFFER_SIZE]{};
     int32 BytesReceived{};
 
-public:
-    int32 BufferSize = 0;
+    bool bInitialized = false;
+    WMutex bInitialized_Mutex;
+    void Cancel()
+    {
+        if (!bInitialized) return;
+
+        WScopeGuard Guard(&bInitialized_Mutex);
+        bInitialized = false;
+    }
+
+    bool bSocketClosed = false;
+    void CloseSocket()
+    {
+        if (bSocketClosed) return;
+        bSocketClosed = true;
 
 #if PLATFORM_WINDOWS
-
-    explicit FWHTTPClient(SOCKET _ClientSocket)
+        closesocket(ClientSocket);
+        shutdown(ClientSocket, SD_BOTH);
 #else
-    explicit FWHTTPClient(int32 _ClientSocket)
+        close(ClientSocket);
+        shutdown(ClientSocket, SD_BOTH);
+#endif
+    }
+
+    void SendData_Internal(const std::wstring& Body, const std::string& Header)
+    {
+        std::string Response = Header + FString::WStringToString(Body);
+        send(ClientSocket, Response.c_str(), strlen(Response.c_str()), 0);
+    }
+    void Corrupted_Internal()
+    {
+        std::wstring ResponseBody = L"<html>Corrupted</html>";
+        std::string ResponseHeaders = "HTTP/1.1 400 Bad Request\r\n"
+                                              "Content-Type: text/html; charset=UTF-8\r\n"
+                                              "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
+        SendData_Internal(ResponseBody, ResponseHeaders);
+    }
+    void Timeout_Internal()
+    {
+        std::wstring ResponseBody = L"<html>Timeout</html>";
+        std::string ResponseHeaders = "HTTP/1.1 408 Request Timeout\r\n"
+                                              "Content-Type: text/html; charset=UTF-8\r\n"
+                                              "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
+        SendData_Internal(ResponseBody, ResponseHeaders);
+
+        Cancel();
+        CloseSocket();
+    }
+
+public:
+#if PLATFORM_WINDOWS
+    FWHTTPClient(SOCKET _ClientSocket, sockaddr* _Client, uint32 TimeoutInMs)
+#else
+    FWHTTPClient(int32 _ClientSocket, sockaddr* _Client, uint32 TimeoutInMs)
 #endif
     {
         ClientSocket = _ClientSocket;
+        Client = _Client;
+
+        TArray<FWAsyncTaskParameter*> NoParameter;
+        UWScheduledAsyncTaskManager::NewScheduledAsyncTask(std::bind(Timeout_Internal, this), NoParameter, TimeoutInMs, false, true);
     }
     ~FWHTTPClient() override
     {
-#if PLATFORM_WINDOWS
-        closesocket(ClientSocket);
-#else
-        close(ClientSocket);
-#endif
+        CloseSocket();
+        if (Client)
+        {
+            delete (Client);
+        }
     }
 
     bool Initialize()
@@ -82,57 +134,110 @@ public:
         ClientIP = inet_ntoa(ClientInfo.sin_addr);
     }
 
+    //@return: If succeed true, otherwise false.
     bool GetData()
     {
-        Parser.Reset();
+        if (!bInitialized) return false;
 
         bool HeadersReady = false;
-        while(!HeadersReady)
+        while (!HeadersReady)
         {
             BytesReceived = recv(ClientSocket, RecvBuffer, RecvBufferLen, 0);
-            if(BytesReceived > 0)
+
+            if (!bInitialized) return false;
+
+            if (BytesReceived > 0)
             {
-                Parser.ProcessChunk(RecvBuffer, BytesReceived);
-                if(Parser.AllHeadersAvailable())
+                Parser.ProcessChunkForHeaders(RecvBuffer, BytesReceived);
+                if (Parser.AllHeadersAvailable())
                 {
                     HeadersReady = true;
                 }
             }
-            else return false;
+            else
+            {
+                Cancel();
+                return false;
+            }
         }
-        return true;
+
+        if (Parser.GetMethod().rfind("HEAD", 0) == 0 || Parser.GetMethod().rfind("GET", 0) == 0) return true;
+
+        while (true)
+        {
+            BytesReceived = recv(ClientSocket, RecvBuffer, RecvBufferLen, 0);
+
+            if (!bInitialized) return false;
+
+            if (BytesReceived > 0)
+            {
+                if (Parser.ProcessChunkForBody(RecvBuffer, BytesReceived))
+                {
+                    if (Parser.AllBodyAvailable())
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    Corrupted_Internal();
+                    return false;
+                }
+            }
+            else
+            {
+                Cancel();
+                return false;
+            }
+        }
     }
 
-    void SendData(const std::string& Body, const std::string& Header)
+    void SendData(const std::wstring& Body, const std::string& Header)
     {
-        std::string Response = Header + Body;
-        send(ClientSocket, Response.c_str(), strlen(Response.c_str()), 0);
+        if (!bInitialized) return;
+        SendData_Internal(Body, Header);
+    }
+
+    void Finalize()
+    {
+        Cancel();
     }
 
     std::string GetClientIP()
     {
+        if (!bInitialized) return "";
         return ClientIP;
     }
 
     std::string GetMethod()
     {
+        if (!bInitialized) return "";
         return Parser.GetMethod();
     }
 
     std::string GetPath()
     {
+        if (!bInitialized) return "";
         return Parser.GetPath();
     }
 
     std::string GetProtocol()
     {
+        if (!bInitialized) return "";
         return Parser.GetProtocol();
     }
 
     std::map<std::string, std::string> GetHeaders()
     {
+        if (!bInitialized) return std::map<std::string, std::string>();
         return Parser.GetHeaders();
     };
+
+    std::wstring GetPayload()
+    {
+        if (!bInitialized) return L"";
+        return Parser.GetPayload();
+    }
 };
 
 #endif //Pragma_Once_WHTTPHelper

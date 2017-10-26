@@ -42,9 +42,9 @@ public:
     static bool IsSystemStarted();
 
     static void PushFreeWorker(FWAsyncWorker* Worker);
-    static bool TryToGetAwaitingTask(FWAwaitingTask* Destination);
+    static FWAwaitingTask* TryToGetAwaitingTask();
 
-    static void NewAsyncTask(WFutureAsyncTask& NewTask, TArray<FWAsyncTaskParameter*>& TaskParameters);
+    static void NewAsyncTask(WFutureAsyncTask& NewTask, TArray<FWAsyncTaskParameter*>& TaskParameters, bool bDoNotDeallocateParameters = false);
 
 private:
     static bool bSystemStarted;

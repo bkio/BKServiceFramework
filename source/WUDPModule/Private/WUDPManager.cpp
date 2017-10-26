@@ -89,7 +89,7 @@ void UWUDPManager::ListenSocket()
         auto TaskParameter = new FWUDPTaskParameter(RetrievedSize, Buffer, Client);
         TArray<FWAsyncTaskParameter*> TaskParameterAsArray(TaskParameter);
 
-        WFutureAsyncTask Lambda = [](TArray<FWAsyncTaskParameter*>& TaskParameters)
+        WFutureAsyncTask Lambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
         {
             if (!bSystemStarted || !ManagerInstance) return;
 
@@ -101,7 +101,8 @@ void UWUDPManager::ListenSocket()
                     {
                         FWCHARWrapper WrappedBuffer(Parameter->Buffer, Parameter->BufferSize);
 
-                        AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
+                        WJson::Node Result = AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
+                        ManagerInstance->Send(Parameter->Client, WrappedBuffer);
                     }
                 }
             }
@@ -173,11 +174,11 @@ bool UWUDPManager::StartSystem_Internal(uint16 Port)
         UDPSystemThread = new WThread(std::bind(&UWUDPManager::ListenSocket, this), std::bind(&UWUDPManager::ListenerStopped, this));
 
         TArray<FWAsyncTaskParameter*> NoParameter;
-        WFutureAsyncTask Lambda = [](TArray<FWAsyncTaskParameter*>& TaskParameters)
+        WFutureAsyncTask Lambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
         {
             if (!bSystemStarted || ManagerInstance == nullptr) return;
 
-            int64 CurrentTimestamp = UWUtilities::GetTimeStampInMS();
+            uint64 CurrentTimestamp = UWUtilities::GetTimeStampInMS();
 
             WUDPRecord* Record = nullptr;
             WScopeGuard Guard(&ManagerInstance->UDPRecordsForTimeoutCheck_Mutex);
@@ -320,6 +321,7 @@ WJson::Node UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     bool bReliableSYNACKSuccess = ResultOfDecompress[3];
     bool bReliableACK = ResultOfDecompress[4];
     bool bIgnoreTimestamp = ResultOfDecompress[5];
+    bool bDoubleContentCount = ResultOfDecompress[6];
     //
 
     bool bReliable = bReliableSYN || bReliableSYNSuccess || bReliableSYNFailure || bReliableSYNACKSuccess || bReliableACK;
@@ -357,7 +359,7 @@ WJson::Node UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
 
         return WJson::Validation();
     }
-    else if (!bReliableSYN && MessageID == 0)
+    else if (bReliable && !bReliableSYN && MessageID == 0)
     {
         return WJson::Invalid();
     }
@@ -469,7 +471,7 @@ WJson::Node UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     int32 RemainedBytes = Parameter.GetSize() - GenericPartStartIx;
     while (RemainedBytes > 0)
     {
-        if (RemainedBytes <= 1) break;
+        if (RemainedBytes <= (bDoubleContentCount ? 2 : 1)) break;
 
         ANSICHAR CurrentChar = Parameter.GetArrayElement(Parameter.GetSize() - RemainedBytes);
 
@@ -477,9 +479,22 @@ WJson::Node UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
         auto VariableType = static_cast<uint8>(CurrentChar & 0b00000111);
 
         //Variable Content Count
-        auto VariableContentCount = static_cast<uint8>((CurrentChar & 0b11111000) >> 3);
+        uint16 VariableContentCount = 0;
+        auto VariableContentCount_1 = static_cast<uint8>((CurrentChar & 0b11111000) >> 3);
+        if (bDoubleContentCount)
+        {
+            FWCHARWrapper Wrapper(new ANSICHAR[2], 2, true);
+            Wrapper.SetArrayElement(0, VariableContentCount_1);
+            auto VariableContentCount_2 = Parameter.GetArrayElement(Parameter.GetSize() - RemainedBytes + 1);
+            Wrapper.SetArrayElement(1, VariableContentCount_2);
+            VariableContentCount = static_cast<uint16>(UWUtilities::ConvertByteArrayToInteger(Wrapper, 0, 2));
+        }
+        else
+        {
+            VariableContentCount = VariableContentCount_1;
+        }
 
-        RemainedBytes--;
+        RemainedBytes -= (bDoubleContentCount ? 2 : 1);
 
         if (VariableContentCount == 0) continue;
 
@@ -633,7 +648,8 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(
         bool bReliableSYNFailure,
         bool bReliableSYNACKSuccess,
         bool bReliableACK,
-        int32 ReliableMessageID)
+        int32 ReliableMessageID,
+        bool bDoubleContentCount)
 {
     if (!bSystemStarted || ManagerInstance == nullptr) return FWCHARWrapper();
     if (Client == nullptr ||
@@ -657,6 +673,7 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(
     Flags.Add(bReliableSYNACKSuccess);
     Flags.Add(bReliableACK);
     Flags.Add(!bTimeOrderCriticalData);
+    Flags.Add(bDoubleContentCount);
 
     bool bReliable = bReliableSYN || bReliableSYNSuccess || bReliableSYNFailure || bReliableSYNACKSuccess || bReliableACK;
 
@@ -717,21 +734,30 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(
         }
         //
 
+        auto MaxValue = static_cast<uint16>(bDoubleContentCount ? 8192 : 32);
+
         //Generic parts encoding starts.
         for (const WJson::NamedNode& NamedNode : Parameter)
         {
-            ANSICHAR InfoByte;
+            uint16 InfoByte;
 
             std::string KeyString = NamedNode.first;
             if (KeyString == "CharArray")
             {
                 std::string ValueString = NamedNode.second.ToString("");
-                auto Length = (ANSICHAR)ValueString.length();
-                if (Length > 0 && Length < 32)
+                int32 Length = ValueString.length();
+                if (Length > 0 && Length < MaxValue)
                 {
                     InfoByte = 2;
                     InfoByte |= Length << 3;
-                    Result.Add(InfoByte);
+
+                    FWCHARWrapper Wrapper(new ANSICHAR[2], 2, true);
+                    UWUtilities::ConvertIntegerToByteArray(InfoByte, Wrapper, 2);
+                    Result.Add(Wrapper.GetArrayElement(0));
+                    if (bDoubleContentCount)
+                    {
+                        Result.Add(Wrapper.GetArrayElement(1));
+                    }
 
                     for (int32 i = 0; i < Length; i++) Result.Add(ValueString[i]);
                 }
@@ -742,7 +768,7 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(
                 if (ValueList.GetType() == WJson::Node::Type::T_ARRAY)
                 {
                     auto Length = (ANSICHAR)ValueList.GetSize();
-                    if (Length > 0 && Length < 32)
+                    if (Length > 0 && Length < MaxValue)
                     {
                         if (KeyString == "BooleanArray")
                         {
@@ -769,7 +795,14 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(
                             if (CompressedArray.GetSize() == 0) continue;
 
                             InfoByte |= Length << 3;
-                            Result.Add(InfoByte);
+
+                            FWCHARWrapper Wrapper(new ANSICHAR[2], 2, true);
+                            UWUtilities::ConvertIntegerToByteArray(InfoByte, Wrapper, 2);
+                            Result.Add(Wrapper.GetArrayElement(0));
+                            if (bDoubleContentCount)
+                            {
+                                Result.Add(Wrapper.GetArrayElement(1));
+                            }
 
                             for (int32 i = 0; i < CompressedArray.GetSize(); i++) Result.Add(CompressedArray.GetArrayElement(i));
                         }
@@ -804,7 +837,14 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(
                             else continue;
 
                             InfoByte |= Length << 3;
-                            Result.Add(InfoByte);
+
+                            FWCHARWrapper Wrapper(new ANSICHAR[2], 2, true);
+                            UWUtilities::ConvertIntegerToByteArray(InfoByte, Wrapper, 2);
+                            Result.Add(Wrapper.GetArrayElement(0));
+                            if (bDoubleContentCount)
+                            {
+                                Result.Add(Wrapper.GetArrayElement(1));
+                            }
 
                             bool bFilled = false;
                             for (int32 i = 0; i < Length; i++)

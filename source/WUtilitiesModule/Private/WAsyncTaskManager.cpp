@@ -82,11 +82,11 @@ void UWAsyncTaskManager::PushFreeWorker(FWAsyncWorker* Worker)
     ManagerInstance->FreeWorkers.Push(Worker);
 }
 
-void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<FWAsyncTaskParameter*>& TaskParameters)
+void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<FWAsyncTaskParameter*>& TaskParameters, bool bDoNotDeallocateParameters)
 {
     if (!bSystemStarted || ManagerInstance == nullptr) return;
 
-    auto AsTask = new FWAwaitingTask(NewTask, TaskParameters);
+    auto AsTask = new FWAwaitingTask(NewTask, TaskParameters, bDoNotDeallocateParameters);
     FWAsyncWorker* PossibleFreeWorker = nullptr;
     if (ManagerInstance->FreeWorkers.Pop(PossibleFreeWorker) && PossibleFreeWorker != nullptr)
     {
@@ -94,15 +94,19 @@ void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<FWAsyncT
     }
     else
     {
+        AsTask->QueuedTimestamp = UWUtilities::GetTimeStampInMSDetailed();
         AsTask->bQueued = true;
-        AsTask->QueuedTimestamp = UWUtilities::GetTimeStampInMS();
         ManagerInstance->AwaitingTasks.Push(AsTask);
     }
 }
-bool UWAsyncTaskManager::TryToGetAwaitingTask(FWAwaitingTask* Destination)
+FWAwaitingTask* UWAsyncTaskManager::TryToGetAwaitingTask()
 {
-    if (!bSystemStarted || ManagerInstance == nullptr) return false;
-    return ManagerInstance->AwaitingTasks.Pop(Destination) && Destination != nullptr;
+    if (!bSystemStarted || ManagerInstance == nullptr) return nullptr;
+
+    FWAwaitingTask* Destination = nullptr;
+    ManagerInstance->AwaitingTasks.Pop(Destination);
+
+    return Destination;
 }
 uint32 UWAsyncTaskManager::AsyncWorkerStopped(FWAsyncWorker* StoppedWorker)
 {
@@ -169,6 +173,9 @@ void FWAsyncWorker::ProcessData()
         if (CurrentData->FunctionPtr)
         {
             CurrentData->FunctionPtr(CurrentData->Parameters);
+        }
+        if (!CurrentData->bDoNotDeallocateParameters)
+        {
             for (FWAsyncTaskParameter* Parameter : CurrentData->Parameters)
             {
                 if (Parameter)
@@ -183,13 +190,13 @@ void FWAsyncWorker::ProcessData()
     }
     DataReady = false;
 
-    FWAwaitingTask* PossibleAwaitingTask = nullptr;
-    if (UWAsyncTaskManager::TryToGetAwaitingTask(PossibleAwaitingTask))
+    FWAwaitingTask* PossibleAwaitingTask = UWAsyncTaskManager::TryToGetAwaitingTask();
+    if (PossibleAwaitingTask)
     {
         if (PossibleAwaitingTask->bQueued)
         {
-            auto DiffMs = static_cast<int32>(UWUtilities::GetTimeStampInMS() - PossibleAwaitingTask->QueuedTimestamp);
-            UWUtilities::Print(EWLogType::Warning, L"WAsyncTask was in queue for " + FString::FromInt(DiffMs));
+            double DiffMs = UWUtilities::GetTimeStampInMSDetailed() - PossibleAwaitingTask->QueuedTimestamp;
+            UWUtilities::Print(EWLogType::Warning, L"WAsyncTask was in queue for " + FString::FromFloat(DiffMs));
 
             PossibleAwaitingTask->bQueued = false;
             PossibleAwaitingTask->QueuedTimestamp = 0;

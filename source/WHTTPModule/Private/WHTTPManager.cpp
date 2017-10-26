@@ -70,7 +70,6 @@ void UWHTTPManager::ListenSocket()
 {
     while (bSystemStarted)
     {
-        auto Buffer = new ANSICHAR[HTTP_BUFFER_SIZE];
         auto Client = new sockaddr;
 #if PLATFORM_WINDOWS
         int32 ClientLen = sizeof(*Client);
@@ -85,13 +84,10 @@ void UWHTTPManager::ListenSocket()
         if (ListenResult == -1)
 #endif
         {
-            delete[] Buffer;
-            delete (Client);
-
             if (!bSystemStarted) return;
 
             EndSystem();
-            StartSystem(HTTPPort);
+            StartSystem(HTTPPort, TimeoutInMs);
             return;
         }
 
@@ -102,15 +98,15 @@ void UWHTTPManager::ListenSocket()
         if (ClientSocket == -1)
 #endif
         {
-            delete[] Buffer;
             delete (Client);
             if (!bSystemStarted) return;
             continue;
         }
-        auto TaskParameter = new FWHTTPClient(ClientSocket);
+
+        auto TaskParameter = new FWHTTPClient(ClientSocket, Client, TimeoutInMs);
         TArray<FWAsyncTaskParameter*> TaskParameterAsArray(TaskParameter);
 
-        WFutureAsyncTask Lambda = [](TArray<FWAsyncTaskParameter*>& TaskParameters)
+        WFutureAsyncTask TaskLambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
         {
             if (!bSystemStarted || !ManagerInstance) return;
 
@@ -120,19 +116,19 @@ void UWHTTPManager::ListenSocket()
                 {
                     if (Parameter->Initialize())
                     {
-                        if (Parameter->GetData())
-                        {
-                            std::string ResponseBody = "<html>Hello pagan world!</html>";
-                            std::string ResponseHeaders = "HTTP/1.1 200 OK\r\n"
-                                                           "Content-Type: text/html; charset=UTF-8\r\n"
-                                                           "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
-                            Parameter->SendData(ResponseBody, ResponseHeaders);
-                        }
+                        if (!Parameter->GetData()) return;
+
+                        std::wstring ResponseBody = L"<html>Hello pagan world!</html>";
+                        std::string ResponseHeaders = "HTTP/1.1 200 OK\r\n"
+                                                      "Content-Type: text/html; charset=UTF-8\r\n"
+                                                      "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
+                        Parameter->SendData(ResponseBody, ResponseHeaders);
+                        Parameter->Finalize();
                     }
                 }
             }
         };
-        UWAsyncTaskManager::NewAsyncTask(Lambda, TaskParameterAsArray);
+        UWAsyncTaskManager::NewAsyncTask(TaskLambda, TaskParameterAsArray);
     }
 }
 uint32 UWHTTPManager::ListenerStopped()
@@ -146,14 +142,14 @@ uint32 UWHTTPManager::ListenerStopped()
 UWHTTPManager* UWHTTPManager::ManagerInstance = nullptr;
 
 bool UWHTTPManager::bSystemStarted = false;
-bool UWHTTPManager::StartSystem(uint16 Port)
+bool UWHTTPManager::StartSystem(uint16 Port, uint32 TimeoutMs)
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
 
     ManagerInstance = new UWHTTPManager();
 
-    if (!ManagerInstance->StartSystem_Internal(Port))
+    if (!ManagerInstance->StartSystem_Internal(Port, TimeoutMs))
     {
         EndSystem();
         return false;
@@ -161,8 +157,9 @@ bool UWHTTPManager::StartSystem(uint16 Port)
 
     return true;
 }
-bool UWHTTPManager::StartSystem_Internal(uint16 Port)
+bool UWHTTPManager::StartSystem_Internal(uint16 Port, uint32 TimeoutMs)
 {
+    TimeoutInMs = TimeoutMs == 0 ? 2500 : TimeoutMs;
     if (InitializeSocket(Port))
     {
         HTTPSystemThread = new WThread(std::bind(&UWHTTPManager::ListenSocket, this), std::bind(&UWHTTPManager::ListenerStopped, this));
