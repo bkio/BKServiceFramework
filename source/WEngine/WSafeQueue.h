@@ -40,6 +40,12 @@ public:
         return true;
     }
 
+    int32 Size()
+    {
+        WScopeGuard lock(&m);
+        return q.size();
+    }
+
 private:
     std::queue<T> q;
     mutable WMutex m;

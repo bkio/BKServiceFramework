@@ -53,4 +53,40 @@ public:
     }
 };
 
+template <typename T>
+struct FWGenericParameter : public FWAsyncTaskParameter
+{
+
+private:
+    FWGenericParameter() = default;
+
+    T Value;
+
+    WMutex Mutex;
+
+public:
+    explicit FWGenericParameter(T _Value)
+    {
+        Value = _Value;
+    }
+
+    T GetValue()
+    {
+        return Value;
+    }
+    void SetValue(T _Value)
+    {
+        Value = _Value;
+    }
+
+    void LockValue()
+    {
+        Mutex.lock();
+    }
+    void UnlockValue()
+    {
+        Mutex.unlock();
+    }
+};
+
 #endif //Pragma_Once_WTaskDefines

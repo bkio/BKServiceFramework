@@ -20,12 +20,13 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
+#include <utility>
 
 class UWUDPManager
 {
 
 public:
-    static bool StartSystem(uint16 Port);
+    static bool StartSystem(uint16 Port, std::function<void(FWUDPTaskParameter*)> Callback);
     static void EndSystem();
 
     static void ClearClientRecords();
@@ -150,10 +151,15 @@ private:
     void ClearReliableConnections();
     void ClearUDPRecordsForTimeoutCheck();
 
+    std::function<void(FWUDPTaskParameter*)> UDPListenCallback;
+
     WThread* UDPSystemThread{};
 
     static UWUDPManager* ManagerInstance;
-    UWUDPManager() = default;
+    explicit UWUDPManager(std::function<void(FWUDPTaskParameter*)> Callback)
+    {
+        UDPListenCallback = std::move(Callback);
+    }
 };
 
 #endif //Pragma_Once_WUDPManager

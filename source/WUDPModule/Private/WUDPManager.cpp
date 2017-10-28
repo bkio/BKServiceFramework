@@ -2,6 +2,8 @@
 
 #include <WAsyncTaskManager.h>
 #include <WScheduledTaskManager.h>
+
+#include <utility>
 #include "WUDPManager.h"
 #include "WMath.h"
 
@@ -91,19 +93,13 @@ void UWUDPManager::ListenSocket()
 
         WFutureAsyncTask Lambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
         {
-            if (!bSystemStarted || !ManagerInstance) return;
+            if (!bSystemStarted || !ManagerInstance || !ManagerInstance->UDPListenCallback) return;
 
             if (TaskParameters.Num() > 0)
             {
                 if (auto Parameter = dynamic_cast<FWUDPTaskParameter*>(TaskParameters[0]))
                 {
-                    if (Parameter->Buffer && Parameter->Client && Parameter->BufferSize > 0)
-                    {
-                        FWCHARWrapper WrappedBuffer(Parameter->Buffer, Parameter->BufferSize);
-
-                        WJson::Node Result = AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
-                        ManagerInstance->Send(Parameter->Client, WrappedBuffer);
-                    }
+                    ManagerInstance->UDPListenCallback(Parameter);
                 }
             }
         };
@@ -152,13 +148,12 @@ void UWUDPManager::Send(sockaddr* Client, const FWCHARWrapper& SendBuffer)
 UWUDPManager* UWUDPManager::ManagerInstance = nullptr;
 
 bool UWUDPManager::bSystemStarted = false;
-bool UWUDPManager::StartSystem(uint16 Port)
+bool UWUDPManager::StartSystem(uint16 Port, std::function<void(FWUDPTaskParameter*)> Callback)
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
 
-    ManagerInstance = new UWUDPManager();
-
+    ManagerInstance = new UWUDPManager(std::move(Callback));
     if (!ManagerInstance->StartSystem_Internal(Port))
     {
         EndSystem();
@@ -256,6 +251,7 @@ void UWUDPManager::EndSystem_Internal()
     ClearUDPRecordsForTimeoutCheck();
     ClearReliableConnections();
     CloseSocket();
+    UDPListenCallback = nullptr;
     if (UDPSystemThread != nullptr)
     {
         if (UDPSystemThread->IsJoinable())
@@ -888,8 +884,8 @@ FWCHARWrapper UWUDPManager::MakeByteArrayForNetworkData(
         FWCHARWrapper WCHARWrapper(Result.GetMutableData() + ChecksumInsertIx, ChecksumDestinationSize, false);
 
         FWCHARWrapper Hashed = UWUtilities::WBasicRawHash(WCHARWrapper, 0, ChecksumDestinationSize);
-        Result.Insert(Hashed.GetValue(), 4, ChecksumInsertIx);
         Hashed.bDeallocateValueOnDestructor = true;
+        Result.Insert(Hashed.GetValue(), 4, ChecksumInsertIx);
         //
     }
 
@@ -917,9 +913,7 @@ WUDPRecord::WUDPRecord() : LastInteraction(UWUtilities::GetTimeStampInMS())
 {
     UWUDPManager::AddNewUDPRecord(this);
 }
-WUDPRecord::~WUDPRecord()
-{
-}
+WUDPRecord::~WUDPRecord() = default;
 
 bool WReliableConnectionRecord::ResetterFunction()
 {
@@ -968,8 +962,8 @@ WReliableConnectionRecord* UWUDPManager::Create_AddOrGet_ReliableConnectionRecor
                     {
                         ReliableConnection->ReplaceBuffer(Buffer);
                     }
-                    ReliableConnection->UpdateLastInteraction();
                 }
+                Record->UpdateLastInteraction();
             }
             else
             {

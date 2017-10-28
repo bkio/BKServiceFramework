@@ -68,16 +68,16 @@ void UWScheduledAsyncTaskManager::EndSystem_Internal()
     }
 }
 
-void UWScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<FWAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocate)
+void UWScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<FWAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters)
 {
     if (!bSystemStarted || ManagerInstance == nullptr) return;
     if (WaitFor == 0)
     {
-        UWAsyncTaskManager::NewAsyncTask(NewTask, TaskParameters, bDoNotDeallocate);
+        UWAsyncTaskManager::NewAsyncTask(NewTask, TaskParameters, bDoNotDeallocateParameters);
         return;
     }
 
-    auto AsTask = new FWAwaitingTask(NewTask, TaskParameters, WaitFor, bLoop, bDoNotDeallocate);
+    auto AsTask = new FWAwaitingTask(NewTask, TaskParameters, WaitFor, bLoop, bDoNotDeallocateParameters);
     ManagerInstance->AwaitingScheduledTasks.Add(AsTask);
 }
 

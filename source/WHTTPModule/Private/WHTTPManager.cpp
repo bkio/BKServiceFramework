@@ -87,7 +87,7 @@ void UWHTTPManager::ListenSocket()
             if (!bSystemStarted) return;
 
             EndSystem();
-            StartSystem(HTTPPort, TimeoutInMs);
+            StartSystem(HTTPPort, TimeoutInMs, HTTPListenCallback);
             return;
         }
 
@@ -108,23 +108,13 @@ void UWHTTPManager::ListenSocket()
 
         WFutureAsyncTask TaskLambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
         {
-            if (!bSystemStarted || !ManagerInstance) return;
+            if (!bSystemStarted || !ManagerInstance || !ManagerInstance->HTTPListenCallback) return;
 
             if (TaskParameters.Num() > 0)
             {
                 if (auto Parameter = dynamic_cast<FWHTTPClient*>(TaskParameters[0]))
                 {
-                    if (Parameter->Initialize())
-                    {
-                        if (!Parameter->GetData()) return;
-
-                        std::wstring ResponseBody = L"<html>Hello pagan world!</html>";
-                        std::string ResponseHeaders = "HTTP/1.1 200 OK\r\n"
-                                                      "Content-Type: text/html; charset=UTF-8\r\n"
-                                                      "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
-                        Parameter->SendData(ResponseBody, ResponseHeaders);
-                        Parameter->Finalize();
-                    }
+                    ManagerInstance->HTTPListenCallback(Parameter);
                 }
             }
         };
@@ -142,12 +132,12 @@ uint32 UWHTTPManager::ListenerStopped()
 UWHTTPManager* UWHTTPManager::ManagerInstance = nullptr;
 
 bool UWHTTPManager::bSystemStarted = false;
-bool UWHTTPManager::StartSystem(uint16 Port, uint32 TimeoutMs)
+bool UWHTTPManager::StartSystem(uint16 Port, uint32 TimeoutMs, std::function<void(FWHTTPClient*)> Callback)
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
 
-    ManagerInstance = new UWHTTPManager();
+    ManagerInstance = new UWHTTPManager(std::move(Callback));
 
     if (!ManagerInstance->StartSystem_Internal(Port, TimeoutMs))
     {
@@ -183,6 +173,7 @@ void UWHTTPManager::EndSystem()
 void UWHTTPManager::EndSystem_Internal()
 {
     CloseSocket();
+    HTTPListenCallback = nullptr;
     if (HTTPSystemThread != nullptr)
     {
         if (HTTPSystemThread->IsJoinable())

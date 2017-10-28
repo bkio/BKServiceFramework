@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.8)
-set(WProjectName WUDPGateway)
+set(WProjectName WServiceApp)
 project(${WProjectName})
 
 set(CMAKE_CXX_STANDARD 11)
 
 if(WIN32)
 else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -Wall -fexceptions -fnon-call-exceptions")
 endif()
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMAKE_BUILD_TYPE})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMAKE_BUILD_TYPE})

@@ -36,7 +36,7 @@ namespace ESearchDir
         FromStart,
 
         /** Search from the end, moving backward through the string. */
-        FromEnd,
+        FromEnd
     };
 }
 

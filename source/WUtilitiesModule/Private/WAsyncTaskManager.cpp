@@ -124,6 +124,7 @@ uint32 UWAsyncTaskManager::AsyncWorkerStopped(FWAsyncWorker* StoppedWorker)
             delete (ManagerInstance->AsyncWorkers[i]);
             ManagerInstance->AsyncWorkers[i] = new FWAsyncWorker;
             ManagerInstance->AsyncWorkers[i]->StartWorker();
+            UWUtilities::Print(EWLogType::Warning, L"An AsyncWorker has stopped. Another worker has just been started.");
             return 0;
         }
     }
@@ -159,14 +160,14 @@ void FWAsyncWorker::WorkersDen()
             }
         }
         if (!UWAsyncTaskManager::IsSystemStarted()) return;
-        ProcessData();
+        if (!ProcessData()) return;
     }
 }
 uint32 FWAsyncWorker::WorkersStopCallback()
 {
     return UWAsyncTaskManager::AsyncWorkerStopped(this);
 }
-void FWAsyncWorker::ProcessData()
+void FWAsyncWorker::ProcessData_CriticalPart()
 {
     if (CurrentData)
     {
@@ -188,6 +189,18 @@ void FWAsyncWorker::ProcessData()
         delete (CurrentData);
         CurrentData = nullptr;
     }
+}
+bool FWAsyncWorker::ProcessData()
+{
+    //Only return false, if there is an unrecoverable exception.
+    try
+    {
+        ProcessData_CriticalPart();
+    }
+    catch (std::exception& e)
+    {
+        return false;
+    }
     DataReady = false;
 
     FWAwaitingTask* PossibleAwaitingTask = UWAsyncTaskManager::TryToGetAwaitingTask();
@@ -196,18 +209,22 @@ void FWAsyncWorker::ProcessData()
         if (PossibleAwaitingTask->bQueued)
         {
             double DiffMs = UWUtilities::GetTimeStampInMSDetailed() - PossibleAwaitingTask->QueuedTimestamp;
-            UWUtilities::Print(EWLogType::Warning, L"WAsyncTask was in queue for " + FString::FromFloat(DiffMs));
+            if (DiffMs > 1000)
+            {
+                UWUtilities::Print(EWLogType::Warning, L"WAsyncTask was in queue for " + FString::FromFloat(DiffMs));
+            }
 
             PossibleAwaitingTask->bQueued = false;
             PossibleAwaitingTask->QueuedTimestamp = 0;
         }
         SetData(PossibleAwaitingTask, false);
-        ProcessData();
+        return ProcessData();
     }
     else
     {
         UWAsyncTaskManager::PushFreeWorker(this);
     }
+    return true;
 }
 void FWAsyncWorker::StartWorker()
 {

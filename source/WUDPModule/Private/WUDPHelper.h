@@ -66,6 +66,7 @@ public:
 
 enum class EWReliableRecordType : uint8
 {
+    None,
     ClientRecord,
     ReliableConnectionRecord
 };
@@ -77,7 +78,7 @@ protected:
     WMutex LastInteraction_Mutex;
     uint64 LastInteraction = 0;
 
-    EWReliableRecordType Type;
+    EWReliableRecordType Type = EWReliableRecordType::None;
 
     WUDPRecord();
 

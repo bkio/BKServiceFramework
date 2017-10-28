@@ -16,7 +16,7 @@ class UWHTTPManager
 {
 
 public:
-    static bool StartSystem(uint16 Port, uint32 TimeoutMs);
+    static bool StartSystem(uint16 Port, uint32 TimeoutMs, std::function<void(FWHTTPClient*)> Callback);
     static void EndSystem();
 
 private:
@@ -41,10 +41,15 @@ private:
     void ListenSocket();
     uint32 ListenerStopped();
 
+    std::function<void(FWHTTPClient*)> HTTPListenCallback;
+
     WThread* HTTPSystemThread{};
 
     static UWHTTPManager* ManagerInstance;
-    UWHTTPManager() = default;
+    explicit UWHTTPManager(std::function<void(FWHTTPClient*)> Callback)
+    {
+        HTTPListenCallback = std::move(Callback);
+    }
 };
 
 #endif //Pragma_Once_WHTTPManager

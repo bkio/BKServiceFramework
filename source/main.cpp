@@ -5,13 +5,35 @@
 #include "WScheduledTaskManager.h"
 #include "WUDPManager.h"
 #include "WHTTPManager.h"
+#include "WSegvCatch.h"
 
 void Start()
 {
-    UWAsyncTaskManager::StartSystem(4);
+    UWAsyncTaskManager::StartSystem(5);
     UWScheduledAsyncTaskManager::StartSystem(20);
-    UWUDPManager::StartSystem(45000);
-    UWHTTPManager::StartSystem(8080, 2500);
+    UWUDPManager::StartSystem(45000, [](FWUDPTaskParameter* Parameter)
+    {
+        if (Parameter && Parameter->Buffer && Parameter->Client && Parameter->BufferSize > 0)
+        {
+            FWCHARWrapper WrappedBuffer(Parameter->Buffer, Parameter->BufferSize);
+
+            UWUDPManager::AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
+        }
+    });
+    UWHTTPManager::StartSystem(8080, 2500, [](FWHTTPClient* Parameter)
+    {
+        if (Parameter && Parameter->Initialize())
+        {
+            if (!Parameter->GetData()) return;
+
+            std::wstring ResponseBody = L"<html>Hello pagan world!</html>";
+            std::string ResponseHeaders = "HTTP/1.1 200 OK\r\n"
+                                                  "Content-Type: text/html; charset=UTF-8\r\n"
+                                                  "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
+            Parameter->SendData(ResponseBody, ResponseHeaders);
+            Parameter->Finalize();
+        }
+    });
 }
 void Stop()
 {
@@ -32,6 +54,8 @@ void Quit()
 
 int main()
 {
+    InitWSegv();
+
     setlocale(LC_CTYPE, "");
 
     UWUtilities::Print(EWLogType::Log, L"Application has started.");
