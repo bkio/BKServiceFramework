@@ -73,7 +73,6 @@ public:
     }
     void InsertUninitialized(int32 Index, int32 Count = 1)
     {
-        const int32 OldNum = Data.length();
         Data.resize(Data.length() + Count);
     }
 
@@ -660,17 +659,6 @@ public:
         std::wstring NewData = Data;
         std::transform(NewData.begin(), NewData.end(), NewData.begin(), ::tolower);
         return NewData;
-    }
-    FString Trim()
-    {
-        auto first = Data.find_first_not_of(' ');
-        if (std::wstring::npos == first)
-        {
-            return Data;
-        }
-
-        auto last = Data.find_last_not_of(' ');
-        return Data.substr(first);
     }
     FString TrimTrailing()
     {

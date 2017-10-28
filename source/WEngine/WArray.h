@@ -160,11 +160,11 @@ public:
     {
         return Array.data();
     }
-    int32 Insert(const T& Item, int32 Index)
+    void Insert(const T& Item, int32 Index)
     {
         Array.insert(Array.begin() + Index, Item);
     }
-    int32 Insert(const T* Ptr, int32 Count, int32 Index)
+    void Insert(const T* Ptr, int32 Count, int32 Index)
     {
         std::vector<T> NewItems;
         for (int32 i = 0; i < Count; i++)
@@ -173,7 +173,7 @@ public:
         }
         Array.insert(Array.begin() + Index, NewItems.begin(), NewItems.end());
     }
-    int32 Insert(const T& Item, int32 Count, int32 Index)
+    void Insert(const T& Item, int32 Count, int32 Index)
     {
         std::vector<T> NewItems;
         for (int32 i = 0; i < Count; i++)

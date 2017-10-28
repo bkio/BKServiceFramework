@@ -23,7 +23,8 @@
         SetUnhandledExceptionFilter(win32_exception_handler);
     }
 #else
-    #include <signal.h>
+    #include <csignal>
+    #include <unistd.h>
     #include <sys/syscall.h>
     #include <execinfo.h>
     #include <string>
@@ -34,7 +35,7 @@
         {
             void (*k_sa_sigaction)(int, siginfo_t *, void *);
             unsigned long k_sa_flags;
-            void (*k_sa_restorer) (void);
+            void (*k_sa_restorer) ();
             sigset_t k_sa_mask;
         };
     }
@@ -42,16 +43,17 @@
     #define MAKE_THROW_FRAME(_exception)
 
     /* The return code for realtime-signals.  */
+    /* __NR_rt_sigreturn defined as 15 in unistd64.h */
     asm
     (
         ".text\n"
         ".byte 0\n"
         ".align 16\n"
-        "asm_restore_rt:\n"
-        "	movq $__NR_rt_sigreturn, %rax\n"
-        "	__NR_rt_sigreturn\n"
+        "__restore_rt:\n"
+        "	movq $15, %rax\n"
+        "	syscall\n"
     );
-    void restore_rt (void) asm ("asm_restore_rt")
+    void restore_rt () asm ("__restore_rt")
       __attribute__ ((visibility ("hidden")));
 
     /* Unblock a signal.  Unless we do this, the signal may only be sent
@@ -59,10 +61,10 @@
     static void UnblockSignal(int signum __attribute__((__unused__)))
     {
 #ifdef _POSIX_VERSION
-        sigset_t sigs;
+        sigset_t sigs{};
         sigemptyset(&sigs);
         sigaddset(&sigs, signum);
-        sigprocmask(SIG_UNBLOCK, &sigs, NULL);
+        sigprocmask(SIG_UNBLOCK, &sigs, nullptr);
 #endif
     }
 
@@ -77,14 +79,14 @@
     {
         do
         {
-            struct KernelSigaction act;
+            struct KernelSigaction act{};
             act.k_sa_sigaction = CatchSegv;
-            sigemptyset (&act.k_sa_mask);
-            act.k_sa_flags = SA_SIGINFO|0x4000000;
+            sigemptyset(&act.k_sa_mask);
+            act.k_sa_flags = SA_SIGINFO | 0x4000000;
             act.k_sa_restorer = restore_rt;
-            syscall (SYS_rt_sigaction, SIGSEGV, &act, NULL, _NSIG / 8);
+            syscall(SYS_rt_sigaction, SIGSEGV, &act, NULL, _NSIG / 8);
         }
-        while (0);
+        while (false);
     }
 #endif
 

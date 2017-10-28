@@ -45,7 +45,7 @@ private:
             shutdown(_Socket->ClientSocket, SD_BOTH);
 #else
             close(_Socket->ClientSocket);
-            shutdown(_Socket->ClientSocket, SD_BOTH);
+            shutdown(_Socket->ClientSocket, SHUT_RDWR);
 #endif
         }
     }
@@ -249,6 +249,8 @@ public:
 #endif
 
         ClientIP = inet_ntoa(ClientInfo.sin_addr);
+
+        return true;
     }
 
     //@return: If succeed true, otherwise false.
