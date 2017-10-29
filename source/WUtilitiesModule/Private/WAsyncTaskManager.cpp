@@ -160,7 +160,7 @@ void FWAsyncWorker::WorkersDen()
             }
         }
         if (!UWAsyncTaskManager::IsSystemStarted()) return;
-        if (!ProcessData()) return;
+        ProcessData();
     }
 }
 uint32 FWAsyncWorker::WorkersStopCallback()
@@ -190,17 +190,9 @@ void FWAsyncWorker::ProcessData_CriticalPart()
         CurrentData = nullptr;
     }
 }
-bool FWAsyncWorker::ProcessData()
+void FWAsyncWorker::ProcessData()
 {
-    //Only return false, if there is an unrecoverable exception.
-    try
-    {
-        ProcessData_CriticalPart();
-    }
-    catch (std::exception& e)
-    {
-        return false;
-    }
+    ProcessData_CriticalPart();
     DataReady = false;
 
     FWAwaitingTask* PossibleAwaitingTask = UWAsyncTaskManager::TryToGetAwaitingTask();
@@ -218,13 +210,12 @@ bool FWAsyncWorker::ProcessData()
             PossibleAwaitingTask->QueuedTimestamp = 0;
         }
         SetData(PossibleAwaitingTask, false);
-        return ProcessData();
+        ProcessData();
     }
     else
     {
         UWAsyncTaskManager::PushFreeWorker(this);
     }
-    return true;
 }
 void FWAsyncWorker::StartWorker()
 {

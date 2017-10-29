@@ -5,6 +5,7 @@
 
 #include "WEngine.h"
 #include "WTaskDefines.h"
+#include "WSafeQueue.h"
 
 class UWScheduledAsyncTaskManager
 {
@@ -27,7 +28,7 @@ private:
 
     uint32 SleepMsBetweenCheck = 50;
 
-    TArray<FWAwaitingTask*> AwaitingScheduledTasks;
+    WSafeQueue<FWAwaitingTask*> AwaitingScheduledTasks;
 
     static UWScheduledAsyncTaskManager* ManagerInstance;
 

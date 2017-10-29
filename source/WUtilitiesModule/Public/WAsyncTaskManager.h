@@ -11,7 +11,7 @@ struct FWAsyncWorker
 {
 
 private:
-    bool ProcessData();
+    void ProcessData();
     void ProcessData_CriticalPart();
 
     FWAwaitingTask* CurrentData = nullptr;

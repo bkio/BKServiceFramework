@@ -5,6 +5,7 @@ project(${WProjectName})
 set(CMAKE_CXX_STANDARD 11)
 
 if(WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -Wall -fexceptions -fnon-call-exceptions")
 endif()

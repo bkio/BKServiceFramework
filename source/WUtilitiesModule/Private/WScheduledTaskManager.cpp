@@ -48,9 +48,9 @@ void UWScheduledAsyncTaskManager::EndSystem_Internal()
     }
 
     FWAwaitingTask* AwaitingScheduledTask = nullptr;
-    for (int32 i = AwaitingScheduledTasks.Num() - 1; i >=0; i--)
+    while (AwaitingScheduledTasks.Pop(AwaitingScheduledTask))
     {
-        if ((AwaitingScheduledTask = AwaitingScheduledTasks[i]))
+        if (AwaitingScheduledTask != nullptr)
         {
             if (!AwaitingScheduledTask->bDoNotDeallocateParameters)
             {
@@ -78,7 +78,7 @@ void UWScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask
     }
 
     auto AsTask = new FWAwaitingTask(NewTask, TaskParameters, WaitFor, bLoop, bDoNotDeallocateParameters);
-    ManagerInstance->AwaitingScheduledTasks.Add(AsTask);
+    ManagerInstance->AwaitingScheduledTasks.Push(AsTask);
 }
 
 void UWScheduledAsyncTaskManager::TickerRun()
@@ -89,29 +89,38 @@ void UWScheduledAsyncTaskManager::TickerRun()
         if (!bSystemStarted) return;
 
         FWAwaitingTask* PossibleAwaitingTask = nullptr;
-        for (int32 i = AwaitingScheduledTasks.Num() - 1; i >= 0; i--)
+        while (AwaitingScheduledTasks.Pop(PossibleAwaitingTask))
         {
-            PossibleAwaitingTask = AwaitingScheduledTasks[i];
             if (PossibleAwaitingTask)
             {
                 PossibleAwaitingTask->PassedTimeMs += SleepMsBetweenCheck;
                 if (PossibleAwaitingTask->PassedTimeMs >= PossibleAwaitingTask->WaitTimeMs)
                 {
-                    UWAsyncTaskManager::NewAsyncTask(PossibleAwaitingTask->FunctionPtr, PossibleAwaitingTask->Parameters, PossibleAwaitingTask->bDoNotDeallocateParameters);
+                    if (PossibleAwaitingTask->FunctionPtr)
+                    {
+                        PossibleAwaitingTask->FunctionPtr(PossibleAwaitingTask->Parameters);
+                    }
                     if (!PossibleAwaitingTask->bLoop)
                     {
-                        AwaitingScheduledTasks.RemoveAt(i);
+                        if (!PossibleAwaitingTask->bDoNotDeallocateParameters)
+                        {
+                            for (FWAsyncTaskParameter* Parameter : PossibleAwaitingTask->Parameters)
+                            {
+                                if (Parameter)
+                                {
+                                    delete (Parameter);
+                                }
+                            }
+                            PossibleAwaitingTask->Parameters.Empty();
+                        }
                         delete (PossibleAwaitingTask);
                     }
                     else
                     {
                         PossibleAwaitingTask->PassedTimeMs = 0;
+                        AwaitingScheduledTasks.Push(PossibleAwaitingTask);
                     }
                 }
-            }
-            else
-            {
-                AwaitingScheduledTasks.RemoveAt(i);
             }
         }
     }

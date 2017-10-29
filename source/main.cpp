@@ -5,7 +5,6 @@
 #include "WScheduledTaskManager.h"
 #include "WUDPManager.h"
 #include "WHTTPManager.h"
-#include "WSegvCatch.h"
 
 void Start()
 {
@@ -54,8 +53,6 @@ void Quit()
 
 int main()
 {
-    InitWSegv();
-
     setlocale(LC_CTYPE, "");
 
     UWUtilities::Print(EWLogType::Log, L"Application has started.");
