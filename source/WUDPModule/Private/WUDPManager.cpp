@@ -37,6 +37,11 @@ bool UWUDPManager::InitializeSocket(uint16 Port)
 
     int32 optval = 1;
     setsockopt(UDPSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&optval, sizeof(int32));
+#if PLATFORM_WINDOWS
+    setsockopt(UDPSocket, SOL_SOCKET, UDP_NOCHECKSUM, (const char*)&optval, sizeof(int32));
+#else
+    setsockopt(UDPSocket, SOL_SOCKET, SO_NO_CHECK, (const char*)&optval, sizeof(int32));
+#endif
 
     FMemory::Memzero((ANSICHAR*)&UDPServer, sizeof(UDPServer));
     UDPServer.sin_family = AF_INET;

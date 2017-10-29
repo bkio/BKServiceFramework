@@ -88,6 +88,8 @@ void UWScheduledAsyncTaskManager::TickerRun()
         WThread::SleepThread(SleepMsBetweenCheck);
         if (!bSystemStarted) return;
 
+        WSafeQueue<FWAwaitingTask*> NewQueueAfterTick;
+
         FWAwaitingTask* PossibleAwaitingTask = nullptr;
         while (AwaitingScheduledTasks.Pop(PossibleAwaitingTask))
         {
@@ -118,9 +120,18 @@ void UWScheduledAsyncTaskManager::TickerRun()
                     else
                     {
                         PossibleAwaitingTask->PassedTimeMs = 0;
-                        AwaitingScheduledTasks.Push(PossibleAwaitingTask);
+                        NewQueueAfterTick.Push(PossibleAwaitingTask);
                     }
                 }
+            }
+        }
+
+        FWAwaitingTask* LoopingTask = nullptr;
+        while (NewQueueAfterTick.Pop(LoopingTask))
+        {
+            if (LoopingTask)
+            {
+                AwaitingScheduledTasks.Push(LoopingTask);
             }
         }
     }
