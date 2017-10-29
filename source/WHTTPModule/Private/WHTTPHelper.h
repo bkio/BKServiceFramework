@@ -85,6 +85,17 @@ public:
         TryDeinitializing(this);
     }
 
+    void Send(std::string& Response)
+    {
+        WScopeGuard SendData_Guard(&HTTPSocket_Mutex);
+        if (!bSocketOperational) return;
+#if PLATFORM_WINDOWS
+        send(ClientSocket, Response.c_str(), strlen(Response.c_str()), 0);
+#else
+        send(ClientSocket, Response.c_str(), strlen(Response.c_str()), MSG_NOSIGNAL);
+#endif
+    }
+
 #if PLATFORM_WINDOWS
     explicit WHTTPSocket (SOCKET _Socket, sockaddr* _Client, uint32 _TimeoutMs)
 #else
@@ -139,7 +150,7 @@ private:
     void SendData_Internal(const std::wstring& Body, const std::string& Header, bool bCancelAfter)
     {
         std::string Response = Header + FString::WStringToString(Body);
-        send(ClientSocket->ClientSocket, Response.c_str(), strlen(Response.c_str()), 0);
+        ClientSocket->Send(Response);
         if (bCancelAfter)
         {
             Cancel();
@@ -155,11 +166,7 @@ private:
     }
     void SocketError_Internal()
     {
-        static std::wstring ResponseBody = L"<html>Socket Error</html>";
-        static std::string ResponseHeaders = "HTTP/1.1 500 Internal Server Error\r\n"
-                                                     "Content-Type: text/html; charset=UTF-8\r\n"
-                                                     "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
-        SendData_Internal(ResponseBody, ResponseHeaders, true);
+        Cancel();
     }
 
     bool GetData_Internal()
@@ -169,7 +176,7 @@ private:
         bool HeadersReady = false;
         while (!HeadersReady)
         {
-            BytesReceived = recv(ClientSocket->ClientSocket, RecvBuffer, RecvBufferLen, 0);
+            BytesReceived = static_cast<int32>(recv(ClientSocket->ClientSocket, RecvBuffer, RecvBufferLen, 0));
 
             if (!bInitialized) return false;
 
