@@ -129,7 +129,11 @@ void UWUDPManager::Send(sockaddr* Client, const FWCHARWrapper& SendBuffer)
     int32 SentLength;
     WScopeGuard SendGuard(&SendMutex);
     {
+#if PLATFORM_WINDOWS
         SentLength = static_cast<int32>(sendto(UDPSocket, SendBuffer.GetValue(), static_cast<size_t>(SendBuffer.GetSize()), 0, Client, ClientLen));
+#else
+        SentLength = static_cast<int32>(sendto(UDPSocket, SendBuffer.GetValue(), static_cast<size_t>(SendBuffer.GetSize()), MSG_NOSIGNAL, Client, ClientLen));
+#endif
     }
 
 #if PLATFORM_WINDOWS
