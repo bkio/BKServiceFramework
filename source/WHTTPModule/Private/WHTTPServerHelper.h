@@ -14,7 +14,7 @@ struct WHTTPAcceptedSocket
 private:
     WHTTPAcceptedSocket() = default;
 
-    WMutex HTTPSocket_Mutex;
+    WMutex HTTPSocket_Mutex{};
 
     int32 DeinitializationApproval = 0; //Must be 2 to deallocate this.
 

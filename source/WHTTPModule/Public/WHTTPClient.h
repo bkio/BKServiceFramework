@@ -10,13 +10,12 @@
 #include <map>
 
 #define DEFAULT_HTTP_REQUEST_HEADERS std::map<std::string, std::string>()
+#define DEFAULT_TIMEOUT_MS 2500
 
 struct FWHTTPClient : public FWAsyncTaskParameter
 {
 
 private:
-    FWHTTPClient() = default;
-
     std::string ServerAddress;
     uint16 ServerPort = 80;
     std::map<std::string, std::string> Headers{};
@@ -24,10 +23,15 @@ private:
     std::string RequestLine;
     uint32 TimeoutMs = 2500;
 
+    WFutureAsyncTask TimeoutCallback;
+
     WHTTPRequestParser Parser;
 
     bool bRequestInitialized = false;
     WMutex RequestMutex;
+
+    WMutex ReceivedDestroyApproval_Mutex;
+    int32 ReceivedDestroyApproval = 0;
 
     bool InitializeSocket();
     void CloseSocket();
@@ -42,9 +46,19 @@ private:
     ANSICHAR RecvBuffer[HTTP_BUFFER_SIZE]{};
     int32 BytesReceived{};
 
+    FWHTTPClient() = default;
+
 public:
-    FWHTTPClient(std::string _ServerAddress, uint16 _ServerPort, std::wstring _Payload, std::string _Verb, std::string _Path, std::map<std::string, std::string> _Headers, uint32 _TimeoutMs = 2500);
-    ~FWHTTPClient() override;
+    static void NewHTTPRequest(
+        std::string _ServerAddress,
+        uint16 _ServerPort,
+        std::wstring _Payload,
+        std::string _Verb,
+        std::string _Path,
+        std::map<std::string, std::string> _Headers,
+        uint32 _TimeoutMs,
+        WFutureAsyncTask& _RequestCallback,
+        WFutureAsyncTask& _TimeoutCallback);
 
     bool ProcessRequest();
     void CancelRequest();
@@ -60,6 +74,8 @@ public:
         if (!bRequestInitialized) return L"";
         return Parser.GetPayload();
     }
+
+    bool DestroyApproval();
 
     void SendData();
     bool ReceiveData();

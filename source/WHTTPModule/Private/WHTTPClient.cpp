@@ -1,20 +1,32 @@
 // Copyright Pagansoft.com, All rights reserved.
 
 #include "WMemory.h"
+#include "WAsyncTaskManager.h"
+#include "WScheduledTaskManager.h"
 #include "WHTTPClient.h"
 
-FWHTTPClient::FWHTTPClient(std::string _ServerAddress, uint16 _ServerPort, std::wstring _Payload, std::string _Verb, std::string _Path, std::map<std::string, std::string> _Headers, uint32 _TimeoutMs)
+void FWHTTPClient::NewHTTPRequest(
+        std::string _ServerAddress,
+        uint16 _ServerPort,
+        std::wstring _Payload,
+        std::string _Verb,
+        std::string _Path,
+        std::map<std::string, std::string> _Headers,
+        uint32 _TimeoutMs,
+        WFutureAsyncTask& _RequestCallback,
+        WFutureAsyncTask& _TimeoutCallback)
 {
-    ServerAddress = std::move(_ServerAddress);
-    ServerPort = _ServerPort;
-    Headers = std::move(_Headers);
-    Payload = std::move(_Payload);
-    RequestLine = _Verb + " " + _Path + " HTTP/1.1";
-    TimeoutMs = _TimeoutMs;
-}
-FWHTTPClient::~FWHTTPClient()
-{
-    CloseSocket();
+    auto NewClient = new FWHTTPClient();
+    NewClient->ServerAddress = std::move(_ServerAddress);
+    NewClient->ServerPort = _ServerPort;
+    NewClient->Headers = std::move(_Headers);
+    NewClient->Payload = std::move(_Payload);
+    NewClient->RequestLine = _Verb + " " + _Path + " HTTP/1.1";
+    NewClient->TimeoutMs = _TimeoutMs;
+    NewClient->TimeoutCallback = _TimeoutCallback;
+
+    TArray<FWAsyncTaskParameter*> AsArray(NewClient);
+    UWAsyncTaskManager::NewAsyncTask(_RequestCallback, AsArray, true);
 }
 
 bool FWHTTPClient::ProcessRequest()
@@ -24,6 +36,9 @@ bool FWHTTPClient::ProcessRequest()
     bRequestInitialized = true;
 
     bool bResult = false;
+
+    TArray<FWAsyncTaskParameter*> AsArray(this);
+    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(TimeoutCallback, AsArray, TimeoutMs, false, true);
 
     if (InitializeSocket())
     {
@@ -166,6 +181,8 @@ void FWHTTPClient::CloseSocket()
 
 void FWHTTPClient::SendData()
 {
+    if (!bRequestInitialized) return;
+
     std::stringstream HeaderBuilder;
     HeaderBuilder << RequestLine.c_str() << "\r\n";
     for (auto& Header : Headers)
@@ -214,13 +231,18 @@ bool FWHTTPClient::ReceiveData()
         if (BytesReceived > 0)
         {
             Parser.ProcessChunkForBody(RecvBuffer, BytesReceived);
+
             if (Parser.ErrorOccuredInBodyParsing()) return false;
-            if (Parser.AllBodyAvailable())
-            {
-                BodyReady = true;
-            }
+
+            BodyReady = Parser.AllBodyAvailable();
         }
         else return false;
     }
     return true;
+}
+
+bool FWHTTPClient::DestroyApproval()
+{
+    WScopeGuard ReceivedDestroyApproval_Guard(&ReceivedDestroyApproval_Mutex);
+    return ++ReceivedDestroyApproval >= 2;
 }

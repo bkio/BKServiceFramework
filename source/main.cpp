@@ -54,7 +54,7 @@ void Quit()
 
 void SendPingToGoogle()
 {
-    WFutureAsyncTask Lambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
+    WFutureAsyncTask RequestLambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
     {
         if (TaskParameters.Num() > 0)
         {
@@ -69,11 +69,23 @@ void SendPingToGoogle()
                 {
                     UWUtilities::Print(EWLogType::Error, FString(L"Ping send request to Google has failed."));
                 }
+
+                if (Request->DestroyApproval()) delete (Request);
             }
         }
     };
-    TArray<FWAsyncTaskParameter*> AsArray(new FWHTTPClient("google.com", 80, L"Ping...", "GET", "", DEFAULT_HTTP_REQUEST_HEADERS));
-    UWAsyncTaskManager::NewAsyncTask(Lambda, AsArray);
+    WFutureAsyncTask TimeoutLambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
+    {
+        if (TaskParameters.Num() > 0)
+        {
+            if (auto Request = dynamic_cast<FWHTTPClient*>(TaskParameters[0]))
+            {
+                Request->CancelRequest();
+                if (Request->DestroyApproval()) delete (Request);
+            }
+        }
+    };
+    FWHTTPClient::NewHTTPRequest("google.com", 80, L"Ping...", "GET", "", DEFAULT_HTTP_REQUEST_HEADERS, DEFAULT_TIMEOUT_MS, RequestLambda, TimeoutLambda);
 }
 
 int main()
