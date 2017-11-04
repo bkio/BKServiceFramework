@@ -45,7 +45,7 @@ private:
                 }
                 catch (std::bad_alloc& ba)
                 {
-                    UWUtilities::Print(EWLogType::Error, FString("Error: Thread out-of-memory: ") + FString(ba.what()));
+                    UWUtilities::Print(EWLogType::Error, FString(L"Error: Thread out-of-memory: ") + FString(ba.what()));
                     CleanThread(wThread);
                     if (wThread->StopCallback)
                     {

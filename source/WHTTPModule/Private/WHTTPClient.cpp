@@ -87,7 +87,7 @@ bool FWHTTPClient::InitializeSocket()
         UWUtilities::Print(EWLogType::Error, FString(L"Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
         WSACleanup();
 #else
-        UWUtilities::Print(EWLogType::Error, L"Cannot resolve address: " + FString::FromInt((int32)AddrInfo));
+        UWUtilities::Print(EWLogType::Error, FString(L"Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
 #endif
         return false;
     }
@@ -102,7 +102,7 @@ bool FWHTTPClient::InitializeSocket()
             UWUtilities::Print(EWLogType::Error, FString(L"Create socket failed with error: ") + FString::FromInt(WSAGetLastError()));
             WSACleanup();
 #else
-            UWUtilities::Print(EWLogType::Error, L"Create socket failed.");
+            UWUtilities::Print(EWLogType::Error, FString(L"Create socket failed."));
 #endif
             return false;
         }
@@ -119,10 +119,11 @@ bool FWHTTPClient::InitializeSocket()
         if (AddrInfo == -1)
 #endif
         {
-            closesocket(HTTPSocket);
 #if PLATFORM_WINDOWS
+            closesocket(HTTPSocket);
             HTTPSocket = INVALID_SOCKET;
 #else
+            close(HTTPSocket);
             HTTPSocket = -1;
 #endif
             continue;
@@ -142,7 +143,7 @@ bool FWHTTPClient::InitializeSocket()
         UWUtilities::Print(EWLogType::Error, FString(L"Error has occurred during connecting to server: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
 #else
-        UWUtilities::Print(EWLogType::Error, L"Error has occurred during connecting to server.");
+        UWUtilities::Print(EWLogType::Error, FString(L"Error has occurred during connecting to server."));
 #endif
         return false;
     }

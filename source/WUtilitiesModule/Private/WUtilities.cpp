@@ -97,7 +97,7 @@ FString UWUtilities::WGetSafeErrorMessage()
 #if PLATFORM_WINDOWS
     return FString(L"Last Error Code: ") + FString::FromInt(static_cast<int32>(GetLastError()));
 #else
-    return L"Error state has not been set.";
+    return FString(L"Error state has not been set.");
 #endif
 }
 FString UWUtilities::WGenerateMD5HashFromString(const FString& RawData)
