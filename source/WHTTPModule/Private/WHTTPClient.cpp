@@ -24,8 +24,8 @@ void FWHTTPClient::NewHTTPRequest(
     NewClient->RequestLine = _Verb + " " + _Path + " HTTP/1.1";
 
     TArray<FWAsyncTaskParameter*> AsArray(NewClient);
-    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(_TimeoutCallback, AsArray, _TimeoutMs, false, true);
     UWAsyncTaskManager::NewAsyncTask(_RequestCallback, AsArray, true);
+    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(_TimeoutCallback, AsArray, _TimeoutMs, false, true);
 }
 
 bool FWHTTPClient::ProcessRequest()
