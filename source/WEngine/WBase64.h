@@ -264,7 +264,7 @@ FString FBase64::Encode(const uint8* Source, uint32 Length)
         ByteTriplet >>= 6;
         EncodedBytes[0] = EncodingAlphabet[ByteTriplet & 0x3F];
         // Now we can append this buffer to our destination string
-        OutBuffer += EncodedBytes;
+        OutBuffer += FString(EncodedBytes);
     }
     // Since this algorithm operates on blocks, we may need to pad the last chunks
     if (Length > 0)
@@ -295,7 +295,7 @@ FString FBase64::Encode(const uint8* Source, uint32 Length)
         EncodedBytes[1] = EncodingAlphabet[ByteTriplet & 0x3F];
         ByteTriplet >>= 6;
         EncodedBytes[0] = EncodingAlphabet[ByteTriplet & 0x3F];
-        OutBuffer += EncodedBytes;
+        OutBuffer += FString(EncodedBytes);
     }
     return OutBuffer;
 }

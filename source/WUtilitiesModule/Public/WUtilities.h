@@ -156,8 +156,6 @@ private:
 
 public:
     static void Print(EWLogType LogType, const FString& format);
-    static void Print(EWLogType LogType, const UTFCHAR* format);
-    static void Print(EWLogType LogType, const ANSICHAR* format);
 
     static uint64 GetTimeStampInMS();
     static uint32 GetSafeTimeStampInMS();

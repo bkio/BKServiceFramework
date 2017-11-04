@@ -2,16 +2,16 @@
 
 #include <WAsyncTaskManager.h>
 #include <WMemory.h>
-#include "WHTTPManager.h"
+#include "WHTTPServer.h"
 #include "WMath.h"
 
-bool UWHTTPManager::InitializeSocket(uint16 Port)
+bool UWHTTPServer::InitializeSocket(uint16 Port)
 {
 #if PLATFORM_WINDOWS
     WSADATA WSAData{};
     if (WSAStartup(0x202, &WSAData) != 0)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPManager: WSAStartup() failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPServer: WSAStartup() failed with error: ") + UWUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
@@ -21,14 +21,14 @@ bool UWHTTPManager::InitializeSocket(uint16 Port)
 #if PLATFORM_WINDOWS
     if (HTTPSocket == INVALID_SOCKET)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPManager: Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPServer: Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
 #else
     if (HTTPSocket == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPManager: Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPServer: Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
         return false;
     }
 #endif
@@ -46,7 +46,7 @@ bool UWHTTPManager::InitializeSocket(uint16 Port)
     int32 ret = bind(HTTPSocket, (struct sockaddr*)&HTTPServer, sizeof(HTTPServer));
     if (ret == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPManager: Socket binding failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPServer: Socket binding failed with error: ") + UWUtilities::WGetSafeErrorMessage());
 #if PLATFORM_WINDOWS
         WSACleanup();
 #endif
@@ -55,7 +55,7 @@ bool UWHTTPManager::InitializeSocket(uint16 Port)
 
     return true;
 }
-void UWHTTPManager::CloseSocket()
+void UWHTTPServer::CloseSocket()
 {
 #if PLATFORM_WINDOWS
     closesocket(HTTPSocket);
@@ -66,7 +66,7 @@ void UWHTTPManager::CloseSocket()
 #endif
 }
 
-void UWHTTPManager::ListenSocket()
+void UWHTTPServer::ListenSocket()
 {
     while (bSystemStarted)
     {
@@ -103,7 +103,7 @@ void UWHTTPManager::ListenSocket()
             continue;
         }
 
-        auto TaskParameter = new FWHTTPClient(ClientSocket, Client, TimeoutInMs);
+        auto TaskParameter = new FWHTTPAcceptedClient(ClientSocket, Client, TimeoutInMs);
         TArray<FWAsyncTaskParameter*> TaskParameterAsArray(TaskParameter);
 
         WFutureAsyncTask TaskLambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
@@ -112,7 +112,7 @@ void UWHTTPManager::ListenSocket()
 
             if (TaskParameters.Num() > 0)
             {
-                if (auto Parameter = dynamic_cast<FWHTTPClient*>(TaskParameters[0]))
+                if (auto Parameter = dynamic_cast<FWHTTPAcceptedClient*>(TaskParameters[0]))
                 {
                     ManagerInstance->HTTPListenCallback(Parameter);
                 }
@@ -121,23 +121,23 @@ void UWHTTPManager::ListenSocket()
         UWAsyncTaskManager::NewAsyncTask(TaskLambda, TaskParameterAsArray);
     }
 }
-uint32 UWHTTPManager::ListenerStopped()
+uint32 UWHTTPServer::ListenerStopped()
 {
     if (!bSystemStarted) return 0;
     if (HTTPSystemThread) delete (HTTPSystemThread);
-    HTTPSystemThread = new WThread(std::bind(&UWHTTPManager::ListenSocket, this), std::bind(&UWHTTPManager::ListenerStopped, this));
+    HTTPSystemThread = new WThread(std::bind(&UWHTTPServer::ListenSocket, this), std::bind(&UWHTTPServer::ListenerStopped, this));
     return 0;
 }
 
-UWHTTPManager* UWHTTPManager::ManagerInstance = nullptr;
+UWHTTPServer* UWHTTPServer::ManagerInstance = nullptr;
 
-bool UWHTTPManager::bSystemStarted = false;
-bool UWHTTPManager::StartSystem(uint16 Port, uint32 TimeoutMs, std::function<void(FWHTTPClient*)> Callback)
+bool UWHTTPServer::bSystemStarted = false;
+bool UWHTTPServer::StartSystem(uint16 Port, uint32 TimeoutMs, std::function<void(FWHTTPAcceptedClient*)> Callback)
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
 
-    ManagerInstance = new UWHTTPManager(std::move(Callback));
+    ManagerInstance = new UWHTTPServer(std::move(Callback));
 
     if (!ManagerInstance->StartSystem_Internal(Port, TimeoutMs))
     {
@@ -147,18 +147,18 @@ bool UWHTTPManager::StartSystem(uint16 Port, uint32 TimeoutMs, std::function<voi
 
     return true;
 }
-bool UWHTTPManager::StartSystem_Internal(uint16 Port, uint32 TimeoutMs)
+bool UWHTTPServer::StartSystem_Internal(uint16 Port, uint32 TimeoutMs)
 {
     TimeoutInMs = TimeoutMs == 0 ? 2500 : TimeoutMs;
     if (InitializeSocket(Port))
     {
-        HTTPSystemThread = new WThread(std::bind(&UWHTTPManager::ListenSocket, this), std::bind(&UWHTTPManager::ListenerStopped, this));
+        HTTPSystemThread = new WThread(std::bind(&UWHTTPServer::ListenSocket, this), std::bind(&UWHTTPServer::ListenerStopped, this));
         return true;
     }
     return false;
 }
 
-void UWHTTPManager::EndSystem()
+void UWHTTPServer::EndSystem()
 {
     if (!bSystemStarted) return;
     bSystemStarted = false;
@@ -170,7 +170,7 @@ void UWHTTPManager::EndSystem()
         ManagerInstance = nullptr;
     }
 }
-void UWHTTPManager::EndSystem_Internal()
+void UWHTTPServer::EndSystem_Internal()
 {
     CloseSocket();
     HTTPListenCallback = nullptr;

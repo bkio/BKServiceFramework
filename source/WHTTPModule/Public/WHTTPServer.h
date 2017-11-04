@@ -1,10 +1,10 @@
 // Copyright Pagansoft.com, All rights reserved.
 
-#ifndef Pragma_Once_WHTTPManager
-#define Pragma_Once_WHTTPManager
+#ifndef Pragma_Once_WHTTPServer
+#define Pragma_Once_WHTTPServer
 
 #include "WEngine.h"
-#include "../Private/WHTTPHelper.h"
+#include "../Private/WHTTPServerHelper.h"
 #include "WThread.h"
 #include "WUtilities.h"
 #include "WJson.h"
@@ -12,11 +12,11 @@
 #include <unordered_set>
 #include <iostream>
 
-class UWHTTPManager
+class UWHTTPServer
 {
 
 public:
-    static bool StartSystem(uint16 Port, uint32 TimeoutMs, std::function<void(FWHTTPClient*)> Callback);
+    static bool StartSystem(uint16 Port, uint32 TimeoutMs, std::function<void(FWHTTPAcceptedClient*)> Callback);
     static void EndSystem();
 
 private:
@@ -41,15 +41,15 @@ private:
     void ListenSocket();
     uint32 ListenerStopped();
 
-    std::function<void(FWHTTPClient*)> HTTPListenCallback;
+    std::function<void(FWHTTPAcceptedClient*)> HTTPListenCallback;
 
     WThread* HTTPSystemThread{};
 
-    static UWHTTPManager* ManagerInstance;
-    explicit UWHTTPManager(std::function<void(FWHTTPClient*)> Callback)
+    static UWHTTPServer* ManagerInstance;
+    explicit UWHTTPServer(std::function<void(FWHTTPAcceptedClient*)> Callback)
     {
         HTTPListenCallback = std::move(Callback);
     }
 };
 
-#endif //Pragma_Once_WHTTPManager
+#endif //Pragma_Once_WHTTPServer

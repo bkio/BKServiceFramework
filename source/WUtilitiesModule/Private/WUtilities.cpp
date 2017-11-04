@@ -64,22 +64,6 @@ void UWUtilities::Print(EWLogType LogType, const FString& Format)
     WScopeGuard Guard(&PrintMutex);
     std::wcout << Message.str();
 }
-void UWUtilities::Print(EWLogType LogType, const UTFCHAR* Format)
-{
-    std::wstringstream Message;
-    Message << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error: ")) << std::wstring(Format) << "\n";
-
-    WScopeGuard Guard(&PrintMutex);
-    std::wcout << Message.str();
-}
-void UWUtilities::Print(EWLogType LogType, const ANSICHAR* Format)
-{
-    std::stringstream Message;
-    Message << (LogType == EWLogType::Log ? "Log: " : (LogType == EWLogType::Warning ? "Warning: " : "Error: ")) << std::string(Format) << "\n";
-
-    WScopeGuard Guard(&PrintMutex);
-    std::cout << Message.str();
-}
 
 uint64 UWUtilities::GetTimeStampInMS()
 {
@@ -131,7 +115,7 @@ FString UWUtilities::WGenerateMD5Hash(const TArray<uint8>& RawData)
     Buf.fill('0');
     for (int32 i = 0; i < 16; i++)
         Buf << std::hex << std::setfill('0') << std::setw(2) << (unsigned short)Digest[i];
-    return Buf.str();
+    return FString(Buf.str());
 }
 FWCHARWrapper UWUtilities::WBasicRawHash(FWCHARWrapper& Source, int32 FromSourceIndex, int32 Size)
 {
@@ -281,7 +265,7 @@ TArray<uint8> UWUtilities::StringToByteArray(const FString& InputData)
 }
 FString UWUtilities::ByteArrayToString(const TArray<uint8>& ByteArray)
 {
-    FString returnData = "";
+    FString returnData = EMPTY_FSTRING;
     for (int32 i = 0; i < ByteArray.Num(); i++)
     {
         returnData += (ANSICHAR)ByteArray[i];
@@ -291,7 +275,7 @@ FString UWUtilities::ByteArrayToString(const TArray<uint8>& ByteArray)
 
 FString UWUtilities::ConvertIntegerToHex(int32 inputValue)
 {
-    FString returnString = "";
+    FString returnString = EMPTY_FSTRING;
     ANSICHAR charData;
 
     for (int32 i = 7; i >= 0; i--)

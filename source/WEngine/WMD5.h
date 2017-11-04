@@ -43,7 +43,7 @@ public:
     static FString HashAnsiString(const UTFCHAR* String)
     {
         int32 Len = wcslen(String);
-        if (Len == 0) return "";
+        if (Len == 0) return EMPTY_FSTRING;
 
         uint8 Digest[16];
 
@@ -61,7 +61,7 @@ public:
         Buf.fill('0');
         for (int32 i = 0; i < 16; i++)
             Buf << std::hex << std::setfill('0') << std::setw(2) << (unsigned short)Digest[i];
-        return Buf.str();
+        return FString(Buf.str());
     }
 private:
     struct FContext

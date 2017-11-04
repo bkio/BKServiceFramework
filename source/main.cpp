@@ -4,7 +4,8 @@
 #include "WAsyncTaskManager.h"
 #include "WScheduledTaskManager.h"
 #include "WUDPManager.h"
-#include "WHTTPManager.h"
+#include "WHTTPServer.h"
+#include "WHTTPClient.h"
 
 void Start()
 {
@@ -19,7 +20,7 @@ void Start()
             UWUDPManager::AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
         }
     });
-    UWHTTPManager::StartSystem(8080, 2500, [](FWHTTPClient* Parameter)
+    UWHTTPServer::StartSystem(8080, 2500, [](FWHTTPAcceptedClient* Parameter)
     {
         if (Parameter && Parameter->Initialize())
         {
@@ -36,7 +37,7 @@ void Start()
 }
 void Stop()
 {
-    UWHTTPManager::EndSystem();
+    UWHTTPServer::EndSystem();
     UWUDPManager::EndSystem();
     UWScheduledAsyncTaskManager::EndSystem();
     UWAsyncTaskManager::EndSystem();
@@ -51,21 +52,46 @@ void Quit()
     Stop();
 }
 
+void SendPingToGoogle()
+{
+    WFutureAsyncTask Lambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
+    {
+        if (TaskParameters.Num() > 0)
+        {
+            if (auto Request = dynamic_cast<FWHTTPClient*>(TaskParameters[0]))
+            {
+                if (Request->ProcessRequest())
+                {
+                    FString Response = FString(Request->GetResponsePayload());
+                    UWUtilities::Print(EWLogType::Log, FString(L"Response length from Google: ") + FString::FromInt(Response.Len()));
+                }
+                else
+                {
+                    UWUtilities::Print(EWLogType::Error, FString(L"Ping send request to Google has failed."));
+                }
+            }
+        }
+    };
+    TArray<FWAsyncTaskParameter*> AsArray(new FWHTTPClient("google.com", 80, L"Ping...", "GET", "", DEFAULT_HTTP_REQUEST_HEADERS));
+    UWAsyncTaskManager::NewAsyncTask(Lambda, AsArray);
+}
+
 int main()
 {
     setlocale(LC_CTYPE, "");
 
-    UWUtilities::Print(EWLogType::Log, L"Application has started.");
+    UWUtilities::Print(EWLogType::Log, FString(L"Application has started."));
 
-    UWUtilities::Print(EWLogType::Log, L"Commands:");
-    UWUtilities::Print(EWLogType::Log, L"__________________");
-    UWUtilities::Print(EWLogType::Log, L"0: Exit");
-    UWUtilities::Print(EWLogType::Log, L"1: Start");
-    UWUtilities::Print(EWLogType::Log, L"2: Stop");
-    UWUtilities::Print(EWLogType::Log, L"3: Restart");
-    UWUtilities::Print(EWLogType::Log, L"__________________");
+    UWUtilities::Print(EWLogType::Log, FString(L"Commands:"));
+    UWUtilities::Print(EWLogType::Log, FString(L"__________________"));
+    UWUtilities::Print(EWLogType::Log, FString(L"0: Exit"));
+    UWUtilities::Print(EWLogType::Log, FString(L"1: Start"));
+    UWUtilities::Print(EWLogType::Log, FString(L"2: Stop"));
+    UWUtilities::Print(EWLogType::Log, FString(L"3: Restart"));
+    UWUtilities::Print(EWLogType::Log, FString(L"4: Send ping to Google"));
+    UWUtilities::Print(EWLogType::Log, FString(L"__________________"));
 
-    UWUtilities::Print(EWLogType::Log, L"Auto-start...");
+    UWUtilities::Print(EWLogType::Log, FString(L"Auto-start..."));
     Start();
 
     int32 Signal;
@@ -80,17 +106,21 @@ int main()
         else if (Signal == 1)
         {
             Start();
-            UWUtilities::Print(EWLogType::Log, L"System started.");
+            UWUtilities::Print(EWLogType::Log, FString(L"System started."));
         }
         else if (Signal == 2)
         {
             Stop();
-            UWUtilities::Print(EWLogType::Log, L"System stopped.");
+            UWUtilities::Print(EWLogType::Log, FString(L"System stopped."));
         }
         else if (Signal == 3)
         {
             Restart();
-            UWUtilities::Print(EWLogType::Log, L"System restarted.");
+            UWUtilities::Print(EWLogType::Log, FString(L"System restarted."));
+        }
+        else if (Signal == 4)
+        {
+            SendPingToGoogle();
         }
     }
 }

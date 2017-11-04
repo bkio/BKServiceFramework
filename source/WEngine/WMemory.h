@@ -50,6 +50,15 @@ public:
     {
         Memzero(&Src, sizeof(T));
     }
+
+    static void* Malloc(size_t Count)
+    {
+        return malloc(Count);
+    }
+    static void Free(void* Original)
+    {
+        free(Original);
+    }
 };
 
 #endif //Pragma_Once_WMemory

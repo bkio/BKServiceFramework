@@ -124,7 +124,7 @@ uint32 UWAsyncTaskManager::AsyncWorkerStopped(FWAsyncWorker* StoppedWorker)
             delete (ManagerInstance->AsyncWorkers[i]);
             ManagerInstance->AsyncWorkers[i] = new FWAsyncWorker;
             ManagerInstance->AsyncWorkers[i]->StartWorker();
-            UWUtilities::Print(EWLogType::Warning, L"An AsyncWorker has stopped. Another worker has just been started.");
+            UWUtilities::Print(EWLogType::Warning, FString(L"An AsyncWorker has stopped. Another worker has just been started."));
             return 0;
         }
     }
@@ -203,7 +203,7 @@ void FWAsyncWorker::ProcessData()
             double DiffMs = UWUtilities::GetTimeStampInMSDetailed() - PossibleAwaitingTask->QueuedTimestamp;
             if (DiffMs > 1000)
             {
-                UWUtilities::Print(EWLogType::Warning, L"WAsyncTask was in queue for " + FString::FromFloat(DiffMs));
+                UWUtilities::Print(EWLogType::Warning, FString(L"WAsyncTask was in queue for ") + FString::FromFloat(DiffMs));
             }
 
             PossibleAwaitingTask->bQueued = false;

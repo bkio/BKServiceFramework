@@ -76,32 +76,32 @@ public:
         Data.resize(Data.length() + Count);
     }
 
-    FString() {}
+    FString() = default;
     FString(const FString& Other)
     {
         Data = Other.Data;
     }
-    FString(const UTFCHAR* Other)
+    explicit FString(const UTFCHAR* Other)
     {
         Data = Other;
     }
-    FString(const ANSICHAR* Other)
+    explicit FString(const ANSICHAR* Other)
     {
         Data = StringToWString(Other);
     }
-    FString(const std::wstring& Other)
+    explicit FString(const std::wstring& Other)
     {
         Data = Other;
     }
-    FString(std::wstring&& Other)
+    explicit FString(std::wstring&& Other)
     {
         Data = Other;
     }
-    FString(const std::string& Other)
+    explicit FString(const std::string& Other)
     {
         Data = StringToWString(Other);
     }
-    FString(std::string&& Other)
+    explicit FString(std::string&& Other)
     {
         Data = StringToWString(Other);
     }
@@ -117,7 +117,7 @@ public:
             }
         }
     }
-    FString(const UTFCHAR* Other, int32 Size)
+    FString(const UTFCHAR* Other, uint32 Size)
     {
         Data.resize(Size);
         for (int32 i = 0; i < Size; i++)
@@ -125,7 +125,7 @@ public:
             Data[i] = Other[i];
         }
     }
-    FString(const ANSICHAR* Other, int32 Size)
+    FString(const ANSICHAR* Other, uint32 Size)
     {
         Data.resize(Size);
         for (int32 i = 0; i < Size; i++)
@@ -133,11 +133,8 @@ public:
             Data[i] = Other[i];
         }
     }
-    FString& operator=(const FString& Other)
-    {
-        Data = Other.Data;
-        return *this;
-    }
+    FString& operator=(const FString& Other) = default;
+
     FString& operator=(const UTFCHAR* Other)
     {
         Data = Other;
@@ -160,11 +157,11 @@ public:
     }
     bool operator==(const FString& Other)
     {
-        return Data == Other.Data;
+        return 0 == Data.compare(Other.Data);
     }
     bool operator!=(const FString& Other)
     {
-        return Data != Other.Data;
+        return 0 == Data.compare(Other.Data);
     }
 
     const UTFCHAR* operator*() const
@@ -183,11 +180,11 @@ public:
         Data += Str;
         return *this;
     }
-    UTFCHAR& operator[] (int32 Index)
+    UTFCHAR& operator[] (uint32 Index)
     {
         return Data.at(Index);
     }
-    const UTFCHAR& operator[] (int32 Index) const
+    const UTFCHAR& operator[] (uint32 Index) const
     {
         return Data.at(Index);
     }
@@ -222,7 +219,7 @@ public:
         Data += InChar;
         return *this;
     }
-    void AppendChars(const UTFCHAR* Array, int32 Count)
+    void AppendChars(const UTFCHAR* Array, uint32 Count)
     {
         if (Count <= 0) return;
         int32 OldSize = Data.size();
@@ -232,41 +229,59 @@ public:
             Data[OldSize + i] = Array[i];
         }
     }
+    static FString FromInt( int8 Num )
+    {
+        std::wstringstream Stream;
+        Stream << Num;
+        return FString(Stream.str());
+    }
+    static FString FromInt( int16 Num )
+    {
+        std::wstringstream Stream;
+        Stream << Num;
+        return FString(Stream.str());
+    }
     static FString FromInt( int32 Num )
     {
         std::wstringstream Stream;
         Stream << Num;
-        return Stream.str();
+        return FString(Stream.str());
     }
     static FString FromInt( int64 Num )
     {
         std::wstringstream Stream;
         Stream << Num;
-        return Stream.str();
+        return FString(Stream.str());
+    }
+    static FString FromInt( uint8 Num )
+    {
+        std::wstringstream Stream;
+        Stream << (int16)Num;
+        return FString(Stream.str());
+    }
+    static FString FromInt( uint16 Num )
+    {
+        std::wstringstream Stream;
+        Stream << (int32)Num;
+        return FString(Stream.str());
     }
     static FString FromInt( uint32 Num )
     {
         std::wstringstream Stream;
-        Stream << Num;
-        return Stream.str();
-    }
-    static FString FromInt( uint64 Num )
-    {
-        std::wstringstream Stream;
-        Stream << Num;
-        return Stream.str();
+        Stream << (int64)Num;
+        return FString(Stream.str());
     }
     static FString FromFloat( float Num )
     {
         std::wstringstream Stream;
         Stream << Num;
-        return Stream.str();
+        return FString(Stream.str());
     }
     static FString FromFloat( double Num )
     {
         std::wstringstream Stream;
         Stream << Num;
-        return Stream.str();
+        return FString(Stream.str());
     }
     bool Contains(const UTFCHAR* SubStr, int32 Size, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, ESearchDir::Type SearchDir = ESearchDir::FromStart)
     {
@@ -290,7 +305,7 @@ public:
     {
         return Contains(SubStr.Data.data(), SubStr.Data.length(), SearchCase, SearchDir);
     }
-    void Empty(int32 Slack = 0)
+    void Empty(uint32 Slack = 0)
     {
         Data.empty();
         if (Slack > 0)
@@ -298,7 +313,7 @@ public:
             Data.resize(Slack);
         }
     }
-    bool EndsWith(const UTFCHAR* InSuffix, int32 Len, ESearchCase::Type SearchCase)
+    bool EndsWith(const UTFCHAR* InSuffix, uint32 Len, ESearchCase::Type SearchCase)
     {
         if (Len >= Data.length())
         {
@@ -310,7 +325,7 @@ public:
                 std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower);
                 std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower);
 
-                for (int32 i = Len - 1; i >= 0; i--)
+                for (uint32 i = Len - 1; i >= 0; i--)
                 {
                     if (LookFor.at(i) != Tmp.at(i))
                     {
@@ -320,7 +335,7 @@ public:
             }
             else
             {
-                for (int32 i = Len - 1; i >= 0; i--)
+                for (uint32 i = Len - 1; i >= 0; i--)
                 {
                     if (InSuffix[i] != Data.at(i))
                     {
@@ -348,7 +363,7 @@ public:
                 std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower);
                 std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower);
 
-                for (int32 i = 0; i < Len; i++)
+                for (uint32 i = 0; i < Len; i++)
                 {
                     if (LookFor.at(i) != Tmp.at(i))
                     {
@@ -358,7 +373,7 @@ public:
             }
             else
             {
-                for (int32 i = 0; i < Len; i++)
+                for (uint32 i = 0; i < Len; i++)
                 {
                     if (InPrefix[i] != Data.at(i))
                     {
@@ -386,11 +401,11 @@ public:
     {
         return Data;
     }
-    void InsertAt(int32 Index, UTFCHAR Character)
+    void InsertAt(uint32 Index, UTFCHAR Character)
     {
         Data.insert(Index, 1, Character);
     }
-    void InsertAt(int32 Index, const FString& Characters)
+    void InsertAt(uint32 Index, const FString& Characters)
     {
         Data.insert(Index, Characters.Data);
     }
@@ -412,21 +427,21 @@ public:
         }
         return !Data.empty() && it == Data.end() && DotCount <= 1;
     }
-    bool IsValidIndex(int32 Index)
+    bool IsValidIndex(uint32 Index)
     {
         return Index >= 0 && Index < Data.length();
     }
-    FString Left(int32 Count)
+    FString Left(uint32 Count)
     {
-        return Data.substr(0, Count);
+        return FString(Data.substr(0, Count));
     }
-    FString Right(int32 FromIx)
+    FString Right(uint32 FromIx)
     {
-        return Data.substr(FromIx, Data.length() - FromIx);
+        return FString(Data.substr(FromIx, Data.length() - FromIx));
     }
-    FString Mid(int32 Start, int32 Count) const
+    FString Mid(uint32 Start, uint32 Count) const
     {
-        return Data.substr(Start, Count);
+        return FString(Data.substr(Start, Count));
     }
     int32 ParseIntoArray(TArray<FString>& OutArray, const UTFCHAR** DelimArray, int32 NumDelims, bool InCullEmpty) const
     {
@@ -442,7 +457,7 @@ public:
             for(int32 i = 0; i < Data.length();)
             {
                 int32 SubstringEndIndex = INDEX_NONE;
-                int32 DelimiterLength = 0;
+                uint32 DelimiterLength = 0;
 
                 // Attempt each delimiter.
                 for(int32 DelimIndex = 0; DelimIndex < NumDelims; ++DelimIndex)
@@ -546,7 +561,7 @@ public:
         int32 NumLineEndings = 3;
         return ParseIntoArray(OutArray, LineEndings, NumLineEndings, InCullEmpty);
     }
-    void RemoveAt(int32 Index, int32 Count)
+    void RemoveAt(uint32 Index, uint32 Count)
     {
         Data.erase(Index, Count);
     }
@@ -560,7 +575,7 @@ public:
             std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower);
             std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower);
 
-            int32 Pos = Tmp.rfind(LookFor);
+            uint32 Pos = Tmp.rfind(LookFor);
             if (Pos != std::wstring::npos)
             {
                 Data.replace(Pos, LookFor.length(), L"");
@@ -569,7 +584,7 @@ public:
         }
         else
         {
-            int32 Pos = Data.rfind(InSuffix.Data);
+            uint32 Pos = Data.rfind(InSuffix.Data);
             if (Pos != std::wstring::npos)
             {
                 Data.replace(Pos, InSuffix.Data.length(), L"");
@@ -588,7 +603,7 @@ public:
             std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower);
             std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower);
 
-            int32 Pos = Tmp.find(LookFor);
+            uint32 Pos = Tmp.find(LookFor);
             if (Pos != std::wstring::npos)
             {
                 Data.replace(Pos, LookFor.length(), L"");
@@ -634,7 +649,7 @@ public:
                 NewData.replace(Pos, FromString.length(), ToString);
             }
         }
-        return NewData;
+        return FString(NewData);
     }
     void Reserve(uint32 CharacterCount)
     {
@@ -652,18 +667,18 @@ public:
     {
         std::wstring NewData = Data;
         std::transform(NewData.begin(), NewData.end(), NewData.begin(), ::tolower);
-        return NewData;
+        return FString(NewData);
     }
     FString ToUpper()
     {
         std::wstring NewData = Data;
         std::transform(NewData.begin(), NewData.end(), NewData.begin(), ::tolower);
-        return NewData;
+        return FString(NewData);
     }
     FString TrimTrailing()
     {
         auto last = Data.find_last_not_of(' ');
-        return Data.substr(0, last + 1);
+        return FString(Data.substr(0, last + 1));
     }
     bool FindLastChar(UTFCHAR InChar, int32& Index) const
     {
@@ -677,14 +692,14 @@ public:
         //Get the error message, if any.
         DWORD errorMessageID = ::GetLastError();
         if(errorMessageID == 0)
-            return L"No error.";
+            return FString(L"No error.");
 
         LPSTR messageBuffer = nullptr;
         size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                                      nullptr, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, nullptr);
 
         std::string message(messageBuffer, size);
-        FString NewString = message;
+        FString NewString = FString(message);
 
         //Free the buffer.
         LocalFree(messageBuffer);
@@ -707,17 +722,7 @@ inline FString operator+ (const FString& Left, const FString& Right)
     NewString += Right;
     return NewString;
 }
-inline FString operator+ (const FString& Left, UTFCHAR* Right)
-{
-    FString NewString = Left;
-    NewString += Right;
-    return NewString;
-}
-inline FString operator+ (const FString& Left, UTFCHAR Right)
-{
-    FString NewString = Left;
-    NewString += Right;
-    return NewString;
-}
+
+#define EMPTY_FSTRING FString(L"")
 
 #endif //Pragma_Once_WString

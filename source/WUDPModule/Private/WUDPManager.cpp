@@ -580,7 +580,7 @@ WJson::Node UWUDPManager::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
             WJson::Node Exists = ResultMap.Get("CharArray");
             if (Exists.GetType() == WJson::Node::Type::T_STRING)
             {
-                CharArray = Exists.ToString("") + CharArray;
+                CharArray = FString(Exists.ToString("")) + CharArray;
                 ResultMap.Remove("CharArray");
             }
             std::string AsString = CharArray.GetAnsiCharArray();
