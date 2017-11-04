@@ -21,9 +21,6 @@ private:
     std::map<std::string, std::string> Headers{};
     std::wstring Payload;
     std::string RequestLine;
-    uint32 TimeoutMs = 2500;
-
-    WFutureAsyncTask TimeoutCallback;
 
     WHTTPRequestParser Parser;
 

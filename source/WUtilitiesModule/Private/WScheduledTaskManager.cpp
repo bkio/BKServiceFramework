@@ -123,6 +123,10 @@ void UWScheduledAsyncTaskManager::TickerRun()
                         NewQueueAfterTick.Push(PossibleAwaitingTask);
                     }
                 }
+                else
+                {
+                    NewQueueAfterTick.Push(PossibleAwaitingTask);
+                }
             }
         }
 

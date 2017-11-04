@@ -22,23 +22,20 @@ void FWHTTPClient::NewHTTPRequest(
     NewClient->Headers = std::move(_Headers);
     NewClient->Payload = std::move(_Payload);
     NewClient->RequestLine = _Verb + " " + _Path + " HTTP/1.1";
-    NewClient->TimeoutMs = _TimeoutMs;
-    NewClient->TimeoutCallback = _TimeoutCallback;
 
     TArray<FWAsyncTaskParameter*> AsArray(NewClient);
+    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(_TimeoutCallback, AsArray, _TimeoutMs, false, true);
     UWAsyncTaskManager::NewAsyncTask(_RequestCallback, AsArray, true);
 }
 
 bool FWHTTPClient::ProcessRequest()
 {
-    WScopeGuard RequestGuard(&RequestMutex);
-    if (bRequestInitialized) return false;
-    bRequestInitialized = true;
-
     bool bResult = false;
-
-    TArray<FWAsyncTaskParameter*> AsArray(this);
-    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(TimeoutCallback, AsArray, TimeoutMs, false, true);
+    {
+        WScopeGuard RequestGuard(&RequestMutex);
+        if (bRequestInitialized) return false;
+        bRequestInitialized = true;
+    }
 
     if (InitializeSocket())
     {
