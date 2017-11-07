@@ -2,8 +2,309 @@
 
 #include "WCPUMonitor.h"
 
+WCPUMonitor::WCPUMonitor()
+{
 #if PLATFORM_WINDOWS
+    if( s_hKernel == nullptr )
+    {
+        s_hKernel = LoadLibrary( _T("Kernel32.dll") );
+        if( s_hKernel != nullptr )
+        {
+            s_pfnGetSystemTimes = (pfnGetSystemTimes)GetProcAddress( s_hKernel, "GetSystemTimes" );
+            if( s_pfnGetSystemTimes == nullptr )
+            {
+                FreeLibrary( s_hKernel ); s_hKernel = nullptr;
+            }
+        }
+    }
+    s_delay.Mark();
+#else
+    FILE* StatFile = fopen("/proc/stat", "r");
+    fscanf(StatFile, "cpu %llu %llu %llu %llu", &lastTotalUser, &lastTotalUserLow, &lastTotalSys, &lastTotalIdle);
+    fclose(StatFile);
 
+    struct tms timeSample{};
+    ANSICHAR line[128];
+
+    lastCPU = times(&timeSample);
+    lastSysCPU = timeSample.tms_stime;
+    lastUserCPU = timeSample.tms_utime;
+
+    FILE* CpuFile = fopen("/proc/cpuinfo", "r");
+    numProcessors = 0;
+    while(fgets(line, 128, CpuFile) != nullptr)
+    {
+        if (strncmp(line, "processor", 9) == 0) numProcessors++;
+    }
+    fclose(CpuFile);
+#endif
+}
+#if PLATFORM_WINDOWS
+WCPUMonitor::~WCPUMonitor()
+{
+    if( s_hKernel == nullptr )
+    {
+        FreeLibrary( s_hKernel ); s_hKernel = nullptr;
+    }
+}
+#endif
+
+int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
+{
+#if PLATFORM_WINDOWS
+    *pSystemUsage = 0;
+
+    int64 sTime;
+    int32 sLastCpu;
+    int32 sLastCpuProcess;
+    WTKTime sLastUpTime;
+
+    // lock
+    {
+        WScopeGuard Guard(&m_lock);
+
+        sTime           = s_time;
+        sLastCpu        = s_lastCpu;
+        sLastCpuProcess = s_lastCpuProcess;
+        sLastUpTime     = s_lastUpTime;
+    }
+
+    if( s_delay.MSec() <= 200 )
+    {
+        if (bFirstTime)
+        {
+            bFirstTime = false;
+            *pSystemUsage = 0;
+            return 0;
+        }
+        *pSystemUsage = sLastCpu;
+        return sLastCpuProcess;
+    }
+
+    int64 time;
+
+    int64 idleTime;
+    int64 kernelTime;
+    int64 userTime;
+    int64 kernelTimeProcess;
+    int64 userTimeProcess;
+
+    GetSystemTimeAsFileTime( (LPFILETIME)&time );
+
+    if( sTime == 0 )
+    {
+        // for the system
+        if( s_pfnGetSystemTimes != nullptr )
+        {
+            /*BOOL res = */s_pfnGetSystemTimes( (LPFILETIME)&idleTime, (LPFILETIME)&kernelTime, (LPFILETIME)&userTime );
+        }
+        else
+        {
+            idleTime    = 0;
+            kernelTime  = 0;
+            userTime    = 0;
+        }
+
+        // for this process
+        {
+            FILETIME createTime{};
+            FILETIME exitTime{};
+            GetProcessTimes( GetCurrentProcess(), &createTime, &exitTime,
+                             (LPFILETIME)&kernelTimeProcess,
+                             (LPFILETIME)&userTimeProcess );
+        }
+
+        // LOCK
+        {
+            WScopeGuard Guard(&m_lock);
+
+            s_time              = time;
+
+            s_idleTime          = idleTime;
+            s_kernelTime        = kernelTime;
+            s_userTime          = userTime;
+
+            s_kernelTimeProcess = kernelTimeProcess;
+            s_userTimeProcess   = userTimeProcess;
+
+            s_lastCpu           = 0;
+            s_lastCpuProcess    = 0;
+
+            s_lastUpTime        = kernelTime + userTime;
+
+            sLastCpu        = s_lastCpu;
+            sLastCpuProcess = s_lastCpuProcess;
+            sLastUpTime     = s_lastUpTime;
+        }
+
+        *pSystemUsage = sLastCpu;
+
+        s_delay.Mark();
+
+        if (bFirstTime)
+        {
+            bFirstTime = false;
+            *pSystemUsage = 0;
+            return 0;
+        }
+        return sLastCpuProcess;
+    }
+    // sTime != 0
+
+    int64 div = ( time - sTime );
+
+    // for the system
+    if( s_pfnGetSystemTimes != nullptr )
+    {
+        /*BOOL res = */s_pfnGetSystemTimes( (LPFILETIME)&idleTime, (LPFILETIME)&kernelTime, (LPFILETIME)&userTime );
+    }
+    else
+    {
+        idleTime    = 0;
+        kernelTime  = 0;
+        userTime    = 0;
+    }
+
+    // for this process
+    {
+        FILETIME createTime{};
+        FILETIME exitTime{};
+        GetProcessTimes( GetCurrentProcess(), &createTime, &exitTime,
+                         (LPFILETIME)&kernelTimeProcess,
+                         (LPFILETIME)&userTimeProcess );
+    }
+
+    int32 cpu;
+    int32 cpuProcess;
+    // LOCK
+    {
+        WScopeGuard Guard(&m_lock);
+
+        int64 usr = userTime   - s_userTime;
+        int64 ker = kernelTime - s_kernelTime;
+        int64 idl = idleTime   - s_idleTime;
+
+        int64 sys = (usr + ker);
+
+        if( sys == 0 )
+            cpu = 0;
+        else
+            cpu = int32( (sys - idl) *100 / sys ); // System Idle take 100 % of cpu :-((
+
+        cpuProcess = int32( ( ( ( userTimeProcess - s_userTimeProcess ) + ( kernelTimeProcess - s_kernelTimeProcess ) ) *100 ) / div );
+
+        s_time              = time;
+
+        s_idleTime          = idleTime;
+        s_kernelTime        = kernelTime;
+        s_userTime          = userTime;
+
+        s_kernelTimeProcess = kernelTimeProcess;
+        s_userTimeProcess   = userTimeProcess;
+
+        s_cpu[(s_index++) %5] = cpu;
+        s_cpuProcess[(s_index++) %5] = cpuProcess;
+        s_count ++;
+        if( s_count > 5 )
+            s_count = 5;
+
+        int32 i;
+        cpu = 0;
+        for( i = 0; i < s_count; i++ )
+            cpu += s_cpu[i];
+
+        cpuProcess = 0;
+        for( i = 0; i < s_count; i++ )
+            cpuProcess += s_cpuProcess[i];
+
+        cpu         /= s_count;
+        cpuProcess  /= s_count;
+
+        s_lastCpu        = cpu;
+        s_lastCpuProcess = cpuProcess;
+
+        s_lastUpTime     = kernelTime + userTime;
+
+        sLastCpu        = s_lastCpu;
+        sLastCpuProcess = s_lastCpuProcess;
+        sLastUpTime     = s_lastUpTime;
+    }
+
+    *pSystemUsage = sLastCpu;
+
+    s_delay.Mark();
+
+    if (bFirstTime)
+    {
+        bFirstTime = false;
+        *pSystemUsage = 0;
+        return 0;
+    }
+    return sLastCpuProcess;
+#else
+    WScopeGuard Guard(&m_lock);
+
+    double SystemPercent;
+    FILE* StatFile;
+    uint64 totalUser, totalUserLow, totalSys, totalIdle, total;
+
+    StatFile = fopen("/proc/stat", "r");
+    fscanf(StatFile, "cpu %llu %llu %llu %llu", &totalUser, &totalUserLow, &totalSys, &totalIdle);
+    fclose(StatFile);
+
+    if (totalUser < lastTotalUser || totalUserLow < lastTotalUserLow || totalSys < lastTotalSys || totalIdle < lastTotalIdle)
+    {
+        //Overflow detection. Just skip this value.
+        SystemPercent = 0.0f;
+    }
+    else
+    {
+        total = (totalUser - lastTotalUser) + (totalUserLow - lastTotalUserLow) + (totalSys - lastTotalSys);
+        SystemPercent = total;
+        total += (totalIdle - lastTotalIdle);
+        SystemPercent /= total;
+        SystemPercent *= 100;
+    }
+
+    lastTotalUser = totalUser;
+    lastTotalUserLow = totalUserLow;
+    lastTotalSys = totalSys;
+    lastTotalIdle = totalIdle;
+
+    *pSystemUsage = static_cast<int32>(SystemPercent);
+
+    struct tms timeSample{};
+    clock_t now;
+    double ProcessPercent;
+
+    now = times(&timeSample);
+    if (now <= lastCPU || timeSample.tms_stime < lastSysCPU || timeSample.tms_utime < lastUserCPU)
+    {
+        //Overflow detection. Just skip this value.
+        ProcessPercent = 0.0f;
+    }
+    else
+    {
+        ProcessPercent = (timeSample.tms_stime - lastSysCPU) + (timeSample.tms_utime - lastUserCPU);
+        ProcessPercent /= (now - lastCPU);
+        ProcessPercent /= numProcessors;
+        ProcessPercent *= 100;
+    }
+    lastCPU = now;
+    lastSysCPU = timeSample.tms_stime;
+    lastUserCPU = timeSample.tms_utime;
+
+    if (bFirstTime)
+    {
+        bFirstTime = false;
+        *pSystemUsage = 0;
+        return 0;
+    }
+    return static_cast<int32>(ProcessPercent);
+#endif
+}
+
+#if PLATFORM_WINDOWS
 inline WTKTime::WTKTime()
 {
     m_time = 0;
@@ -172,210 +473,3 @@ HINSTANCE WCPUMonitor::s_hKernel = nullptr;
 
 pfnGetSystemTimes WCPUMonitor::s_pfnGetSystemTimes = nullptr;
 #endif
-
-WCPUMonitor::WCPUMonitor()
-{
-#if PLATFORM_WINDOWS
-    if( s_hKernel == nullptr )
-    {
-        s_hKernel = LoadLibrary( _T("Kernel32.dll") );
-        if( s_hKernel != nullptr )
-        {
-            s_pfnGetSystemTimes = (pfnGetSystemTimes)GetProcAddress( s_hKernel, "GetSystemTimes" );
-            if( s_pfnGetSystemTimes == nullptr )
-            {
-                FreeLibrary( s_hKernel ); s_hKernel = nullptr;
-            }
-        }
-    }
-    s_delay.Mark();
-#endif
-}
-WCPUMonitor::~WCPUMonitor()
-{
-#if PLATFORM_WINDOWS
-    if( s_hKernel == nullptr )
-    {
-        FreeLibrary( s_hKernel ); s_hKernel = nullptr;
-    }
-#endif
-}
-
-int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
-{
-#if PLATFORM_WINDOWS
-    int64 sTime;
-    int32 sLastCpu;
-    int32 sLastCpuProcess;
-    WTKTime sLastUpTime;
-
-    // lock
-    {
-        WScopeGuard Guard(&m_lock);
-
-        sTime           = s_time;
-        sLastCpu        = s_lastCpu;
-        sLastCpuProcess = s_lastCpuProcess;
-        sLastUpTime     = s_lastUpTime;
-    }
-
-    if( s_delay.MSec() <= 200 )
-    {
-        if( pSystemUsage != nullptr )
-            *pSystemUsage = sLastCpu;
-
-        return sLastCpuProcess;
-    }
-
-    int64 time;
-
-    int64 idleTime;
-    int64 kernelTime;
-    int64 userTime;
-    int64 kernelTimeProcess;
-    int64 userTimeProcess;
-
-    GetSystemTimeAsFileTime( (LPFILETIME)&time );
-
-    if( sTime == 0 )
-    {
-        // for the system
-        if( s_pfnGetSystemTimes != nullptr )
-        {
-            /*BOOL res = */s_pfnGetSystemTimes( (LPFILETIME)&idleTime, (LPFILETIME)&kernelTime, (LPFILETIME)&userTime );
-        }
-        else
-        {
-            idleTime    = 0;
-            kernelTime  = 0;
-            userTime    = 0;
-        }
-
-        // for this process
-        {
-            FILETIME createTime{};
-            FILETIME exitTime{};
-            GetProcessTimes( GetCurrentProcess(), &createTime, &exitTime,
-                             (LPFILETIME)&kernelTimeProcess,
-                             (LPFILETIME)&userTimeProcess );
-        }
-
-        // LOCK
-        {
-            WScopeGuard Guard(&m_lock);
-
-            s_time              = time;
-
-            s_idleTime          = idleTime;
-            s_kernelTime        = kernelTime;
-            s_userTime          = userTime;
-
-            s_kernelTimeProcess = kernelTimeProcess;
-            s_userTimeProcess   = userTimeProcess;
-
-            s_lastCpu           = 0;
-            s_lastCpuProcess    = 0;
-
-            s_lastUpTime        = kernelTime + userTime;
-
-            sLastCpu        = s_lastCpu;
-            sLastCpuProcess = s_lastCpuProcess;
-            sLastUpTime     = s_lastUpTime;
-        }
-
-        if( pSystemUsage != nullptr )
-            *pSystemUsage = sLastCpu;
-
-        s_delay.Mark();
-        return sLastCpuProcess;
-    }
-    // sTime != 0
-
-    int64 div = ( time - sTime );
-
-    // for the system
-    if( s_pfnGetSystemTimes != nullptr )
-    {
-        /*BOOL res = */s_pfnGetSystemTimes( (LPFILETIME)&idleTime, (LPFILETIME)&kernelTime, (LPFILETIME)&userTime );
-    }
-    else
-    {
-        idleTime    = 0;
-        kernelTime  = 0;
-        userTime    = 0;
-    }
-
-    // for this process
-    {
-        FILETIME createTime{};
-        FILETIME exitTime{};
-        GetProcessTimes( GetCurrentProcess(), &createTime, &exitTime,
-                         (LPFILETIME)&kernelTimeProcess,
-                         (LPFILETIME)&userTimeProcess );
-    }
-
-    int32 cpu;
-    int32 cpuProcess;
-    // LOCK
-    {
-        WScopeGuard Guard(&m_lock);
-
-        int64 usr = userTime   - s_userTime;
-        int64 ker = kernelTime - s_kernelTime;
-        int64 idl = idleTime   - s_idleTime;
-
-        int64 sys = (usr + ker);
-
-        if( sys == 0 )
-            cpu = 0;
-        else
-            cpu = int32( (sys - idl) *100 / sys ); // System Idle take 100 % of cpu :-((
-
-        cpuProcess = int32( ( ( ( userTimeProcess - s_userTimeProcess ) + ( kernelTimeProcess - s_kernelTimeProcess ) ) *100 ) / div );
-
-        s_time              = time;
-
-        s_idleTime          = idleTime;
-        s_kernelTime        = kernelTime;
-        s_userTime          = userTime;
-
-        s_kernelTimeProcess = kernelTimeProcess;
-        s_userTimeProcess   = userTimeProcess;
-
-        s_cpu[(s_index++) %5] = cpu;
-        s_cpuProcess[(s_index++) %5] = cpuProcess;
-        s_count ++;
-        if( s_count > 5 )
-            s_count = 5;
-
-        int32 i;
-        cpu = 0;
-        for( i = 0; i < s_count; i++ )
-            cpu += s_cpu[i];
-
-        cpuProcess = 0;
-        for( i = 0; i < s_count; i++ )
-            cpuProcess += s_cpuProcess[i];
-
-        cpu         /= s_count;
-        cpuProcess  /= s_count;
-
-        s_lastCpu        = cpu;
-        s_lastCpuProcess = cpuProcess;
-
-        s_lastUpTime     = kernelTime + userTime;
-
-        sLastCpu        = s_lastCpu;
-        sLastCpuProcess = s_lastCpuProcess;
-        sLastUpTime     = s_lastUpTime;
-    }
-
-    if( pSystemUsage != nullptr )
-        *pSystemUsage = sLastCpu;
-
-    s_delay.Mark();
-    return sLastCpuProcess;
-#else
-    return 0;
-#endif
-}

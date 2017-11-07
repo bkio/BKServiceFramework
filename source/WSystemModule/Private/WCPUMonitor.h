@@ -4,11 +4,13 @@
 #define Pragma_Once_WCPUMonitor
 
 #include "WEngine.h"
+#include "WMutex.h"
 #if PLATFORM_WINDOWS
     #include "windows.h"
     #include "tchar.h"
-    #include "WMutex.h"
 #else
+    #include "sys/times.h"
+    #include "sys/vtimes.h"
 #endif
 
 #if PLATFORM_WINDOWS
@@ -83,11 +85,19 @@ class WCPUMonitor
 
 public:
     WCPUMonitor();
+#if PLATFORM_WINDOWS
     ~WCPUMonitor();
+#else
+    ~WCPUMonitor() = default;
+#endif
 
     int32 GetUsage(int32* pSystemUsage);
 
 private:
+
+    WMutex m_lock;
+
+    bool bFirstTime = true;
 
 #if PLATFORM_WINDOWS
     static TKDelay s_delay;
@@ -112,8 +122,11 @@ private:
 
     static HINSTANCE s_hKernel;
     static pfnGetSystemTimes s_pfnGetSystemTimes;
+#else
+    uint64 lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle;
 
-    WMutex m_lock;
+    clock_t lastCPU, lastSysCPU, lastUserCPU;
+    int32 numProcessors;
 #endif
 };
 
