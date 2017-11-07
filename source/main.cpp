@@ -1,6 +1,7 @@
 // Copyright Pagansoft.com, All rights reserved.
 
 #include "WEngine.h"
+#include "WSystemManager.h"
 #include "WAsyncTaskManager.h"
 #include "WScheduledTaskManager.h"
 #include "WUDPManager.h"
@@ -34,9 +35,11 @@ void Start()
             Parameter->Finalize();
         }
     });
+    UWSystemManager::StartSystem();
 }
 void Stop()
 {
+    UWSystemManager::EndSystem();
     UWHTTPServer::EndSystem();
     UWUDPManager::EndSystem();
     UWScheduledAsyncTaskManager::EndSystem();

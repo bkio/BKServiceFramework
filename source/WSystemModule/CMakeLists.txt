@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.8)
-project(WHTTPModule)
+project(WSystemModule)
 
 #Dependencies Start
-set(WDepModsOf_WHTTPModule WUtilitiesModule)
+set(WDepModsOf_WSystemModule WUtilitiesModule)
 #Dependencies End
 
 if(WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -lpsapi")
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 endif()
@@ -21,24 +21,26 @@ include_directories(Private)
 file(GLOB Public_Files
         "Public/*.h"
         "Public/*.cpp"
+        "Public/*/*.h"
+        "Public/*/*.cpp"
         )
 file(GLOB Private_Files
         "Private/*.h"
         "Private/*.cpp"
+        "Private/*/*.h"
+        "Private/*/*.cpp"
         )
 
 set(SOURCE_FILES ${Public_Files} ${Private_Files})
 
-add_library(WHTTPModule SHARED ${SOURCE_FILES})
+add_library(WSystemModule SHARED ${SOURCE_FILES})
+
+foreach(WModule ${WDepModsOf_WSystemModule})
+    include_directories(${WModule}/Public)
+    target_link_libraries(WSystemModule ${WModule})
+endforeach()
 
 if(WIN32)
-    target_link_libraries(WHTTPModule ws2_32.lib)
-    MESSAGE(STATUS "Platform: Windows")
-else()
-    MESSAGE(STATUS "Platform: Non-Windows")
+    FIND_LIBRARY (PSAPI Psapi)
+    TARGET_LINK_LIBRARIES(WSystemModule ${PSAPI})
 endif()
-
-foreach(WModule ${WDepModsOf_WHTTPModule})
-    include_directories(${WModule}/Public)
-    target_link_libraries(WHTTPModule ${WModule})
-endforeach()

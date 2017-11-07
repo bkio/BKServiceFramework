@@ -45,14 +45,8 @@ FScopeSafeCharArray::FScopeSafeCharArray(const FString& Parameter, bool UseWChar
 }
 FScopeSafeCharArray::~FScopeSafeCharArray()
 {
-    if (CharArray)
-    {
-        delete[] CharArray;
-    }
-    else if (WCharArray)
-    {
-        delete[] WCharArray;
-    }
+    delete[] CharArray;
+    delete[] WCharArray;
 }
 
 WMutex UWUtilities::PrintMutex;

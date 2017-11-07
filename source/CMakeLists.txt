@@ -5,7 +5,7 @@ project(${WProjectName})
 set(CMAKE_CXX_STANDARD 11)
 
 if(WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 endif()
@@ -15,7 +15,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMA
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMAKE_BUILD_TYPE})
 
 #Dependencies Start
-set(WModules WUtilitiesModule;WUDPModule;WHTTPModule)
+set(WModules WUtilitiesModule;WUDPModule;WHTTPModule;WSystemModule)
 #Dependencies End
 
 set(SOURCE_FILES main.cpp)
