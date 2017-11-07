@@ -2,7 +2,6 @@
 
 #include "WMemoryMonitor.h"
 #if PLATFORM_WINDOWS
-    #include <windows.h>
     #include <psapi.h>
 #else
     #include "sys/sysinfo.h"
@@ -24,7 +23,7 @@ int64 WMemoryMonitor::GetUsage(int64* pSystemUsage)
     if (GetProcessMemoryInfo(GetCurrentProcess(), &MemoryCounter, sizeof(MemoryCounter)))
     {
         double UsedRamByProcess = ((double)(MemoryCounter.WorkingSetSize)) / Status.ullTotalPhys;
-        return static_cast<int64>(UsedRamByProcess);
+        return static_cast<int64>(UsedRamByProcess * 100);
     }
     return *pSystemUsage;
 #else
