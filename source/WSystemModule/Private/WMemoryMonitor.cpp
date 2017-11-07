@@ -40,7 +40,7 @@ int64 WMemoryMonitor::GetUsage(int64* pSystemUsage)
         TotalPhysMem *= MemInfo.mem_unit;
 
         double SystemPercent = ((double)PhysMemUsed) / TotalPhysMem;
-        *pSystemUsage = static_cast<int64>(SystemPercent);
+        *pSystemUsage = static_cast<int64>(SystemPercent * 100);
 
         FILE* StatusFile = fopen("/proc/self/status", "r");
         int32 WorkingSetSize = 0;
@@ -57,7 +57,7 @@ int64 WMemoryMonitor::GetUsage(int64* pSystemUsage)
         fclose(StatusFile);
 
         double UsedRamByProcess = ((double)(WorkingSetSize * 1024)) / TotalPhysMem;
-        return static_cast<int64>(UsedRamByProcess);
+        return static_cast<int64>(UsedRamByProcess * 100);
     }
 
     *pSystemUsage = 0;
