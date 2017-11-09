@@ -54,7 +54,7 @@ void UWScheduledAsyncTaskManager::EndSystem_Internal()
         {
             if (!AwaitingScheduledTask->bDoNotDeallocateParameters)
             {
-                for (FWAsyncTaskParameter* Param : AwaitingScheduledTask->Parameters)
+                for (UWAsyncTaskParameter* Param : AwaitingScheduledTask->Parameters)
                 {
                     if (Param != nullptr)
                     {
@@ -68,7 +68,7 @@ void UWScheduledAsyncTaskManager::EndSystem_Internal()
     }
 }
 
-void UWScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<FWAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters)
+void UWScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<UWAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters)
 {
     if (!bSystemStarted || ManagerInstance == nullptr) return;
     if (WaitFor == 0)
@@ -106,7 +106,7 @@ void UWScheduledAsyncTaskManager::TickerRun()
                     {
                         if (!PossibleAwaitingTask->bDoNotDeallocateParameters)
                         {
-                            for (FWAsyncTaskParameter* Parameter : PossibleAwaitingTask->Parameters)
+                            for (UWAsyncTaskParameter* Parameter : PossibleAwaitingTask->Parameters)
                             {
                                 if (Parameter)
                                 {

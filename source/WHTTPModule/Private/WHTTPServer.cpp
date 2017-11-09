@@ -87,7 +87,7 @@ void UWHTTPServer::ListenSocket()
             if (!bSystemStarted) return;
 
             EndSystem();
-            StartSystem(HTTPPort, TimeoutInMs, HTTPListenCallback);
+            StartSystem(HTTPPort, TimeoutInMs);
             return;
         }
 
@@ -103,22 +103,26 @@ void UWHTTPServer::ListenSocket()
             continue;
         }
 
-        auto TaskParameter = new FWHTTPAcceptedClient(ClientSocket, Client, TimeoutInMs);
-        TArray<FWAsyncTaskParameter*> TaskParameterAsArray(TaskParameter);
+        TArray<UWAsyncTaskParameter*> PassParameters;
+        PassParameters.Add(this);
+        PassParameters.Add(new UWHTTPAcceptedClient(ClientSocket, Client, TimeoutInMs));
 
-        WFutureAsyncTask TaskLambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
+        WFutureAsyncTask TaskLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
         {
-            if (!bSystemStarted || !ManagerInstance || !ManagerInstance->HTTPListenCallback) return;
-
-            if (TaskParameters.Num() > 0)
+            if (TaskParameters.Num() >= 2)
             {
-                if (auto Parameter = dynamic_cast<FWHTTPAcceptedClient*>(TaskParameters[0]))
+                auto ServerInstance = dynamic_cast<UWHTTPServer*>(TaskParameters[0]);
+                auto Parameter = dynamic_cast<UWHTTPAcceptedClient*>(TaskParameters[1]);
+                if (!ServerInstance || !ServerInstance->bSystemStarted || !ServerInstance->HTTPListenCallback) return;
+
+                if (Parameter)
                 {
-                    ManagerInstance->HTTPListenCallback(Parameter);
+                    ServerInstance->HTTPListenCallback(Parameter);
+                    delete (Parameter);
                 }
             }
         };
-        UWAsyncTaskManager::NewAsyncTask(TaskLambda, TaskParameterAsArray);
+        UWAsyncTaskManager::NewAsyncTask(TaskLambda, PassParameters, true);
     }
 }
 uint32 UWHTTPServer::ListenerStopped()
@@ -129,26 +133,11 @@ uint32 UWHTTPServer::ListenerStopped()
     return 0;
 }
 
-UWHTTPServer* UWHTTPServer::ManagerInstance = nullptr;
-
-bool UWHTTPServer::bSystemStarted = false;
-bool UWHTTPServer::StartSystem(uint16 Port, uint32 TimeoutMs, std::function<void(FWHTTPAcceptedClient*)> Callback)
+bool UWHTTPServer::StartSystem(uint16 Port, uint32 TimeoutMs)
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
 
-    ManagerInstance = new UWHTTPServer(std::move(Callback));
-
-    if (!ManagerInstance->StartSystem_Internal(Port, TimeoutMs))
-    {
-        EndSystem();
-        return false;
-    }
-
-    return true;
-}
-bool UWHTTPServer::StartSystem_Internal(uint16 Port, uint32 TimeoutMs)
-{
     TimeoutInMs = TimeoutMs == 0 ? 2500 : TimeoutMs;
     if (InitializeSocket(Port))
     {
@@ -163,15 +152,6 @@ void UWHTTPServer::EndSystem()
     if (!bSystemStarted) return;
     bSystemStarted = false;
 
-    if (ManagerInstance != nullptr)
-    {
-        ManagerInstance->EndSystem_Internal();
-        delete (ManagerInstance);
-        ManagerInstance = nullptr;
-    }
-}
-void UWHTTPServer::EndSystem_Internal()
-{
     CloseSocket();
     HTTPListenCallback = nullptr;
     if (HTTPSystemThread != nullptr)

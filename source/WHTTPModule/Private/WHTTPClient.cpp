@@ -5,7 +5,7 @@
 #include "WScheduledTaskManager.h"
 #include "WHTTPClient.h"
 
-void FWHTTPClient::NewHTTPRequest(
+void UWHTTPClient::NewHTTPRequest(
         std::string _ServerAddress,
         uint16 _ServerPort,
         std::wstring _Payload,
@@ -16,19 +16,19 @@ void FWHTTPClient::NewHTTPRequest(
         WFutureAsyncTask& _RequestCallback,
         WFutureAsyncTask& _TimeoutCallback)
 {
-    auto NewClient = new FWHTTPClient();
+    auto NewClient = new UWHTTPClient();
     NewClient->ServerAddress = std::move(_ServerAddress);
     NewClient->ServerPort = _ServerPort;
     NewClient->Headers = std::move(_Headers);
     NewClient->Payload = std::move(_Payload);
     NewClient->RequestLine = _Verb + " " + _Path + " HTTP/1.1";
 
-    TArray<FWAsyncTaskParameter*> AsArray(NewClient);
+    TArray<UWAsyncTaskParameter*> AsArray(NewClient);
     UWAsyncTaskManager::NewAsyncTask(_RequestCallback, AsArray, true);
     UWScheduledAsyncTaskManager::NewScheduledAsyncTask(_TimeoutCallback, AsArray, _TimeoutMs, false, true);
 }
 
-bool FWHTTPClient::ProcessRequest()
+bool UWHTTPClient::ProcessRequest()
 {
     bool bResult = false;
     {
@@ -46,7 +46,7 @@ bool FWHTTPClient::ProcessRequest()
     return bResult;
 }
 
-void FWHTTPClient::CancelRequest()
+void UWHTTPClient::CancelRequest()
 {
     WScopeGuard RequestGuard(&RequestMutex);
     if (!bRequestInitialized) return;
@@ -54,7 +54,7 @@ void FWHTTPClient::CancelRequest()
     CloseSocket();
 }
 
-bool FWHTTPClient::InitializeSocket()
+bool UWHTTPClient::InitializeSocket()
 {
 #if PLATFORM_WINDOWS
     HTTPSocket = static_cast<SOCKET>(-1);
@@ -161,7 +161,7 @@ bool FWHTTPClient::InitializeSocket()
     }
     return true;
 }
-void FWHTTPClient::CloseSocket()
+void UWHTTPClient::CloseSocket()
 {
     if (bSocketClosed) return;
     bSocketClosed = true;
@@ -176,7 +176,7 @@ void FWHTTPClient::CloseSocket()
 #endif
 }
 
-void FWHTTPClient::SendData()
+void UWHTTPClient::SendData()
 {
     if (!bRequestInitialized) return;
 
@@ -196,7 +196,7 @@ void FWHTTPClient::SendData()
 #endif
 }
 
-bool FWHTTPClient::ReceiveData()
+bool UWHTTPClient::ReceiveData()
 {
     if (!bRequestInitialized) return false;
 
@@ -238,7 +238,7 @@ bool FWHTTPClient::ReceiveData()
     return true;
 }
 
-bool FWHTTPClient::DestroyApproval()
+bool UWHTTPClient::DestroyApproval()
 {
     WScopeGuard ReceivedDestroyApproval_Guard(&ReceivedDestroyApproval_Mutex);
     return ++ReceivedDestroyApproval >= 2;

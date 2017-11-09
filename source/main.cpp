@@ -4,24 +4,30 @@
 #include "WSystemManager.h"
 #include "WAsyncTaskManager.h"
 #include "WScheduledTaskManager.h"
-#include "WUDPManager.h"
+#include "WUDPServer.h"
 #include "WHTTPServer.h"
 #include "WHTTPClient.h"
+
+UWHTTPServer* HTTPServerInstance = nullptr;
+UWUDPServer* UDPServerInstance = nullptr;
 
 void Start()
 {
     UWAsyncTaskManager::StartSystem(5);
     UWScheduledAsyncTaskManager::StartSystem(20);
-    UWUDPManager::StartSystem(45000, [](FWUDPTaskParameter* Parameter)
+
+    UDPServerInstance = new UWUDPServer([](UWUDPHandler* HandlerInstance, UWUDPTaskParameter* Parameter)
     {
-        if (Parameter && Parameter->Buffer && Parameter->Client && Parameter->BufferSize > 0)
+        if (HandlerInstance && Parameter && Parameter->Buffer && Parameter->Client && Parameter->BufferSize > 0)
         {
             FWCHARWrapper WrappedBuffer(Parameter->Buffer, Parameter->BufferSize);
 
-            UWUDPManager::AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
+            HandlerInstance->AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
         }
     });
-    UWHTTPServer::StartSystem(8080, 2500, [](FWHTTPAcceptedClient* Parameter)
+    UDPServerInstance->StartSystem(45000);
+
+    HTTPServerInstance = new UWHTTPServer([](UWHTTPAcceptedClient* Parameter)
     {
         if (Parameter && Parameter->Initialize())
         {
@@ -29,19 +35,32 @@ void Start()
 
             std::wstring ResponseBody = L"<html>Hello pagan world!</html>";
             std::string ResponseHeaders = "HTTP/1.1 200 OK\r\n"
-                                                  "Content-Type: text/html; charset=UTF-8\r\n"
-                                                  "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
+                                                "Content-Type: text/html; charset=UTF-8\r\n"
+                                                "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
             Parameter->SendData(ResponseBody, ResponseHeaders);
             Parameter->Finalize();
         }
     });
+    HTTPServerInstance->StartSystem(8080, 2500);
+
     UWSystemManager::StartSystem();
 }
 void Stop()
 {
     UWSystemManager::EndSystem();
-    UWHTTPServer::EndSystem();
-    UWUDPManager::EndSystem();
+
+    if (HTTPServerInstance)
+    {
+        HTTPServerInstance->EndSystem();
+        delete (HTTPServerInstance);
+    }
+
+    if (UDPServerInstance)
+    {
+        UDPServerInstance->EndSystem();
+        delete (UDPServerInstance);
+    }
+
     UWScheduledAsyncTaskManager::EndSystem();
     UWAsyncTaskManager::EndSystem();
 }
@@ -57,11 +76,11 @@ void Quit()
 
 void SendPingToGoogle()
 {
-    WFutureAsyncTask RequestLambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
+    WFutureAsyncTask RequestLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
     {
         if (TaskParameters.Num() > 0)
         {
-            if (auto Request = dynamic_cast<FWHTTPClient*>(TaskParameters[0]))
+            if (auto Request = dynamic_cast<UWHTTPClient*>(TaskParameters[0]))
             {
                 if (Request->ProcessRequest())
                 {
@@ -77,18 +96,18 @@ void SendPingToGoogle()
             }
         }
     };
-    WFutureAsyncTask TimeoutLambda = [](TArray<FWAsyncTaskParameter*> TaskParameters)
+    WFutureAsyncTask TimeoutLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
     {
         if (TaskParameters.Num() > 0)
         {
-            if (auto Request = dynamic_cast<FWHTTPClient*>(TaskParameters[0]))
+            if (auto Request = dynamic_cast<UWHTTPClient*>(TaskParameters[0]))
             {
                 Request->CancelRequest();
                 if (Request->DestroyApproval()) delete (Request);
             }
         }
     };
-    FWHTTPClient::NewHTTPRequest("google.com", 80, L"Ping...", "GET", "", DEFAULT_HTTP_REQUEST_HEADERS, DEFAULT_TIMEOUT_MS, RequestLambda, TimeoutLambda);
+    UWHTTPClient::NewHTTPRequest("google.com", 80, L"Ping...", "GET", "", DEFAULT_HTTP_REQUEST_HEADERS, DEFAULT_TIMEOUT_MS, RequestLambda, TimeoutLambda);
 }
 
 int main()

@@ -12,18 +12,22 @@
 #include <unordered_set>
 #include <iostream>
 
-class UWHTTPServer
+class UWHTTPServer : public UWAsyncTaskParameter
 {
 
 public:
-    static bool StartSystem(uint16 Port, uint32 TimeoutMs, std::function<void(FWHTTPAcceptedClient*)> Callback);
-    static void EndSystem();
+    bool StartSystem(uint16 Port, uint32 TimeoutMs);
+    void EndSystem();
+
+    explicit UWHTTPServer(std::function<void(UWHTTPAcceptedClient*)> Callback)
+    {
+        HTTPListenCallback = std::move(Callback);
+    }
 
 private:
-    static bool bSystemStarted;
+    UWHTTPServer() = default;
 
-    bool StartSystem_Internal(uint16 Port, uint32 TimeoutMs);
-    void EndSystem_Internal();
+    bool bSystemStarted = false;
 
     struct sockaddr_in HTTPServer{};
 
@@ -41,15 +45,9 @@ private:
     void ListenSocket();
     uint32 ListenerStopped();
 
-    std::function<void(FWHTTPAcceptedClient*)> HTTPListenCallback;
+    std::function<void(UWHTTPAcceptedClient*)> HTTPListenCallback;
 
     WThread* HTTPSystemThread{};
-
-    static UWHTTPServer* ManagerInstance;
-    explicit UWHTTPServer(std::function<void(FWHTTPAcceptedClient*)> Callback)
-    {
-        HTTPListenCallback = std::move(Callback);
-    }
 };
 
 #endif //Pragma_Once_WHTTPServer

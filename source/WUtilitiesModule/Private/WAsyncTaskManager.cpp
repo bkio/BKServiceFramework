@@ -63,7 +63,7 @@ void UWAsyncTaskManager::EndSystem_Internal()
     {
         if (AwaitingTask != nullptr)
         {
-            for (FWAsyncTaskParameter* Param : AwaitingTask->Parameters)
+            for (UWAsyncTaskParameter* Param : AwaitingTask->Parameters)
             {
                 if (Param != nullptr)
                 {
@@ -82,7 +82,7 @@ void UWAsyncTaskManager::PushFreeWorker(FWAsyncWorker* Worker)
     ManagerInstance->FreeWorkers.Push(Worker);
 }
 
-void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<FWAsyncTaskParameter*>& TaskParameters, bool bDoNotDeallocateParameters)
+void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<UWAsyncTaskParameter*>& TaskParameters, bool bDoNotDeallocateParameters)
 {
     if (!bSystemStarted || ManagerInstance == nullptr) return;
 
@@ -177,7 +177,7 @@ void FWAsyncWorker::ProcessData_CriticalPart()
         }
         if (!CurrentData->bDoNotDeallocateParameters)
         {
-            for (FWAsyncTaskParameter* Parameter : CurrentData->Parameters)
+            for (UWAsyncTaskParameter* Parameter : CurrentData->Parameters)
             {
                 if (Parameter)
                 {

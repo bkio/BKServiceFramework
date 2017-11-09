@@ -3,21 +3,20 @@
 #ifndef Pragma_Once_WTaskDefines
 #define Pragma_Once_WTaskDefines
 
-#include <utility>
-
 #include "WEngine.h"
 #include "WThread.h"
 #include "WConditionVariable.h"
+#include <utility>
 
-struct FWAsyncTaskParameter
+class UWAsyncTaskParameter
 {
 
 public:
-    FWAsyncTaskParameter() = default;
-    virtual ~FWAsyncTaskParameter() = default;
+    UWAsyncTaskParameter() = default;
+    virtual ~UWAsyncTaskParameter() = default;
 };
 
-typedef std::function<void(TArray<FWAsyncTaskParameter*>)> WFutureAsyncTask;
+typedef std::function<void(TArray<UWAsyncTaskParameter*>)> WFutureAsyncTask;
 
 struct FWAwaitingTask
 {
@@ -32,10 +31,10 @@ public:
     double QueuedTimestamp = 0;
 
     WFutureAsyncTask FunctionPtr;
-    TArray<FWAsyncTaskParameter*> Parameters;
+    TArray<UWAsyncTaskParameter*> Parameters;
 
     //For normal tasks
-    FWAwaitingTask(WFutureAsyncTask& Function, TArray<FWAsyncTaskParameter*>& Array, bool _bDoNotDeallocateParameters = false)
+    FWAwaitingTask(WFutureAsyncTask& Function, TArray<UWAsyncTaskParameter*>& Array, bool _bDoNotDeallocateParameters = false)
     {
         FunctionPtr = Function;
         Parameters = Array;
@@ -43,7 +42,7 @@ public:
     }
 
     //For scheduled tasks
-    FWAwaitingTask(WFutureAsyncTask& Function, TArray<FWAsyncTaskParameter*>& Array, uint32 _WaitTimeMs, bool _bLoop, bool _bDoNotDeallocateParameters = false)
+    FWAwaitingTask(WFutureAsyncTask& Function, TArray<UWAsyncTaskParameter*>& Array, uint32 _WaitTimeMs, bool _bLoop, bool _bDoNotDeallocateParameters = false)
     {
         FunctionPtr = Function;
         Parameters = Array;
@@ -54,18 +53,18 @@ public:
 };
 
 template <typename T>
-struct FWGenericParameter : public FWAsyncTaskParameter
+class UWGenericParameter : public UWAsyncTaskParameter
 {
 
 private:
-    FWGenericParameter() = default;
+    UWGenericParameter() = default;
 
     T Value;
 
     WMutex Mutex;
 
 public:
-    explicit FWGenericParameter(T _Value)
+    explicit UWGenericParameter(T _Value)
     {
         Value = _Value;
     }

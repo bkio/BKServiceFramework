@@ -469,13 +469,13 @@ namespace WJson
         return unescaped;
     }
 
-    Writer::Writer(const Format &format)
+    Writer::Writer(const JsonFormatter &format)
     {
         SetFormat(format);
     }
     Writer::~Writer() = default;
 
-    void Writer::SetFormat(const Format &format)
+    void Writer::SetFormat(const JsonFormatter &format)
     {
         this->format = format;
         indentationChar = static_cast<ANSICHAR>(format.useTabs ? '\t' : ' ');
@@ -573,10 +573,10 @@ namespace WJson
         }
     }
 
-    Parser::Parser() = default;
-    Parser::~Parser() = default;
+    JsonParser::JsonParser() = default;
+    JsonParser::~JsonParser() = default;
 
-    Node Parser::ParseStream(std::istream &stream)
+    Node JsonParser::ParseStream(std::istream &stream)
     {
         TokenQueue tokens;
         DataQueue data;
@@ -586,23 +586,23 @@ namespace WJson
 
         return node;
     }
-    Node Parser::ParseString(const std::string &json)
+    Node JsonParser::ParseString(const std::string &json)
     {
         std::istringstream stream(json);
         return ParseStream(stream);
     }
-    Node Parser::ParseFile(const std::string &filename)
+    Node JsonParser::ParseFile(const std::string &filename)
     {
         std::ifstream stream(filename.c_str(), std::ios::in);
         return ParseStream(stream);
     }
 
-    const std::string &Parser::GetError() const
+    const std::string &JsonParser::GetError() const
     {
         return error;
     }
 
-    void Parser::Tokenize(std::istream &stream, TokenQueue &tokens, DataQueue &data)
+    void JsonParser::Tokenize(std::istream &stream, TokenQueue &tokens, DataQueue &data)
     {
         Token token = T_UNKNOWN;
         std::string valueBuffer;
@@ -708,7 +708,7 @@ namespace WJson
             }
         }
     }
-    Node Parser::Assemble(TokenQueue &tokens, DataQueue &data)
+    Node JsonParser::Assemble(TokenQueue &tokens, DataQueue &data)
     {
         std::stack<NamedNode> nodeStack;
         Node root(Node::T_INVALID);
@@ -732,13 +732,13 @@ namespace WJson
                 }
                 case T_OBJ_BEGIN:
                 {
-                    nodeStack.push(std::make_pair(nextName, Object()));
+                    nodeStack.push(std::make_pair(nextName, Node(Node::T_OBJECT)));
                     nextName.clear();
                     break;
                 }
                 case T_ARRAY_BEGIN:
                 {
-                    nodeStack.push(std::make_pair(nextName, Array()));
+                    nodeStack.push(std::make_pair(nextName, Node(Node::T_ARRAY)));
                     nextName.clear();
                     break;
                 }
@@ -850,12 +850,12 @@ namespace WJson
         return root;
     }
 
-    void Parser::JumpToNext(ANSICHAR c, std::istream &stream)
+    void JsonParser::JumpToNext(ANSICHAR c, std::istream &stream)
     {
         while (!stream.eof() && static_cast<ANSICHAR>(stream.get()) != c);
         stream.unget();
     }
-    void Parser::JumpToCommentEnd(std::istream &stream)
+    void JsonParser::JumpToCommentEnd(std::istream &stream)
     {
         stream.ignore(1);
         ANSICHAR c1 = '\0', c2 = '\0';
@@ -870,7 +870,7 @@ namespace WJson
         }
     }
 
-    void Parser::ReadString(std::istream &stream, DataQueue &data)
+    void JsonParser::ReadString(std::istream &stream, DataQueue &data)
     {
         std::string str;
 
@@ -891,7 +891,7 @@ namespace WJson
 
         data.push(std::make_pair(Node::T_STRING, str));
     }
-    bool Parser::InterpretValue(const std::string &value, DataQueue &data)
+    bool JsonParser::InterpretValue(const std::string &value, DataQueue &data)
     {
         std::string upperValue(value.size(), '\0');
 

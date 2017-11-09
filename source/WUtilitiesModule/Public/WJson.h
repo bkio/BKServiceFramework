@@ -173,28 +173,23 @@ namespace WJson
     std::string EscapeString(const std::string &value);
     std::string UnescapeString(const std::string &value);
 
-    Node Invalid();
-    Node Null();
-    Node Object();
-    Node Array();
-
-    struct Format
+    struct JsonFormatter
     {
         bool newline;
         bool spacing;
         bool useTabs;
         uint32 indentSize;
     };
-    const Format StandardFormat = { true, true, true, 1 };
-    const Format NoFormat = { false, false, false, 0 };
+    const JsonFormatter StandardFormat = { true, true, true, 1 };
+    const JsonFormatter NoFormat = { false, false, false, 0 };
 
     class Writer
     {
     public:
-        explicit Writer(const Format &format = NoFormat);
+        explicit Writer(const JsonFormatter &format = NoFormat);
         ~Writer();
 
-        void SetFormat(const Format &format);
+        void SetFormat(const JsonFormatter &format);
 
         void WriteStream(const Node &node, std::ostream &stream) const;
         void WriteString(const Node &node, std::string &json) const;
@@ -208,17 +203,17 @@ namespace WJson
 
         std::string GetIndentation(uint32 level) const;
 
-        Format format;
+        JsonFormatter format;
         ANSICHAR indentationChar;
         const ANSICHAR *newline;
         const ANSICHAR *spacing;
     };
 
-    class Parser
+    class JsonParser
     {
     public:
-        Parser();
-        ~Parser();
+        JsonParser();
+        ~JsonParser();
 
         Node ParseStream(std::istream &stream);
         Node ParseString(const std::string &json);
@@ -252,26 +247,6 @@ namespace WJson
 
         std::string error;
     };
-    Node Invalid()
-    {
-        return Node(Node::T_INVALID);
-    }
-    Node Null()
-    {
-        return Node(Node::T_NULL);
-    }
-    Node Object()
-    {
-        return Node(Node::T_OBJECT);
-    }
-    Node Array()
-    {
-        return Node(Node::T_ARRAY);
-    }
-    Node Validation()
-    {
-        return Node(Node::T_VALIDATION);
-    }
 }
 
 #endif //Pragma_Once_WJson

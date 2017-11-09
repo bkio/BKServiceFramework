@@ -16,7 +16,7 @@ public:
 
     static bool IsSystemStarted();
 
-    static void NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<FWAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters = false);
+    static void NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<UWAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters = false);
 
 private:
     static bool bSystemStarted;
