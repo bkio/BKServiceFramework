@@ -10,8 +10,6 @@
     #include <winsock2.h>
 #else
     #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
 #endif
 #include "../Private/WUDPHelper.h"
 #include "../Private/WUDPHandler.h"
@@ -22,8 +20,6 @@ class UWUDPServer : public UWAsyncTaskParameter
 public:
     bool StartSystem(uint16 Port);
     void EndSystem();
-
-    bool ReliableDataTimedOut(class WReliableConnectionRecord* Record);
 
     explicit UWUDPServer(std::function<void(UWUDPHandler* HandlerInstance, UWUDPTaskParameter*)> Callback)
     {
@@ -42,7 +38,7 @@ private:
 #if PLATFORM_WINDOWS
     SOCKET UDPSocket{};
 #else
-    int32 UDPSocket;
+    int32 UDPSocket{};
 #endif
 
     UWUDPHandler* UDPHandler = nullptr;

@@ -9,6 +9,13 @@
 #include "WEngine.h"
 #include "WTaskDefines.h"
 
+#if PLATFORM_WINDOWS
+    #pragma comment(lib, "ws2_32.lib")
+    #include <winsock2.h>
+#else
+    #include <arpa/inet.h>
+#endif
+
 class WUDPHelper
 {
 
