@@ -5,6 +5,7 @@
 #include "WAsyncTaskManager.h"
 #include "WScheduledTaskManager.h"
 #include "WUDPServer.h"
+#include "WUDPClient.h"
 #include "WHTTPServer.h"
 #include "WHTTPClient.h"
 
@@ -18,11 +19,11 @@ void Start()
 
     UDPServerInstance = new UWUDPServer([](UWUDPHandler* HandlerInstance, UWUDPTaskParameter* Parameter)
     {
-        if (HandlerInstance && Parameter && Parameter->Buffer && Parameter->Client && Parameter->BufferSize > 0)
+        if (HandlerInstance && Parameter && Parameter->Buffer && Parameter->OtherParty && Parameter->BufferSize > 0)
         {
             FWCHARWrapper WrappedBuffer(Parameter->Buffer, Parameter->BufferSize);
 
-            HandlerInstance->AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->Client);
+            HandlerInstance->AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->OtherParty);
         }
     });
     UDPServerInstance->StartSystem(45000);
@@ -110,6 +111,22 @@ void SendPingToGoogle()
     UWHTTPClient::NewHTTPRequest("google.com", 80, L"Ping...", "GET", "", DEFAULT_HTTP_REQUEST_HEADERS, DEFAULT_TIMEOUT_MS, RequestLambda, TimeoutLambda);
 }
 
+void SendUDPPacketToServer()
+{
+    WUDPClient_DataReceived DataReceivedLambda = [](sockaddr* OtherParty, UWUDPHandler* UDPHandler, WJson::Node Parameter)
+    {
+        if (OtherParty && UDPHandler)
+        {
+        }
+    };
+    UWUDPClient* UDPClient = UWUDPClient::NewUDPClient("127.0.0.1", 45000, DataReceivedLambda);
+    if (UDPClient)
+    {
+        //UDPClient->EndClient();
+        //delete (UDPClient);
+    }
+}
+
 int main()
 {
     setlocale(LC_CTYPE, "");
@@ -123,6 +140,7 @@ int main()
     UWUtilities::Print(EWLogType::Log, FString(L"2: Stop"));
     UWUtilities::Print(EWLogType::Log, FString(L"3: Restart"));
     UWUtilities::Print(EWLogType::Log, FString(L"4: Send ping to Google"));
+    UWUtilities::Print(EWLogType::Log, FString(L"5: Send reliable packet to UDP Server"));
     UWUtilities::Print(EWLogType::Log, FString(L"__________________"));
 
     UWUtilities::Print(EWLogType::Log, FString(L"Auto-start..."));
@@ -155,6 +173,10 @@ int main()
         else if (Signal == 4)
         {
             SendPingToGoogle();
+        }
+        else if (Signal == 5)
+        {
+            SendUDPPacketToServer();
         }
     }
 }

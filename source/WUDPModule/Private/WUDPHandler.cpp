@@ -4,7 +4,15 @@
 #include "WUDPHelper.h"
 #include "WMath.h"
 #include "WScheduledTaskManager.h"
-#include <utility>
+
+#if PLATFORM_WINDOWS
+UWUDPHandler::UWUDPHandler(SOCKET _UDPSocket)
+#else
+UWUDPHandler::UWUDPHandler(int32 _UDPSocket)
+#endif
+{
+    UDPSocket_Ref = _UDPSocket;
+}
 
 void UWUDPHandler::ClearReliableConnections()
 {
@@ -38,9 +46,9 @@ void UWUDPHandler::ClearClientRecords()
     ClientRecords.clear();
 }
 
-WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* Client)
+WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* OtherParty)
 {
-    if (!bSystemStarted || Client == nullptr) return WJson::Node(WJson::Node::T_INVALID);
+    if (!bSystemStarted || OtherParty == nullptr) return WJson::Node(WJson::Node::T_INVALID);
     if (Parameter.GetSize() < 5) return WJson::Node(WJson::Node::T_INVALID);
 
     //Boolean flags operation starts.
@@ -69,19 +77,19 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     {
         if (bReliableSYNSuccess)
         {
-            HandleReliableSYNSuccess(Client, MessageID);
+            HandleReliableSYNSuccess(OtherParty, MessageID);
         }
         else if (bReliableSYNFailure)
         {
-            HandleReliableSYNFailure(Client, MessageID);
+            HandleReliableSYNFailure(OtherParty, MessageID);
         }
         else if (bReliableSYNACKSuccess)
         {
-            HandleReliableSYNACKSuccess(Client, MessageID);
+            HandleReliableSYNACKSuccess(OtherParty, MessageID);
         }
         else if (bReliableACK)
         {
-            HandleReliableACKArrival(Client, MessageID);
+            HandleReliableACKArrival(OtherParty, MessageID);
         }
         else
         {
@@ -101,7 +109,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     {
         if (bReliableSYN)
         {
-            AsReceiverReliableSYNFailure(Client, MessageID);
+            AsReceiverReliableSYNFailure(OtherParty, MessageID);
         }
         return WJson::Node(WJson::Node::T_INVALID);
     }
@@ -115,7 +123,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
         {
             if (bReliableSYN)
             {
-                AsReceiverReliableSYNFailure(Client, MessageID);
+                AsReceiverReliableSYNFailure(OtherParty, MessageID);
             }
             return WJson::Node(WJson::Node::T_INVALID);
         }
@@ -126,7 +134,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     {
         WClientRecord* ClientRecord = nullptr;
         {
-            std::string ClientKey = WUDPHelper::GetAddressPortFromClient(Client, MessageID, true);
+            std::string ClientKey = WUDPHelper::GetAddressPortFromClient(OtherParty, MessageID, true);
 
             WScopeGuard Guard(&ClientsRecord_Mutex);
             auto It = ClientRecords.find(ClientKey);
@@ -156,7 +164,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
             {
                 if (bReliableSYN)
                 {
-                    AsReceiverReliableSYNFailure(Client, MessageID);
+                    AsReceiverReliableSYNFailure(OtherParty, MessageID);
                 }
                 return WJson::Node(WJson::Node::T_INVALID);
             }
@@ -168,7 +176,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
             {
                 if (bReliableSYN)
                 {
-                    AsReceiverReliableSYNFailure(Client, MessageID);
+                    AsReceiverReliableSYNFailure(OtherParty, MessageID);
                 }
                 return WJson::Node(WJson::Node::T_INVALID);
             }
@@ -185,7 +193,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     //Reliable confirmation
     if (bReliableSYN)
     {
-        AsReceiverReliableSYNSuccess(Client, MessageID);
+        AsReceiverReliableSYNSuccess(OtherParty, MessageID);
     }
     //
 
@@ -371,7 +379,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
 }
 
 FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
-        sockaddr* Client,
+        sockaddr* OtherParty,
         WJson::Node Parameter,
         bool bTimeOrderCriticalData,
         bool bReliableSYN,
@@ -383,7 +391,7 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
         bool bDoubleContentCount)
 {
     if (!bSystemStarted) return FWCHARWrapper();
-    if (Client == nullptr ||
+    if (OtherParty == nullptr ||
         (!Parameter.IsObject() &&
          (Parameter.IsValidation() && ReliableMessageID == 0)))
         return FWCHARWrapper();
@@ -630,19 +638,19 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
     FWCHARWrapper ResultWrapper(ResultArray, Result.Num(), false);
     if (bReliableSYN)
     {
-        HandleReliableSYNDeparture(Client, ResultWrapper, MessageID);
+        HandleReliableSYNDeparture(OtherParty, ResultWrapper, MessageID);
     }
 
     return ResultWrapper;
 }
 
-WReliableConnectionRecord* UWUDPHandler::Create_AddOrGet_ReliableConnectionRecord(sockaddr* Client, uint32 MessageID, FWCHARWrapper& Buffer, bool bAsSender, uint8 EnsureHandshakingStatusEqualsTo, bool bIgnoreFailure)
+WReliableConnectionRecord* UWUDPHandler::Create_AddOrGet_ReliableConnectionRecord(sockaddr* OtherParty, uint32 MessageID, FWCHARWrapper& Buffer, bool bAsSender, uint8 EnsureHandshakingStatusEqualsTo, bool bIgnoreFailure)
 {
     //If EnsureHandshakingStatusEqualsTo = 0: Function can create a new record.
     //Otherwise will only try to get from existing records and if found, will ensure HandshakingStatus = EnsureHandshakingStatusEqualsTo, otherwise returns null.
     //HandshakingStatus_Mutex may be locked after. Do not forget to try unlocking it.
 
-    std::string ClientKey = WUDPHelper::GetAddressPortFromClient(Client, MessageID);
+    std::string ClientKey = WUDPHelper::GetAddressPortFromClient(OtherParty, MessageID);
 
     WReliableConnectionRecord* ReliableConnection = nullptr;
     {
@@ -674,7 +682,7 @@ WReliableConnectionRecord* UWUDPHandler::Create_AddOrGet_ReliableConnectionRecor
         }
         if (EnsureHandshakingStatusEqualsTo == 0 && ReliableConnection == nullptr)
         {
-            ReliableConnection = new WReliableConnectionRecord(this, MessageID, *Client, ClientKey, Buffer, bAsSender);
+            ReliableConnection = new WReliableConnectionRecord(this, MessageID, *OtherParty, ClientKey, Buffer, bAsSender);
             ReliableConnectionRecords.insert(std::pair<std::string, WReliableConnectionRecord*>(ClientKey, ReliableConnection));
         }
     }
@@ -695,54 +703,54 @@ void UWUDPHandler::CloseCase(WReliableConnectionRecord* Record)
     WScopeGuard Guard(&ReliableConnectionRecords_Mutex);
     ReliableConnectionRecords.erase(ClientKey);
 }
-void UWUDPHandler::AsReceiverReliableSYNSuccess(sockaddr* Client, uint32 MessageID) //Receiver
+void UWUDPHandler::AsReceiverReliableSYNSuccess(sockaddr* OtherParty, uint32 MessageID) //Receiver
 {
     if (!bSystemStarted) return;
 
     //Send SYN-ACK
     //UWUtilities::Print(EWLogType::Log, L"Send SYN-ACK: " + FString::FromInt(MessageID));
 
-    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::Node(WJson::Node::T_VALIDATION), false, false, true, false, false, false, MessageID);
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, true, false, false, false, MessageID);
 
-    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, false, 0, false);
+    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, false, 0, false);
     if (Record)
     {
         Record->SetHandshakingStatus(2);
-        SendFunction(Client, WrappedFinalData);
+        Send(OtherParty, WrappedFinalData);
         Record->FailureTrialCount = 0;
     }
     else
     {
-        Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, false, 2, false);
+        Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, false, 2, false);
         if (Record)
         {
-            SendFunction(Client, WrappedFinalData);
+            Send(OtherParty, WrappedFinalData);
             Record->FailureTrialCount = 0;
         }
     }
 
     WrappedFinalData.DeallocateValue();
 }
-void UWUDPHandler::AsReceiverReliableSYNFailure(sockaddr* Client, uint32 MessageID) //Receiver
+void UWUDPHandler::AsReceiverReliableSYNFailure(sockaddr* OtherParty, uint32 MessageID) //Receiver
 {
     if (!bSystemStarted) return;
 
     //Send SYN-fail
     //UWUtilities::Print(EWLogType::Log, L"Send SYN-fail: " + FString::FromInt(MessageID));
 
-    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, true, false, false, MessageID);
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, true, false, false, MessageID);
 
-    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, false, 0, true);
+    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, false, 0, true);
     if (Record)
     {
-        SendFunction(Client, WrappedFinalData);
+        Send(OtherParty, WrappedFinalData);
         //We are receiver, to receive actual buffer again, we should not increase FailureCount.
         Record->FailureTrialCount = 0;
     }
 
     WrappedFinalData.DeallocateValue();
 }
-void UWUDPHandler::HandleReliableSYNDeparture(sockaddr* Client, FWCHARWrapper& Buffer, uint32 MessageID) //Sender
+void UWUDPHandler::HandleReliableSYNDeparture(sockaddr* OtherParty, FWCHARWrapper& Buffer, uint32 MessageID) //Sender
 {
     //This is called by MakeByteArrayForNetworkData
     if (!bSystemStarted) return;
@@ -750,42 +758,42 @@ void UWUDPHandler::HandleReliableSYNDeparture(sockaddr* Client, FWCHARWrapper& B
     //Set the case
     //UWUtilities::Print(EWLogType::Log, L"SYNDeparture: " + FString::FromInt(MessageID));
 
-    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, Buffer, true, 0, true);
+    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, Buffer, true, 0, true);
     if (Record)
     {
         Record->SetHandshakingStatus(1);
         Record->FailureTrialCount = 0; //To reset, just in case.
     }
 }
-void UWUDPHandler::HandleReliableSYNSuccess(sockaddr* Client, uint32 MessageID) //Sender
+void UWUDPHandler::HandleReliableSYNSuccess(sockaddr* OtherParty, uint32 MessageID) //Sender
 {
     if (!bSystemStarted) return;
 
     //Send ACK
     //UWUtilities::Print(EWLogType::Log, L"Send ACK: " + FString::FromInt(MessageID));
 
-    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, true, false, MessageID);
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, true, false, MessageID);
 
-    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, true, 1, false);
+    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, true, 1, false);
     if (Record)
     {
         Record->SetHandshakingStatus(3);
-        SendFunction(Client, WrappedFinalData);
+        Send(OtherParty, WrappedFinalData);
         Record->FailureTrialCount = 0;
     }
     else
     {
-        Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, true, 3, false);
+        Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, true, 3, false);
         if (Record)
         {
-            SendFunction(Client, WrappedFinalData);
+            Send(OtherParty, WrappedFinalData);
             Record->FailureTrialCount = 0;
         }
     }
 
     WrappedFinalData.DeallocateValue();
 }
-void UWUDPHandler::HandleReliableSYNFailure(sockaddr* Client, uint32 MessageID) //Sender
+void UWUDPHandler::HandleReliableSYNFailure(sockaddr* OtherParty, uint32 MessageID) //Sender
 {
     if (!bSystemStarted) return;
 
@@ -794,35 +802,35 @@ void UWUDPHandler::HandleReliableSYNFailure(sockaddr* Client, uint32 MessageID) 
 
     FWCHARWrapper NullBuffer;
 
-    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, NullBuffer, true, 1, false);
+    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, NullBuffer, true, 1, false);
     if (Record)
     {
-        SendFunction(Client, *Record->GetBuffer());
+        Send(OtherParty, *Record->GetBuffer());
         Record->FailureTrialCount++;
     }
 }
-void UWUDPHandler::HandleReliableSYNACKSuccess(sockaddr* Client, uint32 MessageID) //Receiver
+void UWUDPHandler::HandleReliableSYNACKSuccess(sockaddr* OtherParty, uint32 MessageID) //Receiver
 {
     if (!bSystemStarted) return;
 
     //ACK received. Send ACK-ACK, then close the case.
     //UWUtilities::Print(EWLogType::Log, L"ACK received. Send ACK-ACK, then close the case: " + FString::FromInt(MessageID));
 
-    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(Client, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, false, true, MessageID);
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, false, true, MessageID);
 
-    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, false, 2, false);
+    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, false, 2, false);
     if (Record)
     {
         Record->SetHandshakingStatus(4);
-        SendFunction(Client, WrappedFinalData);
+        Send(OtherParty, WrappedFinalData);
         Record->FailureTrialCount = 0;
     }
     else
     {
-        Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, WrappedFinalData, false, 4, false);
+        Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, false, 4, false);
         if (Record)
         {
-            SendFunction(Client, WrappedFinalData);
+            Send(OtherParty, WrappedFinalData);
             Record->FailureTrialCount = 0;
         }
     }
@@ -834,7 +842,7 @@ void UWUDPHandler::HandleReliableSYNACKSuccess(sockaddr* Client, uint32 MessageI
         CloseCase(Record);
     }
 }
-void UWUDPHandler::HandleReliableACKArrival(sockaddr* Client, uint32 MessageID) //Sender
+void UWUDPHandler::HandleReliableACKArrival(sockaddr* OtherParty, uint32 MessageID) //Sender
 {
     if (!bSystemStarted) return;
 
@@ -843,7 +851,7 @@ void UWUDPHandler::HandleReliableACKArrival(sockaddr* Client, uint32 MessageID) 
 
     FWCHARWrapper NullBuffer;
 
-    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(Client, MessageID, NullBuffer, true, 3, false);
+    WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, NullBuffer, true, 3, false);
     if (Record)
     {
         CloseCase(Record);
@@ -875,11 +883,6 @@ WUDPRecord::WUDPRecord(UWUDPHandler* _ResponsibleHandler) : LastInteraction(UWUt
     }
 }
 WUDPRecord::~WUDPRecord() = default;
-
-UWUDPHandler::UWUDPHandler(WUDPSendCallback _SendCallback)
-{
-    SendFunction = std::move(_SendCallback);
-}
 
 void UWUDPHandler::StartSystem()
 {
@@ -961,4 +964,43 @@ void UWUDPHandler::EndSystem()
     LastServersideMessageID = 1;
     LastServersideGeneratedTimestamp = 0;
     ClearClientRecords();
+}
+
+#if PLATFORM_WINDOWS
+void UWUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
+#else
+void UWUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
+#endif
+{
+    if (!bSystemStarted) return;
+
+    if (OtherParty == nullptr) return;
+    if (SendBuffer.GetSize() == 0) return;
+
+#if PLATFORM_WINDOWS
+    int32 OtherPartyLen = sizeof(*OtherParty);
+#else
+    socklen_t OtherPartyLen = sizeof(*Client);
+#endif
+    int32 SentLength;
+    WScopeGuard SendGuard(&SendMutex);
+    {
+#if PLATFORM_WINDOWS
+        SentLength = static_cast<int32>(sendto(UDPSocket_Ref, SendBuffer.GetValue(), static_cast<size_t>(SendBuffer.GetSize()), 0, OtherParty, OtherPartyLen));
+#else
+        SentLength = static_cast<int32>(sendto(UDPSocket_Ref, SendBuffer.GetValue(), static_cast<size_t>(SendBuffer.GetSize()), MSG_NOSIGNAL, OtherParty, OtherPartyLen));
+#endif
+    }
+
+#if PLATFORM_WINDOWS
+    if (SentLength == SOCKET_ERROR)
+    {
+        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPHandler: Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+    }
+#else
+    if (SentLength == -1)
+    {
+        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPHandler: Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+    }
+#endif
 }

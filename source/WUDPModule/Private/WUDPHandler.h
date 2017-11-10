@@ -208,8 +208,6 @@ public:
     }
 };
 
-typedef std::function<void(sockaddr* Client, const FWCHARWrapper& SendBuffer)> WUDPSendCallback;
-
 class UWUDPHandler : public UWAsyncTaskParameter
 {
 
@@ -233,29 +231,41 @@ private:
     void ClearClientRecords();
     void ClearUDPRecordsForTimeoutCheck();
 
+    WMutex SendMutex;
+
+#if PLATFORM_WINDOWS
+    SOCKET UDPSocket_Ref{};
+#else
+    int32 UDPSocket_Ref{};
+#endif
+
     bool bSystemStarted = false;
 
     //
-    void AsReceiverReliableSYNSuccess(sockaddr* Client, uint32 MessageID);
-    void AsReceiverReliableSYNFailure(sockaddr* Client, uint32 MessageID);
+    void AsReceiverReliableSYNSuccess(sockaddr* OtherParty, uint32 MessageID);
+    void AsReceiverReliableSYNFailure(sockaddr* OtherParty, uint32 MessageID);
 
-    void HandleReliableSYNDeparture(sockaddr* Client, FWCHARWrapper& Buffer, uint32 MessageID);
+    void HandleReliableSYNDeparture(sockaddr* OtherParty, FWCHARWrapper& Buffer, uint32 MessageID);
 
-    void HandleReliableSYNSuccess(sockaddr* Client, uint32 MessageID);
-    void HandleReliableSYNFailure(sockaddr* Client, uint32 MessageID);
+    void HandleReliableSYNSuccess(sockaddr* OtherParty, uint32 MessageID);
+    void HandleReliableSYNFailure(sockaddr* OtherParty, uint32 MessageID);
 
-    void HandleReliableSYNACKSuccess(sockaddr* Client, uint32 MessageID);
+    void HandleReliableSYNACKSuccess(sockaddr* OtherParty, uint32 MessageID);
 
-    void HandleReliableACKArrival(sockaddr* Client, uint32 MessageID);
+    void HandleReliableACKArrival(sockaddr* OtherParty, uint32 MessageID);
     //
 
-    WReliableConnectionRecord* Create_AddOrGet_ReliableConnectionRecord(sockaddr* Client, uint32 MessageID, FWCHARWrapper& Buffer, bool bAsSender, uint8 EnsureHandshakingStatusEqualsTo = 0, bool bIgnoreFailure = false);
+    WReliableConnectionRecord* Create_AddOrGet_ReliableConnectionRecord(sockaddr* OtherParty, uint32 MessageID, FWCHARWrapper& Buffer, bool bAsSender, uint8 EnsureHandshakingStatusEqualsTo = 0, bool bIgnoreFailure = false);
     void CloseCase(WReliableConnectionRecord* Record);
 
     UWUDPHandler() = default;
 
 public:
-    explicit UWUDPHandler(WUDPSendCallback _SendCallback);
+#if PLATFORM_WINDOWS
+    explicit UWUDPHandler(SOCKET _UDPSocket);
+#else
+    explicit UWUDPHandler(int32 _UDPSocket);
+#endif
 
     /*
 	* if bIgnoreTimestamp == false && Timestamp == 0, sends one package with bReliableSYN = true, bIgnoreTimestamp = true
@@ -301,11 +311,11 @@ public:
 	"CharArray": "Demonstration"
 	}
 	*/
-    WJson::Node AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* Client);
+    WJson::Node AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* OtherParty);
 
     //Do not forget to deallocate the result manually.
     FWCHARWrapper MakeByteArrayForNetworkData(
-            sockaddr* Client,
+            sockaddr* OtherParty,
             WJson::Node Parameter,
             bool bTimeOrderCriticalData = false,
             bool bReliableSYN = false,
@@ -321,7 +331,11 @@ public:
 
     void AddNewUDPRecord(WUDPRecord* NewRecord);
 
-    WUDPSendCallback SendFunction = nullptr;
+#if PLATFORM_WINDOWS
+    void Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer);
+#else
+    void Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer);
+#endif
 };
 
 #endif //Pragma_Once_WUDProtocol

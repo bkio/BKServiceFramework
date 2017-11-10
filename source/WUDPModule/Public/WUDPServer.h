@@ -1,7 +1,7 @@
 // Copyright Pagansoft.com, All rights reserved.
 
-#ifndef Pragma_Once_WUDPManager
-#define Pragma_Once_WUDPManager
+#ifndef Pragma_Once_WUDPServer
+#define Pragma_Once_WUDPServer
 
 #include "WEngine.h"
 #if PLATFORM_WINDOWS
@@ -33,8 +33,6 @@ private:
 
     struct sockaddr_in UDPServer{};
 
-    WMutex SendMutex;
-
 #if PLATFORM_WINDOWS
     SOCKET UDPSocket{};
 #else
@@ -47,11 +45,10 @@ private:
     void CloseSocket();
     void ListenSocket();
     uint32 ListenerStopped();
-    void Send(sockaddr* Client, const FWCHARWrapper& SendBuffer);
 
     std::function<void(UWUDPHandler* HandlerInstance, UWUDPTaskParameter*)> UDPListenCallback = nullptr;
 
     WThread* UDPSystemThread = nullptr;
 };
 
-#endif //Pragma_Once_WUDPManager
+#endif //Pragma_Once_WUDPServer

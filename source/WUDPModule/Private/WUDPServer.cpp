@@ -71,7 +71,7 @@ void UWUDPServer::ListenSocket()
 {
     while (bSystemStarted)
     {
-        auto Buffer = new ANSICHAR[1024];
+        auto Buffer = new ANSICHAR[UDP_BUFFER_SIZE];
         auto Client = new sockaddr;
 #if PLATFORM_WINDOWS
         int32 ClientLen = sizeof(*Client);
@@ -79,7 +79,7 @@ void UWUDPServer::ListenSocket()
         socklen_t ClientLen = sizeof(*Client);
 #endif
 
-        auto RetrievedSize = static_cast<int32>(recvfrom(UDPSocket, Buffer, 1024, 0, Client, &ClientLen));
+        auto RetrievedSize = static_cast<int32>(recvfrom(UDPSocket, Buffer, UDP_BUFFER_SIZE, 0, Client, &ClientLen));
         if (RetrievedSize < 0 || !bSystemStarted)
         {
             delete[] Buffer;
@@ -91,7 +91,7 @@ void UWUDPServer::ListenSocket()
 
         TArray<UWAsyncTaskParameter*> PassParameters;
         PassParameters.Add(this);
-        PassParameters.Add(new UWUDPTaskParameter(RetrievedSize, Buffer, Client));
+        PassParameters.Add(new UWUDPTaskParameter(RetrievedSize, Buffer, Client, true));
 
         WFutureAsyncTask Lambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
         {
@@ -120,41 +120,6 @@ uint32 UWUDPServer::ListenerStopped()
     return 0;
 }
 
-void UWUDPServer::Send(sockaddr* Client, const FWCHARWrapper& SendBuffer)
-{
-    if (!bSystemStarted) return;
-
-    if (Client == nullptr) return;
-    if (SendBuffer.GetSize() == 0) return;
-
-#if PLATFORM_WINDOWS
-    int32 ClientLen = sizeof(*Client);
-#else
-    socklen_t ClientLen = sizeof(*Client);
-#endif
-    int32 SentLength;
-    WScopeGuard SendGuard(&SendMutex);
-    {
-#if PLATFORM_WINDOWS
-        SentLength = static_cast<int32>(sendto(UDPSocket, SendBuffer.GetValue(), static_cast<size_t>(SendBuffer.GetSize()), 0, Client, ClientLen));
-#else
-        SentLength = static_cast<int32>(sendto(UDPSocket, SendBuffer.GetValue(), static_cast<size_t>(SendBuffer.GetSize()), MSG_NOSIGNAL, Client, ClientLen));
-#endif
-    }
-
-#if PLATFORM_WINDOWS
-    if (SentLength == SOCKET_ERROR)
-    {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPServer: Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
-    }
-#else
-    if (SentLength == -1)
-    {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPServer: Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
-    }
-#endif
-}
-
 bool UWUDPServer::StartSystem(uint16 Port)
 {
     if (bSystemStarted) return true;
@@ -167,7 +132,7 @@ bool UWUDPServer::StartSystem(uint16 Port)
         {
             delete (UDPHandler);
         }
-        UDPHandler = new UWUDPHandler(std::bind(&UWUDPServer::Send, this, std::placeholders::_1, std::placeholders::_2));
+        UDPHandler = new UWUDPHandler(UDPSocket);
         UDPHandler->StartSystem();
         return true;
     }
@@ -209,7 +174,7 @@ bool WReliableConnectionRecord::ResetterFunction()
     }
 
     UpdateLastInteraction();
-    ResponsibleHandler->SendFunction(GetClient(), *GetBuffer());
+    ResponsibleHandler->Send(GetClient(), *GetBuffer());
 
     return false;
 }

@@ -16,6 +16,8 @@
     #include <arpa/inet.h>
 #endif
 
+#define UDP_BUFFER_SIZE 1024
+
 class WUDPHelper
 {
 
@@ -43,22 +45,25 @@ class UWUDPTaskParameter : public UWAsyncTaskParameter
 private:
     UWUDPTaskParameter() = default;
 
+    bool AsServer = false;
+
 public:
     int32 BufferSize = 0;
     ANSICHAR* Buffer = nullptr;
-    sockaddr* Client = nullptr;
+    sockaddr* OtherParty = nullptr;
 
-    UWUDPTaskParameter(int32 BufferSizeParameter, ANSICHAR* BufferParameter, sockaddr* ClientParameter)
+    UWUDPTaskParameter(int32 BufferSizeParameter, ANSICHAR* BufferParameter, sockaddr* OtherPartyParameter, bool AsServerParameter)
     {
         BufferSize = BufferSizeParameter;
         Buffer = BufferParameter;
-        Client = ClientParameter;
+        OtherParty = OtherPartyParameter;
+        AsServer = AsServerParameter;
     }
     ~UWUDPTaskParameter() override
     {
-        if (Client)
+        if (AsServer && OtherParty)
         {
-            delete (Client);
+            delete (OtherParty);
         }
         delete[] Buffer;
     }
