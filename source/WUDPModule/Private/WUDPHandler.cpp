@@ -980,7 +980,7 @@ void UWUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
 #if PLATFORM_WINDOWS
     int32 OtherPartyLen = sizeof(*OtherParty);
 #else
-    socklen_t OtherPartyLen = sizeof(*Client);
+    socklen_t OtherPartyLen = sizeof(*OtherParty);
 #endif
     int32 SentLength;
     WScopeGuard SendGuard(&SendMutex);

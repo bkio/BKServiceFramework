@@ -31,8 +31,6 @@ private:
     struct sockaddr* SocketAddress = nullptr;
     socklen_t SocketAddressLength = 0;
 
-    WMutex SendMutex;
-
 #if PLATFORM_WINDOWS
     SOCKET UDPSocket{};
 #else
