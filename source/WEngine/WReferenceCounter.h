@@ -45,8 +45,11 @@ public:
     }
     ~WReferenceCounter_Internal()
     {
-        WScopeGuard ReferenceCounter_Guard(&CountableObject->ReferenceCounter_Mutex);
-        CountableObject->ReferenceCounter--;
+        if (CountableObject)
+        {
+            WScopeGuard ReferenceCounter_Guard(&CountableObject->ReferenceCounter_Mutex);
+            CountableObject->ReferenceCounter--;
+        }
     }
 };
 

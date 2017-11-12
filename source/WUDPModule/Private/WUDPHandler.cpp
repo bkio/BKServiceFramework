@@ -118,7 +118,6 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     const int32 ChecksumStartIx = bReliable ? 5 : 1;
 
     FWCHARWrapper Hashed = UWUtilities::WBasicRawHash(Parameter, AfterChecksumStartIx, Parameter.GetSize() - AfterChecksumStartIx);
-    Hashed.bDeallocateValueOnDestructor = true;
     for (int32 i = 0; i < 4; i++)
     {
         if (Hashed.GetArrayElement(i) != Parameter.GetArrayElement(i + ChecksumStartIx))
@@ -129,6 +128,10 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
             }
             return WJson::Node(WJson::Node::T_INVALID);
         }
+    }
+    if (Hashed.IsValid())
+    {
+        Hashed.DeallocateValue();
     }
     //
 
@@ -631,8 +634,8 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
         FWCHARWrapper WCHARWrapper(Result.GetMutableData() + ChecksumInsertIx, ChecksumDestinationSize, false);
 
         FWCHARWrapper Hashed = UWUtilities::WBasicRawHash(WCHARWrapper, 0, ChecksumDestinationSize);
-        Hashed.bDeallocateValueOnDestructor = true;
         Result.Insert(Hashed.GetValue(), 4, ChecksumInsertIx);
+        Hashed.DeallocateValue();
         //
     }
 
@@ -901,7 +904,6 @@ WUDPRecord::WUDPRecord(UWUDPHandler* _ResponsibleHandler) : LastInteraction(UWUt
         ResponsibleHandler = _ResponsibleHandler;
     }
 }
-WUDPRecord::~WUDPRecord() = default;
 
 void UWUDPHandler::StartSystem()
 {
@@ -922,11 +924,11 @@ void UWUDPHandler::StartSystem()
 
         WQueue<WUDPRecord*> Tmp_RecordsForTimeoutCheck;
 
-        int32 DebugSize = HandlerInstance->UDPRecordsForTimeoutCheck.Size();
+        /*int32 DebugSize = HandlerInstance->UDPRecordsForTimeoutCheck.Size();
         if (DebugSize > 0)
         {
             UWUtilities::Print(EWLogType::Log, FString::FromInt(DebugSize));
-        }
+        }*/
 
         WQueue<WUDPRecord*> CurrentSnapshotOf_RecordsForTimeoutCheck;
         HandlerInstance->UDPRecordsForTimeoutCheck.CopyTo(CurrentSnapshotOf_RecordsForTimeoutCheck, true);
@@ -981,7 +983,7 @@ void UWUDPHandler::StartSystem()
 
         HandlerInstance->UDPRecordsForTimeoutCheck.AddAll_NotTSTemporaryQueue(Tmp_RecordsForTimeoutCheck);
     };
-    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(TimeoutLambda, SelfAsArray, 100, true, true);
+    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(TimeoutLambda, SelfAsArray, TIMEOUT_CHECK_TIME_INTERVAL, true, true);
 
     WFutureAsyncTask DeallocatorLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
     {
@@ -996,6 +998,7 @@ void UWUDPHandler::StartSystem()
 
         WUDPRecord* DeleteRecord = nullptr;
         uint64 PooledTimestamp;
+
         WScopeGuard Guard(&HandlerInstance->UDPRecords_PendingDeletePool_Mutex);
         for (auto It = HandlerInstance->UDPRecords_PendingDeletePool.begin(); It != HandlerInstance->UDPRecords_PendingDeletePool.end();)
         {

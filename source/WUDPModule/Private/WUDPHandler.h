@@ -64,7 +64,7 @@ public:
 
     bool bBeingDeleted = false;
 
-    ~WUDPRecord();
+    virtual ~WUDPRecord() = default;
 };
 
 class WOtherPartyRecord : public WUDPRecord
@@ -168,7 +168,13 @@ public:
         {
             Buffer.SetValue(new ANSICHAR[BufferRef.GetSize()], BufferRef.GetSize());
             FMemory::Memcpy(Buffer.GetValue(), BufferRef.GetValue(), static_cast<WSIZE__T>(BufferRef.GetSize()));
-            Buffer.bDeallocateValueOnDestructor = true;
+        }
+    }
+    ~WReliableConnectionRecord() override
+    {
+        if (Buffer.IsValid())
+        {
+            Buffer.DeallocateValue();
         }
     }
 
@@ -211,6 +217,7 @@ public:
     }
 };
 
+#define TIMEOUT_CHECK_TIME_INTERVAL 100
 #define PENDING_DELETE_CHECK_TIME_INTERVAL 100
 #define RELIABLE_CONNECTION_NOT_FOUND 255
 

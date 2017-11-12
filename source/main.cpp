@@ -164,7 +164,7 @@ int main(int argc, char* argv[])
     {
         HTTP_Port = FString::ConvertToInteger<uint16>(HTTP_Port_String);
     }
-    uint16 UDP_Port = 45000;
+    uint16 UDP_Port = 50000;
     if (const ANSICHAR* UDP_Port_String = std::getenv("W_UDP_SERVER_PORT"))
     {
         UDP_Port = FString::ConvertToInteger<uint16>(UDP_Port_String);
