@@ -23,7 +23,7 @@ private:
     //Step 1
     static void CloseSocket(WHTTPAcceptedSocket* _Socket)
     {
-        if (_Socket == nullptr) return;
+        if (!_Socket) return;
 
         if (_Socket->bSocketOperational)
         {
@@ -40,7 +40,7 @@ private:
     //Step 2
     static void TryDeinitializing(WHTTPAcceptedSocket* _Socket)
     {
-        if (_Socket == nullptr) return;
+        if (!_Socket) return;
 
         if (++_Socket->DeinitializationApproval == 2)
         {

@@ -49,15 +49,61 @@ private:
 public:
     static std::wstring StringToWString(const std::string& t_str)
     {
-        typedef std::codecvt_utf8<wchar_t> convert_type;
-        std::wstring_convert<convert_type, wchar_t> converter;
-        return converter.from_bytes(t_str);
+        std::wstringstream WStringStream;
+
+        uint32 Length = t_str.size();
+        for (uint32 i = 0; i < Length; i++)
+        {
+            WStringStream << t_str.at(i);
+        }
+        return WStringStream.str();
     }
     static std::string WStringToString(const std::wstring& _str)
     {
         typedef std::codecvt_utf8<wchar_t> convert_type;
         std::wstring_convert<convert_type, wchar_t> converter;
         return converter.to_bytes(_str);
+    }
+
+    template <typename T>
+    static T ConvertToInteger(const ANSICHAR *Data)
+    {
+        if (Data)
+        {
+            std::string AsString;
+            std::stringstream StringBuilder;
+
+            int32 Length = strlen(Data);
+            for (int32 i = 0; i < Length; i++)
+            {
+                if (isdigit(Data[i]) || Data[i] == '-')
+                {
+                    StringBuilder << Data[i];
+                }
+            }
+            AsString = StringBuilder.str();
+            if (AsString.size() == 0)
+            {
+                return T();
+            }
+
+            T Val;
+            std::istringstream ISS(AsString);
+            ISS >> std::dec >> Val;
+
+            if (ISS.fail())
+            {
+                return T();
+            }
+            return Val;
+        }
+        return T();
+    }
+    template <typename T>
+    static T ConvertToInteger(const FString &Input)
+    {
+        std::string NormalString = FString::WStringToString(Input.Data);
+        return ConvertToInteger<T>(NormalString.c_str());
     }
 
     int32 Len() const
@@ -93,15 +139,7 @@ public:
     {
         Data = Other;
     }
-    explicit FString(std::wstring&& Other)
-    {
-        Data = Other;
-    }
     explicit FString(const std::string& Other)
-    {
-        Data = StringToWString(Other);
-    }
-    explicit FString(std::string&& Other)
     {
         Data = StringToWString(Other);
     }

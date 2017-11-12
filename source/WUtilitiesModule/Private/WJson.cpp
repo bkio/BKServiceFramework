@@ -61,7 +61,7 @@ namespace WJson
     }
     Node::Node(const Node &other) : data(other.data)
     {
-        if (data != nullptr)
+        if (data)
         {
             data->addRef();
         }
@@ -78,7 +78,7 @@ namespace WJson
     Node::Node(bool value) : data(new Data(T_BOOL)) { Set(value); }
     Node::~Node()
     {
-        if (data != nullptr && data->release())
+        if (data && data->release())
         {
             delete data;
             data = nullptr;
@@ -87,7 +87,7 @@ namespace WJson
 
     void Node::Detach()
     {
-        if (data != nullptr && data->refCount > 1)
+        if (data && data->refCount > 1)
         {
             auto newData = new Data(*data);
             if (data->release())
@@ -221,12 +221,12 @@ namespace WJson
     {
         if (this != &rhs)
         {
-            if (data != nullptr && data->release())
+            if (data && data->release())
             {
                 delete data;
             }
             data = rhs.data;
-            if (data != nullptr)
+            if (data)
             {
                 data->addRef();
             }
@@ -294,7 +294,7 @@ namespace WJson
     }
     void Node::Clear()
     {
-        if (data != nullptr && !data->children.empty())
+        if (data && !data->children.empty())
         {
             Detach();
             data->children.clear();
@@ -334,7 +334,7 @@ namespace WJson
         }
         if (IsArray())
         {
-            return data != nullptr ? data->children.size() : 0;
+            return data ? data->children.size() : 0;
         }
         return 0;
     }
@@ -364,28 +364,28 @@ namespace WJson
 
     Node::iterator Node::begin()
     {
-        if (data != nullptr && !data->children.empty())
+        if (data && !data->children.empty())
             return Node::iterator(&data->children.front());
         else
             return Node::iterator(nullptr);
     }
     Node::const_iterator Node::begin() const
     {
-        if (data != nullptr && !data->children.empty())
+        if (data && !data->children.empty())
             return Node::const_iterator(&data->children.front());
         else
             return Node::const_iterator(nullptr);
     }
     Node::iterator Node::end()
     {
-        if (data != nullptr && !data->children.empty())
+        if (data && !data->children.empty())
             return Node::iterator(&data->children.back()+1);
         else
             return Node::iterator(nullptr);
     }
     Node::const_iterator Node::end() const
     {
-        if (data != nullptr && !data->children.empty())
+        if (data && !data->children.empty())
             return Node::const_iterator(&data->children.back()+1);
         else
             return Node::const_iterator(nullptr);

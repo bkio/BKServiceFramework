@@ -5,13 +5,13 @@
 WCPUMonitor::WCPUMonitor()
 {
 #if PLATFORM_WINDOWS
-    if( s_hKernel == nullptr )
+    if( !s_hKernel )
     {
         s_hKernel = LoadLibrary( _T("Kernel32.dll") );
-        if( s_hKernel != nullptr )
+        if( s_hKernel )
         {
             s_pfnGetSystemTimes = (pfnGetSystemTimes)GetProcAddress( s_hKernel, "GetSystemTimes" );
-            if( s_pfnGetSystemTimes == nullptr )
+            if( !s_pfnGetSystemTimes )
             {
                 FreeLibrary( s_hKernel ); s_hKernel = nullptr;
             }
@@ -32,7 +32,7 @@ WCPUMonitor::WCPUMonitor()
 
     FILE* CpuFile = fopen("/proc/cpuinfo", "r");
     numProcessors = 0;
-    while(fgets(line, 128, CpuFile) != nullptr)
+    while (fgets(line, 128, CpuFile))
     {
         if (strncmp(line, "processor", 9) == 0) numProcessors++;
     }
@@ -42,7 +42,7 @@ WCPUMonitor::WCPUMonitor()
 #if PLATFORM_WINDOWS
 WCPUMonitor::~WCPUMonitor()
 {
-    if( s_hKernel == nullptr )
+    if( !s_hKernel )
     {
         FreeLibrary( s_hKernel ); s_hKernel = nullptr;
     }
@@ -94,7 +94,7 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
     if( sTime == 0 )
     {
         // for the system
-        if( s_pfnGetSystemTimes != nullptr )
+        if( s_pfnGetSystemTimes )
         {
             /*BOOL res = */s_pfnGetSystemTimes( (LPFILETIME)&idleTime, (LPFILETIME)&kernelTime, (LPFILETIME)&userTime );
         }
@@ -154,7 +154,7 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
     int64 div = ( time - sTime );
 
     // for the system
-    if( s_pfnGetSystemTimes != nullptr )
+    if( s_pfnGetSystemTimes )
     {
         /*BOOL res = */s_pfnGetSystemTimes( (LPFILETIME)&idleTime, (LPFILETIME)&kernelTime, (LPFILETIME)&userTime );
     }

@@ -24,7 +24,7 @@ private:
 public:
     void SetValue(ANSICHAR* const Parameter, int32 SizeParameter)
     {
-        if (Parameter == nullptr || SizeParameter <= 0) return;
+        if (!Parameter || SizeParameter <= 0) return;
         Value = Parameter;
         Size = SizeParameter;
     }
@@ -73,7 +73,7 @@ public:
 
     bool IsValid()
     {
-        return Size > 0 && Value != nullptr;
+        return Size > 0 && Value;
     }
 
     volatile bool bDeallocateValueOnDestructor = false;

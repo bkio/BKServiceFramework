@@ -109,11 +109,18 @@ void UWHTTPServer::ListenSocket()
 
         WFutureAsyncTask TaskLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
         {
-            if (TaskParameters.Num() >= 2)
+            if (TaskParameters.Num() >= 2 && TaskParameters[0] && TaskParameters[1])
             {
-                auto ServerInstance = dynamic_cast<UWHTTPServer*>(TaskParameters[0]);
-                auto Parameter = dynamic_cast<UWHTTPAcceptedClient*>(TaskParameters[1]);
-                if (!ServerInstance || !ServerInstance->bSystemStarted || !ServerInstance->HTTPListenCallback) return;
+                auto ServerInstance = reinterpret_cast<UWHTTPServer*>(TaskParameters[0]);
+                auto Parameter = reinterpret_cast<UWHTTPAcceptedClient*>(TaskParameters[1]);
+                if (!ServerInstance || !ServerInstance->bSystemStarted || !ServerInstance->HTTPListenCallback)
+                {
+                    if (Parameter)
+                    {
+                        delete (Parameter);
+                    }
+                    return;
+                }
 
                 if (Parameter)
                 {
@@ -154,7 +161,7 @@ void UWHTTPServer::EndSystem()
 
     CloseSocket();
     HTTPListenCallback = nullptr;
-    if (HTTPSystemThread != nullptr)
+    if (HTTPSystemThread)
     {
         if (HTTPSystemThread->IsJoinable())
         {

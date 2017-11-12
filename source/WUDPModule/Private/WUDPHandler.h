@@ -7,10 +7,12 @@
 #include "WMemory.h"
 #include "WJson.h"
 #include "WMutex.h"
+#include "WReferenceCounter.h"
 #include "WUtilities.h"
 #include "WTaskDefines.h"
 #include <unordered_map>
 #include <unordered_set>
+#include "WSafeQueue.h"
 #if PLATFORM_WINDOWS
     #pragma comment(lib, "ws2_32.lib")
     #include <winsock2.h>
@@ -21,11 +23,11 @@
 enum class EWReliableRecordType : uint8
 {
     None,
-    ClientRecord,
+    OtherPartyRecord,
     ReliableConnectionRecord
 };
 
-struct WUDPRecord
+class WUDPRecord : public WReferenceCountable
 {
 
 private:
@@ -60,26 +62,26 @@ public:
         return Type;
     }
 
-    WMutex Dangerzone_Mutex;
+    bool bBeingDeleted = false;
 
     ~WUDPRecord();
 };
 
-struct WClientRecord : public WUDPRecord
+class WOtherPartyRecord : public WUDPRecord
 {
 
 private:
-    WMutex LastClientsideTimestamp_Mutex{};
-    uint16 LastClientsideTimestamp = 0;
+    WMutex LastSendersideTimestamp_Mutex{};
+    uint16 LastSendersideTimestamp = 0;
 
     WMutex TimedOutCount_Mutex{};
     uint32 TimedOutCount = 0;
 
-    std::string ClientKey;
+    std::string OtherPartyKey;
 
     bool ResetterFunction() override
     {
-        SetLastClientsideTimestamp(0);
+        SetLastSendersideTimestamp(0);
         {
             WScopeGuard TimedOutCount_Guard(&TimedOutCount_Mutex);
             if (++TimedOutCount > 12) //For 2 minutes, 120000 / 10000
@@ -92,14 +94,14 @@ private:
     uint32 TimeoutValueMS() override { return 10000; }
 
 public:
-    uint16 GetLastClientsideTimestamp()
+    uint16 GetLastSendersideTimestamp()
     {
-        return LastClientsideTimestamp;
+        return LastSendersideTimestamp;
     }
-    void SetLastClientsideTimestamp(uint16 Timestamp)
+    void SetLastSendersideTimestamp(uint16 Timestamp)
     {
-        WScopeGuard Guard(&LastClientsideTimestamp_Mutex);
-        LastClientsideTimestamp = Timestamp;
+        WScopeGuard Guard(&LastSendersideTimestamp_Mutex);
+        LastSendersideTimestamp = Timestamp;
         if (Timestamp > 0)
         {
             WScopeGuard TimedOutCount_Guard(&TimedOutCount_Mutex);
@@ -107,25 +109,25 @@ public:
         }
     }
 
-    std::string GetClientKey()
+    std::string GetOtherPartyKey()
     {
-        return ClientKey;
+        return OtherPartyKey;
     }
 
-    explicit WClientRecord(class UWUDPHandler* ResponsibleHandler, std::string& _ClientKey) : WUDPRecord(ResponsibleHandler)
+    explicit WOtherPartyRecord(class UWUDPHandler* ResponsibleHandler, std::string& _OtherPartyKey) : WUDPRecord(ResponsibleHandler)
     {
-        Type = EWReliableRecordType::ClientRecord;
-        ClientKey = _ClientKey;
+        Type = EWReliableRecordType::OtherPartyRecord;
+        OtherPartyKey = _OtherPartyKey;
     }
 };
 
-struct WReliableConnectionRecord : public WUDPRecord
+class WReliableConnectionRecord : public WUDPRecord
 {
 
 private:
-    uint32 ClientsideMessageID = 0;
+    uint32 SendersideMessageID = 0;
 
-    sockaddr Client{};
+    sockaddr OtherParty{};
 
     FWCHARWrapper Buffer{};
 
@@ -138,9 +140,10 @@ private:
         Type = EWReliableRecordType::ReliableConnectionRecord;
     }
 
-    std::string ClientKey;
+    std::string OtherPartyKey;
 
     bool bAsSender = false;
+    bool bAsSender_PrevFrameSkipped = false;
 
     //1: SYN
     //2: SYN-ACK
@@ -150,14 +153,14 @@ private:
     WMutex HandshakingStatus_Mutex{};
 
 public:
-    explicit WReliableConnectionRecord(class UWUDPHandler* ResponsibleHandler, uint32 MessageID, sockaddr& ClientRef, std::string& _ClientKey, FWCHARWrapper& BufferRef, bool bAsSenderParameter) : WUDPRecord(ResponsibleHandler)
+    explicit WReliableConnectionRecord(class UWUDPHandler* ResponsibleHandler, uint32 MessageID, sockaddr& OtherPartyRef, std::string& _OtherPartyKey, FWCHARWrapper& BufferRef, bool bAsSenderParameter) : WUDPRecord(ResponsibleHandler)
     {
         Type = EWReliableRecordType::ReliableConnectionRecord;
 
-        ClientsideMessageID = MessageID;
+        SendersideMessageID = MessageID;
 
-        Client = ClientRef;
-        ClientKey = _ClientKey;
+        OtherParty = OtherPartyRef;
+        OtherPartyKey = _OtherPartyKey;
 
         bAsSender = bAsSenderParameter;
 
@@ -181,17 +184,17 @@ public:
 
     uint8 FailureTrialCount = 0;
 
-    uint32 GetClientsideMessageID()
+    uint32 GetSendersideMessageID()
     {
-        return ClientsideMessageID;
+        return SendersideMessageID;
     }
-    sockaddr* GetClient()
+    sockaddr* GetOtherParty()
     {
-        return &Client;
+        return &OtherParty;
     }
-    std::string GetClientKey()
+    std::string GetOtherPartyKey()
     {
-        return ClientKey;
+        return OtherPartyKey;
     }
     FWCHARWrapper* GetBuffer()
     {
@@ -208,28 +211,37 @@ public:
     }
 };
 
+#define PENDING_DELETE_CHECK_TIME_INTERVAL 100
+#define RELIABLE_CONNECTION_NOT_FOUND 255
+
 class UWUDPHandler : public UWAsyncTaskParameter
 {
 
 private:
     WMutex ReliableConnectionRecords_Mutex{};
     std::unordered_map<std::string, WReliableConnectionRecord*> ReliableConnectionRecords{};
+    void RemoveFromReliableConnections(std::__detail::_Node_iterator<std::pair<const std::string, WReliableConnectionRecord *>, false, true> Iterator);
+    void RemoveFromReliableConnections(const std::string& Key);
 
-    WMutex LastServersideGeneratedTimestamp_Mutex{};
-    uint16 LastServersideGeneratedTimestamp = 0;
+    WMutex LastThissideGeneratedTimestamp_Mutex{};
+    uint16 LastThissideGeneratedTimestamp = 0;
 
-    WMutex LastServersideMessageID_Mutex{};
-    uint32 LastServersideMessageID = 1;
+    WMutex LastThissideMessageID_Mutex{};
+    uint32 LastThissideMessageID = 1;
 
-    WMutex ClientsRecord_Mutex{};
-    std::unordered_map<std::string, WClientRecord*> ClientRecords{};
+    WMutex OtherPartiesRecords_Mutex{};
+    std::unordered_map<std::string, WOtherPartyRecord*> OtherPartiesRecords{};
 
-    WMutex UDPRecordsForTimeoutCheck_Mutex{};
-    std::unordered_set<WUDPRecord*> UDPRecordsForTimeoutCheck{};
+    WSafeQueue<WUDPRecord*> UDPRecordsForTimeoutCheck;
+
+    WMutex UDPRecords_PendingDeletePool_Mutex;
+    std::unordered_map<WUDPRecord*, uint64> UDPRecords_PendingDeletePool;
+    void AddRecordToPendingDeletePool(WUDPRecord* PendingDeleteRecord);
 
     void ClearReliableConnections();
-    void ClearClientRecords();
+    void ClearOtherPartiesRecords();
     void ClearUDPRecordsForTimeoutCheck();
+    void ClearPendingDeletePool();
 
     WMutex SendMutex;
 
@@ -240,6 +252,9 @@ private:
 #endif
 
     bool bSystemStarted = false;
+
+    bool bPendingKill = false;
+    std::function<void()> ReadyToDieCallback = nullptr;
 
     //
     void AsReceiverReliableSYNSuccess(sockaddr* OtherParty, uint32 MessageID);
@@ -330,6 +345,8 @@ public:
     void EndSystem();
 
     void AddNewUDPRecord(WUDPRecord* NewRecord);
+
+    void MarkPendingKill(std::function<void()> _ReadyToDieCallback);
 
 #if PLATFORM_WINDOWS
     void Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer);

@@ -101,7 +101,7 @@ public:
 
 #if PLATFORM_WINDOWS
         DWORD threadID;
-        hThread = CreateThread(nullptr, 67108863, &WThread::Run, this, STACK_SIZE_PARAM_IS_A_RESERVATION, &threadID);
+        hThread = CreateThread(nullptr, 1048576, &WThread::Run, this, STACK_SIZE_PARAM_IS_A_RESERVATION, &threadID);
         if (hThread)
         {
             SetThreadPriority(hThread, THREAD_PRIORITY_HIGHEST);
@@ -115,7 +115,7 @@ public:
         hScheduleParameter.sched_priority = sched_get_priority_max(SCHED_FIFO);
         pthread_attr_setschedparam (&hThreadAttribute, &hScheduleParameter);
 
-		pthread_attr_setstacksize(&hThreadAttribute, 67108863);
+		pthread_attr_setstacksize(&hThreadAttribute, 1048576);
 
         pthread_create(&hThread, &hThreadAttribute, &WThread::Run, this);
         pthread_attr_destroy(&hThreadAttribute);

@@ -19,7 +19,7 @@ void UWScheduledAsyncTaskManager::EndSystem()
     if (!bSystemStarted) return;
     bSystemStarted = false;
 
-    if (ManagerInstance != nullptr)
+    if (ManagerInstance)
     {
         ManagerInstance->EndSystem_Internal();
         delete (ManagerInstance);
@@ -38,7 +38,7 @@ void UWScheduledAsyncTaskManager::StartSystem_Internal(uint32 SleepDurationMs)
 }
 void UWScheduledAsyncTaskManager::EndSystem_Internal()
 {
-    if (TickThread != nullptr)
+    if (TickThread)
     {
         if (TickThread->IsJoinable())
         {
@@ -50,13 +50,13 @@ void UWScheduledAsyncTaskManager::EndSystem_Internal()
     FWAwaitingTask* AwaitingScheduledTask = nullptr;
     while (AwaitingScheduledTasks.Pop(AwaitingScheduledTask))
     {
-        if (AwaitingScheduledTask != nullptr)
+        if (AwaitingScheduledTask)
         {
             if (!AwaitingScheduledTask->bDoNotDeallocateParameters)
             {
                 for (UWAsyncTaskParameter* Param : AwaitingScheduledTask->Parameters)
                 {
-                    if (Param != nullptr)
+                    if (Param)
                     {
                         delete (Param);
                     }
@@ -70,7 +70,7 @@ void UWScheduledAsyncTaskManager::EndSystem_Internal()
 
 void UWScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<UWAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters)
 {
-    if (!bSystemStarted || ManagerInstance == nullptr) return;
+    if (!bSystemStarted || !ManagerInstance) return;
     if (WaitFor == 0)
     {
         UWAsyncTaskManager::NewAsyncTask(NewTask, TaskParameters, bDoNotDeallocateParameters);
@@ -129,15 +129,7 @@ void UWScheduledAsyncTaskManager::TickerRun()
                 }
             }
         }
-
-        FWAwaitingTask* LoopingTask = nullptr;
-        while (NewQueueAfterTick.Pop(LoopingTask))
-        {
-            if (LoopingTask)
-            {
-                AwaitingScheduledTasks.Push(LoopingTask);
-            }
-        }
+        AwaitingScheduledTasks.AddAll_NotTSTemporaryQueue(NewQueueAfterTick);
     }
 }
 uint32 UWScheduledAsyncTaskManager::TickerStop()

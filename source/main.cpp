@@ -12,21 +12,31 @@
 UWHTTPServer* HTTPServerInstance = nullptr;
 UWUDPServer* UDPServerInstance = nullptr;
 
-void Start()
+void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
 {
     UWAsyncTaskManager::StartSystem(5);
     UWScheduledAsyncTaskManager::StartSystem(20);
 
     UDPServerInstance = new UWUDPServer([](UWUDPHandler* HandlerInstance, UWUDPTaskParameter* Parameter)
     {
-        if (HandlerInstance && Parameter && Parameter->Buffer && Parameter->OtherParty && Parameter->BufferSize > 0)
+        if (HandlerInstance && Parameter && Parameter->OtherParty)
         {
-            FWCHARWrapper WrappedBuffer(Parameter->Buffer, Parameter->BufferSize);
+            FWCHARWrapper WrappedBuffer(Parameter->Buffer, Parameter->BufferSize, false);
 
-            HandlerInstance->AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->OtherParty);
+            WJson::Node AnalyzedData = HandlerInstance->AnalyzeNetworkDataWithByteArray(WrappedBuffer, Parameter->OtherParty);
+            if (AnalyzedData.GetType() != WJson::Node::Type::T_VALIDATION &&
+                AnalyzedData.GetType() != WJson::Node::Type::T_INVALID &&
+                AnalyzedData.GetType() != WJson::Node::Type::T_NULL)
+            {
+                FWCHARWrapper FinalBuffer = HandlerInstance->MakeByteArrayForNetworkData(Parameter->OtherParty, AnalyzedData, false, true);
+                HandlerInstance->Send(Parameter->OtherParty, FinalBuffer);
+                FinalBuffer.DeallocateValue();
+            }
+
+            //Do not deallocate buffer. Buffer will be de-allocated in parameter destruction.
         }
     });
-    UDPServerInstance->StartSystem(45000);
+    UDPServerInstance->StartSystem(UDPServerPort);
 
     HTTPServerInstance = new UWHTTPServer([](UWHTTPAcceptedClient* Parameter)
     {
@@ -42,7 +52,7 @@ void Start()
             Parameter->Finalize();
         }
     });
-    HTTPServerInstance->StartSystem(8080, 2500);
+    HTTPServerInstance->StartSystem(HTTPServerPort, 2500);
 
     UWSystemManager::StartSystem();
 }
@@ -65,11 +75,6 @@ void Stop()
     UWScheduledAsyncTaskManager::EndSystem();
     UWAsyncTaskManager::EndSystem();
 }
-void Restart()
-{
-    Stop();
-    Start();
-}
 void Quit()
 {
     Stop();
@@ -79,9 +84,9 @@ void SendPingToGoogle()
 {
     WFutureAsyncTask RequestLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
     {
-        if (TaskParameters.Num() > 0)
+        if (TaskParameters.Num() > 0 && TaskParameters[0])
         {
-            if (auto Request = dynamic_cast<UWHTTPClient*>(TaskParameters[0]))
+            if (auto Request = reinterpret_cast<UWHTTPClient*>(TaskParameters[0]))
             {
                 if (Request->ProcessRequest())
                 {
@@ -99,9 +104,9 @@ void SendPingToGoogle()
     };
     WFutureAsyncTask TimeoutLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
     {
-        if (TaskParameters.Num() > 0)
+        if (TaskParameters.Num() > 0 && TaskParameters[0])
         {
-            if (auto Request = dynamic_cast<UWHTTPClient*>(TaskParameters[0]))
+            if (auto Request = reinterpret_cast<UWHTTPClient*>(TaskParameters[0]))
             {
                 Request->CancelRequest();
                 if (Request->DestroyApproval()) delete (Request);
@@ -113,21 +118,32 @@ void SendPingToGoogle()
 
 void SendUDPPacketToServer()
 {
-    WUDPClient_DataReceived DataReceivedLambda = [](sockaddr* OtherParty, UWUDPHandler* UDPHandler, WJson::Node Parameter)
+    WUDPClient_DataReceived DataReceivedLambda = [](UWUDPClient* UDPClient, WJson::Node Parameter)
     {
-        if (OtherParty && UDPHandler)
+        if (UDPClient && UDPClient->GetUDPHandler())
         {
+            FWCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), Parameter, false, true);
+
+            UDPClient->GetUDPHandler()->Send(UDPClient->GetSocketAddress(), WrappedData);
+
+            WrappedData.DeallocateValue();
         }
     };
     UWUDPClient* UDPClient = UWUDPClient::NewUDPClient("127.0.0.1", 45000, DataReceivedLambda);
-    if (UDPClient)
+    if (UDPClient && UDPClient->GetUDPHandler())
     {
-        //UDPClient->EndClient();
-        //delete (UDPClient);
+        WJson::Node DataToSend = WJson::Node(WJson::Node::T_OBJECT);
+        DataToSend.Add("CharArray", WJson::Node("Hello pagan world!"));
+
+        FWCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), DataToSend, false, true);
+
+        UDPClient->GetUDPHandler()->Send(UDPClient->GetSocketAddress(), WrappedData);
+
+        WrappedData.DeallocateValue();
     }
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     setlocale(LC_CTYPE, "");
 
@@ -143,8 +159,19 @@ int main()
     UWUtilities::Print(EWLogType::Log, FString(L"5: Send reliable packet to UDP Server"));
     UWUtilities::Print(EWLogType::Log, FString(L"__________________"));
 
-    UWUtilities::Print(EWLogType::Log, FString(L"Auto-start..."));
-    Start();
+    uint16 HTTP_Port = 8000;
+    if (const ANSICHAR* HTTP_Port_String = std::getenv("W_HTTP_SERVER_PORT"))
+    {
+        HTTP_Port = FString::ConvertToInteger<uint16>(HTTP_Port_String);
+    }
+    uint16 UDP_Port = 45000;
+    if (const ANSICHAR* UDP_Port_String = std::getenv("W_UDP_SERVER_PORT"))
+    {
+        UDP_Port = FString::ConvertToInteger<uint16>(UDP_Port_String);
+    }
+
+    UWUtilities::Print(EWLogType::Log, FString(L"Auto-start. HTTP Port: ") + FString::FromInt(HTTP_Port) + FString(L", UDP Port: ") + FString::FromInt(UDP_Port));
+    Start(HTTP_Port, UDP_Port);
 
     int32 Signal;
     while (true)
@@ -157,7 +184,7 @@ int main()
         }
         else if (Signal == 1)
         {
-            Start();
+            Start(HTTP_Port, UDP_Port);
             UWUtilities::Print(EWLogType::Log, FString(L"System started."));
         }
         else if (Signal == 2)
@@ -167,7 +194,8 @@ int main()
         }
         else if (Signal == 3)
         {
-            Restart();
+            Stop();
+            Start(HTTP_Port, UDP_Port);
             UWUtilities::Print(EWLogType::Log, FString(L"System restarted."));
         }
         else if (Signal == 4)

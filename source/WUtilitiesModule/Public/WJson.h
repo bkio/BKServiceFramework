@@ -13,6 +13,8 @@
 #include <ostream>
 #include <memory>
 
+#define JSON_FIELD_NOT_FOUND std::string("Not Found")
+
 namespace WJson
 {
     class Node;
@@ -89,7 +91,7 @@ namespace WJson
 
         void Detach();
 
-        inline Type GetType() const { return (data == nullptr ? T_INVALID : data->type); };
+        inline Type GetType() const { return (!data ? T_INVALID : data->type); };
 
         inline bool IsValid()  const { return (GetType() != T_INVALID); }
         inline bool IsObject() const { return (GetType() == T_OBJECT);  }

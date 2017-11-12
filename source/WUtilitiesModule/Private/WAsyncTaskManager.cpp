@@ -18,7 +18,7 @@ void UWAsyncTaskManager::EndSystem()
     if (!bSystemStarted) return;
     bSystemStarted = false;
 
-    if (ManagerInstance != nullptr)
+    if (ManagerInstance)
     {
         ManagerInstance->EndSystem_Internal();
         delete (ManagerInstance);
@@ -61,11 +61,11 @@ void UWAsyncTaskManager::EndSystem_Internal()
     FWAwaitingTask* AwaitingTask = nullptr;
     while (AwaitingTasks.Pop(AwaitingTask))
     {
-        if (AwaitingTask != nullptr)
+        if (AwaitingTask)
         {
             for (UWAsyncTaskParameter* Param : AwaitingTask->Parameters)
             {
-                if (Param != nullptr)
+                if (Param)
                 {
                     delete (Param);
                 }
@@ -78,17 +78,17 @@ void UWAsyncTaskManager::EndSystem_Internal()
 
 void UWAsyncTaskManager::PushFreeWorker(FWAsyncWorker* Worker)
 {
-    if (!bSystemStarted || ManagerInstance == nullptr || Worker == nullptr) return;
+    if (!bSystemStarted || !ManagerInstance || !Worker) return;
     ManagerInstance->FreeWorkers.Push(Worker);
 }
 
 void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<UWAsyncTaskParameter*>& TaskParameters, bool bDoNotDeallocateParameters)
 {
-    if (!bSystemStarted || ManagerInstance == nullptr) return;
+    if (!bSystemStarted || !ManagerInstance) return;
 
     auto AsTask = new FWAwaitingTask(NewTask, TaskParameters, bDoNotDeallocateParameters);
     FWAsyncWorker* PossibleFreeWorker = nullptr;
-    if (ManagerInstance->FreeWorkers.Pop(PossibleFreeWorker) && PossibleFreeWorker != nullptr)
+    if (ManagerInstance->FreeWorkers.Pop(PossibleFreeWorker) && PossibleFreeWorker)
     {
         PossibleFreeWorker->SetData(AsTask, true);
     }
@@ -101,7 +101,7 @@ void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<UWAsyncT
 }
 FWAwaitingTask* UWAsyncTaskManager::TryToGetAwaitingTask()
 {
-    if (!bSystemStarted || ManagerInstance == nullptr) return nullptr;
+    if (!bSystemStarted || !ManagerInstance) return nullptr;
 
     FWAwaitingTask* Destination = nullptr;
     ManagerInstance->AwaitingTasks.Pop(Destination);
@@ -110,9 +110,9 @@ FWAwaitingTask* UWAsyncTaskManager::TryToGetAwaitingTask()
 }
 uint32 UWAsyncTaskManager::AsyncWorkerStopped(FWAsyncWorker* StoppedWorker)
 {
-    if (!bSystemStarted || ManagerInstance == nullptr || StoppedWorker == nullptr) return 0;
+    if (!bSystemStarted || !ManagerInstance || !StoppedWorker) return 0;
 
-    if (ManagerInstance->AsyncWorkers == nullptr)
+    if (!ManagerInstance->AsyncWorkers)
     {
         ManagerInstance->StartWorkers(ManagerInstance->WorkerThreadCount);
     }
@@ -138,7 +138,7 @@ FWAsyncWorker::FWAsyncWorker()
 }
 void FWAsyncWorker::SetData(FWAwaitingTask* Task, bool bSendSignal)
 {
-    if (Task == nullptr) return;
+    if (!Task) return;
 
     WScopeGuard Lock(&Mutex);
     CurrentData = Task;
@@ -223,7 +223,7 @@ void FWAsyncWorker::StartWorker()
 }
 void FWAsyncWorker::EndWorker()
 {
-    if (WorkerThread != nullptr)
+    if (WorkerThread)
     {
         if (!DataReady)
         {

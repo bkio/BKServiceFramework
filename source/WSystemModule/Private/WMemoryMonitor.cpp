@@ -45,7 +45,7 @@ int64 WMemoryMonitor::GetUsage(int64* pSystemUsage)
         int32 WorkingSetSize = 0;
         ANSICHAR Line[128];
 
-        while (fgets(Line, 128, StatusFile) != nullptr)
+        while (fgets(Line, 128, StatusFile))
         {
             if (strncmp(Line, "VmRSS:", 6) == 0)
             {

@@ -22,33 +22,33 @@ void UWUDPHandler::ClearReliableConnections()
     for (auto& It : ReliableConnectionRecords)
     {
         WReliableConnectionRecord* Record = It.second;
-        if (Record)
+        if (Record && !Record->bBeingDeleted)
         {
-            WScopeGuard Dangerzone_Guard(&Record->Dangerzone_Mutex);
-            delete (Record);
+            WReferenceCounter SafetyCounter(Record);
+            AddRecordToPendingDeletePool(Record);
         }
     }
     ReliableConnectionRecords.clear();
 }
-void UWUDPHandler::ClearClientRecords()
+void UWUDPHandler::ClearOtherPartiesRecords()
 {
     if (!bSystemStarted) return;
 
-    WScopeGuard Guard(&ClientsRecord_Mutex);
-    for (auto& It : ClientRecords)
+    WScopeGuard Guard(&OtherPartiesRecords_Mutex);
+    for (auto& It : OtherPartiesRecords)
     {
-        if (It.second != nullptr)
+        if (It.second && !It.second->bBeingDeleted)
         {
-            WScopeGuard Dangerouszone_Guard(&It.second->Dangerzone_Mutex);
-            delete (It.second);
+            WReferenceCounter SafetyCounter(It.second);
+            AddRecordToPendingDeletePool(It.second);
         }
     }
-    ClientRecords.clear();
+    OtherPartiesRecords.clear();
 }
 
 WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* OtherParty)
 {
-    if (!bSystemStarted || OtherParty == nullptr) return WJson::Node(WJson::Node::T_INVALID);
+    if (!bSystemStarted || !OtherParty) return WJson::Node(WJson::Node::T_INVALID);
     if (Parameter.GetSize() < 5) return WJson::Node(WJson::Node::T_INVALID);
 
     //Boolean flags operation starts.
@@ -64,6 +64,8 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     //
 
     bool bReliable = bReliableSYN || bReliableSYNSuccess || bReliableSYNFailure || bReliableSYNACKSuccess || bReliableACK;
+
+    if (bPendingKill && (bReliableSYN || !bReliable)) return WJson::Node(WJson::Node::T_INVALID);
 
     //Reliable operation starts.
     uint32 MessageID = 0;
@@ -132,28 +134,28 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
 
     //Timestamp operation starts.
     {
-        WClientRecord* ClientRecord = nullptr;
+        WOtherPartyRecord* OtherPartyRecord = nullptr;
         {
-            std::string ClientKey = WUDPHelper::GetAddressPortFromClient(OtherParty, MessageID, true);
+            std::string OtherPartyKey = WUDPHelper::GetAddressPortFromOtherParty(OtherParty, MessageID, true);
 
-            WScopeGuard Guard(&ClientsRecord_Mutex);
-            auto It = ClientRecords.find(ClientKey);
-            if (It != ClientRecords.end())
+            WScopeGuard Guard(&OtherPartiesRecords_Mutex);
+            auto It = OtherPartiesRecords.find(OtherPartyKey);
+            if (It != OtherPartiesRecords.end())
             {
-                if (It->second == nullptr)
+                if (!It->second || (It->second && It->second->bBeingDeleted))
                 {
-                    It->second = new WClientRecord(this, ClientKey);
+                    It->second = new WOtherPartyRecord(this, OtherPartyKey);
                 }
                 else
                 {
                     It->second->UpdateLastInteraction();
                 }
-                ClientRecord = It->second;
+                OtherPartyRecord = It->second;
             }
             else
             {
-                ClientRecord = new WClientRecord(this, ClientKey);
-                ClientRecords.insert(std::pair<std::string, WClientRecord*>(ClientKey, ClientRecord));
+                OtherPartyRecord = new WOtherPartyRecord(this, OtherPartyKey);
+                OtherPartiesRecords.insert(std::pair<std::string, WOtherPartyRecord*>(OtherPartyKey, OtherPartyRecord));
             }
         }
 
@@ -171,8 +173,8 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
 
             FMemory::Memcpy(&Timestamp, Parameter.GetValue() + AfterChecksumStartIx, 2);
 
-            const uint16 LastClientsideTimestamp = ClientRecord->GetLastClientsideTimestamp();
-            if (LastClientsideTimestamp != 0 && Timestamp < LastClientsideTimestamp)
+            const uint16 LastSendersideTimestamp = OtherPartyRecord->GetLastSendersideTimestamp();
+            if (LastSendersideTimestamp != 0 && Timestamp < LastSendersideTimestamp)
             {
                 if (bReliableSYN)
                 {
@@ -181,11 +183,11 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
                 return WJson::Node(WJson::Node::T_INVALID);
             }
 
-            ClientRecord->SetLastClientsideTimestamp(Timestamp);
+            OtherPartyRecord->SetLastSendersideTimestamp(Timestamp);
         }
         else
         {
-            ClientRecord->SetLastClientsideTimestamp(0);
+            OtherPartyRecord->SetLastSendersideTimestamp(0);
         }
     }
     //
@@ -391,14 +393,14 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
         bool bDoubleContentCount)
 {
     if (!bSystemStarted) return FWCHARWrapper();
-    if (OtherParty == nullptr ||
+    if (!OtherParty ||
         (!Parameter.IsObject() &&
          (Parameter.IsValidation() && ReliableMessageID == 0)))
         return FWCHARWrapper();
 
     TArray<ANSICHAR> Result;
 
-    if (LastServersideGeneratedTimestamp == 65535)
+    if (LastThissideGeneratedTimestamp == 65535)
     {
         bReliableSYN = true;
         bTimeOrderCriticalData = false;
@@ -415,6 +417,8 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
     Flags.Add(bDoubleContentCount);
 
     bool bReliable = bReliableSYN || bReliableSYNSuccess || bReliableSYNFailure || bReliableSYNACKSuccess || bReliableACK;
+
+    if (bPendingKill && (bReliableSYN || !bReliable)) return FWCHARWrapper();
 
     FWCHARWrapper CompressedFlags(new ANSICHAR[1], 1, true);
     if (!UWUtilities::CompressBooleanAsBit(CompressedFlags, Flags)) return FWCHARWrapper();
@@ -434,12 +438,12 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
         }
         else
         {
-            WScopeGuard Guard(&LastServersideMessageID_Mutex);
+            WScopeGuard Guard(&LastThissideMessageID_Mutex);
 
-            if (LastServersideMessageID == (uint32)4294967295) LastServersideMessageID = 1;
-            else LastServersideMessageID++;
+            if (LastThissideMessageID == (uint32)4294967295) LastThissideMessageID = 1;
+            else LastThissideMessageID++;
 
-            MessageID = LastServersideMessageID;
+            MessageID = LastThissideMessageID;
         }
 
         FWCHARWrapper ConvertedMessageID(new ANSICHAR[4], 4, true);
@@ -459,12 +463,12 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
         {
             uint16 Timestamp;
             {
-                WScopeGuard Guard(&LastServersideGeneratedTimestamp_Mutex);
+                WScopeGuard Guard(&LastThissideGeneratedTimestamp_Mutex);
 
-                if (LastServersideGeneratedTimestamp == (uint16)65535) LastServersideGeneratedTimestamp = 0;
-                else LastServersideGeneratedTimestamp++;
+                if (LastThissideGeneratedTimestamp == (uint16)65535) LastThissideGeneratedTimestamp = 0;
+                else LastThissideGeneratedTimestamp++;
 
-                Timestamp = LastServersideGeneratedTimestamp;
+                Timestamp = LastThissideGeneratedTimestamp;
             }
 
             FWCHARWrapper ConvertedTimestamp(new ANSICHAR[2], 2, true);
@@ -650,20 +654,29 @@ WReliableConnectionRecord* UWUDPHandler::Create_AddOrGet_ReliableConnectionRecor
     //Otherwise will only try to get from existing records and if found, will ensure HandshakingStatus = EnsureHandshakingStatusEqualsTo, otherwise returns null.
     //HandshakingStatus_Mutex may be locked after. Do not forget to try unlocking it.
 
-    std::string ClientKey = WUDPHelper::GetAddressPortFromClient(OtherParty, MessageID);
+    std::string OtherPartyKey = WUDPHelper::GetAddressPortFromOtherParty(OtherParty, MessageID);
 
+    uint8 ExistingHandshakeStatus = RELIABLE_CONNECTION_NOT_FOUND;
     WReliableConnectionRecord* ReliableConnection = nullptr;
     {
         WScopeGuard Guard(&ReliableConnectionRecords_Mutex);
 
-        auto It = ReliableConnectionRecords.find(ClientKey);
+        auto It = ReliableConnectionRecords.find(OtherPartyKey);
         if (It != ReliableConnectionRecords.end())
         {
             WReliableConnectionRecord* Record = It->second;
             if (Record)
             {
-                WScopeGuard ClientRecord_Dangerzone_Guard(&Record->Dangerzone_Mutex);
-                if (Record->GetClientsideMessageID() == MessageID &&
+                if (Record->bBeingDeleted)
+                {
+                    return nullptr;
+                }
+
+                WReferenceCounter SafetyCounter(Record);
+
+                ExistingHandshakeStatus = Record->GetHandshakingStatus();
+
+                if (Record->GetSendersideMessageID() == MessageID &&
                     Record->GetHandshakingStatus() == EnsureHandshakingStatusEqualsTo &&
                     (bIgnoreFailure || Record->FailureTrialCount < 5))
                 {
@@ -677,31 +690,26 @@ WReliableConnectionRecord* UWUDPHandler::Create_AddOrGet_ReliableConnectionRecor
             }
             else
             {
-                ReliableConnectionRecords.erase(It);
+                RemoveFromReliableConnections(It);
             }
         }
-        if (EnsureHandshakingStatusEqualsTo == 0 && ReliableConnection == nullptr)
+        if (EnsureHandshakingStatusEqualsTo == 0 && ExistingHandshakeStatus == RELIABLE_CONNECTION_NOT_FOUND && !ReliableConnection)
         {
-            ReliableConnection = new WReliableConnectionRecord(this, MessageID, *OtherParty, ClientKey, Buffer, bAsSender);
-            ReliableConnectionRecords.insert(std::pair<std::string, WReliableConnectionRecord*>(ClientKey, ReliableConnection));
+            ReliableConnection = new WReliableConnectionRecord(this, MessageID, *OtherParty, OtherPartyKey, Buffer, bAsSender);
+            ReliableConnectionRecords.insert(std::pair<std::string, WReliableConnectionRecord*>(OtherPartyKey, ReliableConnection));
         }
     }
     return ReliableConnection;
 }
 void UWUDPHandler::CloseCase(WReliableConnectionRecord* Record)
 {
-    if (Record == nullptr) return;
-
-    WScopeGuard DangerZoneGuard(&Record->Dangerzone_Mutex);
-    std::string ClientKey = Record->GetClientKey();
-
-    WScopeGuard UDPRecordsForTimeoutCheck_Guard(&UDPRecordsForTimeoutCheck_Mutex);
-    UDPRecordsForTimeoutCheck.erase(Record);
-
-    delete (Record);
+    if (!Record || Record->bBeingDeleted) return;
+    WReferenceCounter SafetyCounter(Record);
 
     WScopeGuard Guard(&ReliableConnectionRecords_Mutex);
-    ReliableConnectionRecords.erase(ClientKey);
+    RemoveFromReliableConnections(Record->GetOtherPartyKey());
+
+    AddRecordToPendingDeletePool(Record);
 }
 void UWUDPHandler::AsReceiverReliableSYNSuccess(sockaddr* OtherParty, uint32 MessageID) //Receiver
 {
@@ -861,17 +869,28 @@ void UWUDPHandler::HandleReliableACKArrival(sockaddr* OtherParty, uint32 Message
 void UWUDPHandler::ClearUDPRecordsForTimeoutCheck()
 {
     if (!bSystemStarted) return;
+    UDPRecordsForTimeoutCheck.Clear();
+}
 
-    WScopeGuard Guard(&UDPRecordsForTimeoutCheck_Mutex);
-    UDPRecordsForTimeoutCheck.clear();
+void UWUDPHandler::ClearPendingDeletePool()
+{
+    if (!bSystemStarted) return;
+
+    WScopeGuard Guard(&UDPRecords_PendingDeletePool_Mutex);
+    for (auto& It : UDPRecords_PendingDeletePool)
+    {
+        if (It.first)
+        {
+            delete (It.first);
+        }
+    }
+    UDPRecords_PendingDeletePool.clear();
 }
 
 void UWUDPHandler::AddNewUDPRecord(WUDPRecord* NewRecord)
 {
-    if (!bSystemStarted || NewRecord == nullptr) return;
-
-    WScopeGuard Guard(&UDPRecordsForTimeoutCheck_Mutex);
-    UDPRecordsForTimeoutCheck.insert(NewRecord);
+    if (!bSystemStarted || !NewRecord) return;
+    UDPRecordsForTimeoutCheck.Push(NewRecord);
 }
 
 WUDPRecord::WUDPRecord(UWUDPHandler* _ResponsibleHandler) : LastInteraction(UWUtilities::GetTimeStampInMS())
@@ -890,80 +909,136 @@ void UWUDPHandler::StartSystem()
     bSystemStarted = true;
 
     TArray<UWAsyncTaskParameter*> SelfAsArray(this);
-    WFutureAsyncTask Lambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+    WFutureAsyncTask TimeoutLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
     {
         UWUDPHandler* HandlerInstance = nullptr;
-        if (TaskParameters.Num() > 0)
+        if (TaskParameters.Num() > 0 && TaskParameters[0])
         {
-            HandlerInstance = dynamic_cast<UWUDPHandler *>(TaskParameters[0]);
+            HandlerInstance = reinterpret_cast<UWUDPHandler*>(TaskParameters[0]);
         }
-        if (HandlerInstance == nullptr || !HandlerInstance->bSystemStarted) return;
+        if (!HandlerInstance || !HandlerInstance->bSystemStarted) return;
 
         uint64 CurrentTimestamp = UWUtilities::GetTimeStampInMS();
 
-        WUDPRecord* Record = nullptr;
-        WScopeGuard Guard(&HandlerInstance->UDPRecordsForTimeoutCheck_Mutex);
-        for (auto It = HandlerInstance->UDPRecordsForTimeoutCheck.begin(); It != HandlerInstance->UDPRecordsForTimeoutCheck.end();)
+        WQueue<WUDPRecord*> Tmp_RecordsForTimeoutCheck;
+
+        int32 DebugSize = HandlerInstance->UDPRecordsForTimeoutCheck.Size();
+        if (DebugSize > 0)
         {
-            Record = *It;
+            UWUtilities::Print(EWLogType::Log, FString::FromInt(DebugSize));
+        }
+
+        WQueue<WUDPRecord*> CurrentSnapshotOf_RecordsForTimeoutCheck;
+        HandlerInstance->UDPRecordsForTimeoutCheck.CopyTo(CurrentSnapshotOf_RecordsForTimeoutCheck, true);
+
+        WUDPRecord* Record = nullptr;
+        while (CurrentSnapshotOf_RecordsForTimeoutCheck.Pop(Record))
+        {
             if (Record)
             {
+                WReferenceCounter SafetyCounter(Record);
+
                 bool bDeleted = false;
 
-                WScopeGuard DangerZoneGuard(&Record->Dangerzone_Mutex);
-                if ((CurrentTimestamp - Record->GetLastInteraction()) >= Record->TimeoutValueMS())
+                if (Record->bBeingDeleted || (CurrentTimestamp - Record->GetLastInteraction()) >= Record->TimeoutValueMS())
                 {
-                    if (Record->ResetterFunction())
+                    if (Record->bBeingDeleted)
                     {
-                        HandlerInstance->UDPRecordsForTimeoutCheck.erase(It++);
-
-                        if (Record->GetType() == EWReliableRecordType::ClientRecord)
+                        bDeleted = true;
+                    }
+                    else if (Record->ResetterFunction())
+                    {
+                        bDeleted = true;
+                        if (Record->GetType() == EWReliableRecordType::OtherPartyRecord)
                         {
-                            auto AsClientRecord = (WClientRecord*)Record;
-                            if (AsClientRecord)
+                            auto AsOtherPartyRecord = reinterpret_cast<WOtherPartyRecord*>(Record);
+                            if (AsOtherPartyRecord)
                             {
-                                WScopeGuard ClientRecords_Guard(&HandlerInstance->ClientsRecord_Mutex);
-                                HandlerInstance->ClientRecords.erase(AsClientRecord->GetClientKey());
+                                WScopeGuard OtherPartiesRecords_Guard(&HandlerInstance->OtherPartiesRecords_Mutex);
+                                HandlerInstance->OtherPartiesRecords.erase(AsOtherPartyRecord->GetOtherPartyKey());
                             }
                         }
                         else if (Record->GetType() == EWReliableRecordType::ReliableConnectionRecord)
                         {
-                            auto AsReliableConnectionRecord = (WReliableConnectionRecord*)Record;
+                            auto AsReliableConnectionRecord = reinterpret_cast<WReliableConnectionRecord*>(Record);
                             if (AsReliableConnectionRecord)
                             {
                                 WScopeGuard ReliableConnectionRecords_Guard(&HandlerInstance->ReliableConnectionRecords_Mutex);
-                                HandlerInstance->ReliableConnectionRecords.erase(AsReliableConnectionRecord->GetClientKey());
+                                HandlerInstance->RemoveFromReliableConnections(AsReliableConnectionRecord->GetOtherPartyKey());
                             }
                         }
 
-                        delete (Record);
-                        bDeleted = true;
+                        HandlerInstance->AddRecordToPendingDeletePool(Record);
                     }
                 }
 
                 if (!bDeleted)
+                {
+                    Tmp_RecordsForTimeoutCheck.Push(Record);
+                }
+            }
+        }
+
+        HandlerInstance->UDPRecordsForTimeoutCheck.AddAll_NotTSTemporaryQueue(Tmp_RecordsForTimeoutCheck);
+    };
+    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(TimeoutLambda, SelfAsArray, 100, true, true);
+
+    WFutureAsyncTask DeallocatorLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+    {
+        UWUDPHandler* HandlerInstance = nullptr;
+        if (TaskParameters.Num() > 0 && TaskParameters[0])
+        {
+            HandlerInstance = reinterpret_cast<UWUDPHandler*>(TaskParameters[0]);
+        }
+        if (!HandlerInstance || !HandlerInstance->bSystemStarted) return;
+
+        uint64 CurrentTimestamp = UWUtilities::GetTimeStampInMS();
+
+        WUDPRecord* DeleteRecord = nullptr;
+        uint64 PooledTimestamp;
+        WScopeGuard Guard(&HandlerInstance->UDPRecords_PendingDeletePool_Mutex);
+        for (auto It = HandlerInstance->UDPRecords_PendingDeletePool.begin(); It != HandlerInstance->UDPRecords_PendingDeletePool.end();)
+        {
+            bool bRemoved = false;
+
+            if (It->first)
+            {
+                DeleteRecord = It->first;
+                PooledTimestamp = It->second;
+
+                if (!DeleteRecord->IsReferenced() && (CurrentTimestamp - PooledTimestamp) > PENDING_DELETE_CHECK_TIME_INTERVAL)
+                {
+                    HandlerInstance->UDPRecords_PendingDeletePool.erase(It++);
+                    delete (DeleteRecord);
+                    bRemoved = true;
+                }
+
+                if (!bRemoved)
                 {
                     ++It;
                 }
             }
             else
             {
-                HandlerInstance->UDPRecordsForTimeoutCheck.erase(It++);
+                HandlerInstance->UDPRecords_PendingDeletePool.erase(It++);
             }
         }
     };
-    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(Lambda, SelfAsArray, 100, true, true);
+    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(DeallocatorLambda, SelfAsArray, PENDING_DELETE_CHECK_TIME_INTERVAL, true, true);
 }
 void UWUDPHandler::EndSystem()
 {
     if (!bSystemStarted) return;
-    bSystemStarted = false;
 
     ClearUDPRecordsForTimeoutCheck();
     ClearReliableConnections();
-    LastServersideMessageID = 1;
-    LastServersideGeneratedTimestamp = 0;
-    ClearClientRecords();
+    ClearOtherPartiesRecords();
+    ClearPendingDeletePool();
+
+    bSystemStarted = false;
+
+    LastThissideMessageID = 1;
+    LastThissideGeneratedTimestamp = 0;
 }
 
 #if PLATFORM_WINDOWS
@@ -974,7 +1049,7 @@ void UWUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
 {
     if (!bSystemStarted) return;
 
-    if (OtherParty == nullptr) return;
+    if (!OtherParty) return;
     if (SendBuffer.GetSize() == 0) return;
 
 #if PLATFORM_WINDOWS
@@ -1003,4 +1078,67 @@ void UWUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
         UWUtilities::Print(EWLogType::Error, FString(L"UWUDPHandler: Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
     }
 #endif
+}
+
+void UWUDPHandler::RemoveFromReliableConnections(std::__detail::_Node_iterator<std::pair<const std::string, WReliableConnectionRecord *>, false, true> Iterator)
+{
+    ReliableConnectionRecords.erase(Iterator);
+    if (bPendingKill && ReliableConnectionRecords.empty() && ReadyToDieCallback)
+    {
+        ReadyToDieCallback();
+    }
+}
+void UWUDPHandler::RemoveFromReliableConnections(const std::string& Key)
+{
+    ReliableConnectionRecords.erase(Key);
+    if (bPendingKill && ReliableConnectionRecords.empty() && ReadyToDieCallback)
+    {
+        ReadyToDieCallback();
+    }
+}
+
+void UWUDPHandler::MarkPendingKill(std::function<void()> _ReadyToDieCallback)
+{
+    if (bPendingKill) return;
+    bPendingKill = true;
+
+    ReadyToDieCallback = std::move(_ReadyToDieCallback);
+
+    WScopeGuard Guard(&ReliableConnectionRecords_Mutex);
+    if (ReliableConnectionRecords.empty())
+    {
+        ReadyToDieCallback();
+    }
+}
+
+void UWUDPHandler::AddRecordToPendingDeletePool(WUDPRecord* PendingDeleteRecord)
+{
+    if (!PendingDeleteRecord || PendingDeleteRecord->bBeingDeleted) return;
+    PendingDeleteRecord->bBeingDeleted = true;
+
+    WScopeGuard Guard(&UDPRecords_PendingDeletePool_Mutex);
+    auto It = UDPRecords_PendingDeletePool.find(PendingDeleteRecord);
+    if (It == UDPRecords_PendingDeletePool.end())
+    {
+        UDPRecords_PendingDeletePool.insert(std::pair<WUDPRecord*, uint64>(PendingDeleteRecord, UWUtilities::GetTimeStampInMS()));
+    }
+}
+
+bool WReliableConnectionRecord::ResetterFunction()
+{
+    if (!ResponsibleHandler) return true;
+    if (!GetBuffer()->IsValid()) return true;
+
+    if (GetHandshakingStatus() == 3) return true;
+    if (bAsSender && !bAsSender_PrevFrameSkipped)
+    {
+        bAsSender_PrevFrameSkipped = true;
+        return false;
+    }
+    if (++FailureTrialCount >= 2) return true;
+
+    UpdateLastInteraction();
+    ResponsibleHandler->Send(GetOtherParty(), *GetBuffer());
+
+    return false;
 }

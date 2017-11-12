@@ -22,9 +22,10 @@ class WUDPHelper
 {
 
 public:
-    static std::string GetAddressPortFromClient(struct sockaddr* Client, uint32 MessageID, bool bDoNotAppendMessageID = false)
+    static std::string GetAddressPortFromOtherParty(struct sockaddr *Client, uint32 MessageID,
+                                                    bool bDoNotAppendMessageID = false)
     {
-        if (Client == nullptr) return "";
+        if (!Client) return "";
 
         auto ClientAsBroad = (struct sockaddr_in*)Client;
 

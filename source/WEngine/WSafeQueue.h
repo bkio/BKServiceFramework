@@ -5,49 +5,83 @@
 
 #include "WEngine.h"
 #include "WMutex.h"
-#include <queue>
+#include "WQueue.h"
 
 // A threadsafe-queue.
 template <class T>
-class WSafeQueue
+class WSafeQueue : public WQueue<T>
 {
-public:
-    WSafeQueue()
-            : q()
-            , m()
-    {}
 
-    ~WSafeQueue()
-    {}
+public:
+    WSafeQueue() : WQueue<T>(), m()
+    {
+    }
+
+    ~WSafeQueue() override
+    {
+    }
 
     // Add an element to the queue.
-    void Push(T t)
+    void Push(T t) override
     {
         WScopeGuard lock(&m);
-        q.push(t);
+        WQueue<T>::Push(t);
     }
 
     // Get the "front"-element.
-    bool Pop(T& val)
+    bool Pop(T& val) override
     {
         WScopeGuard lock(&m);
-        if(q.empty())
-        {
-            return false;
-        }
-        val = q.front();
-        q.pop();
-        return true;
+        return WQueue<T>::Pop(val);
     }
 
-    int32 Size()
+    int32 Size() override
     {
         WScopeGuard lock(&m);
-        return q.size();
+        return WQueue<T>::Size();
+    }
+
+    void Clear() override
+    {
+        WScopeGuard lock(&m);
+        WQueue<T>::Clear();
+    }
+
+    void ReplaceQueue(WQueue<T>& Other, bool NoCopy) override
+    {
+        WScopeGuard lock(&m);
+        WQueue<T>::ReplaceQueue(Other, NoCopy);
+    }
+
+    //Other queue must be a temporary WQueue, not WSafeQueue.
+    void AddAll_NotTSTemporaryQueue(WQueue<T>& Other)
+    {
+        if (Other.Size() == 0) return;
+
+        WScopeGuard lock(&m);
+
+        if (WQueue<T>::Size() > 0)
+        {
+            T TmpVal;
+            while (Other.Pop(TmpVal))
+            {
+                WQueue<T>::Push(TmpVal);
+            }
+        }
+        else
+        {
+            WQueue<T>::ReplaceQueue(Other, true);
+        }
+    }
+
+    //Other queue must be a WQueue, not WSafeQueue.
+    void CopyTo(WQueue<T>& Other, bool bThenClearThis) override
+    {
+        WScopeGuard lock(&m);
+        WQueue<T>::CopyTo(Other, bThenClearThis);
     }
 
 private:
-    std::queue<T> q;
     mutable WMutex m;
 };
 

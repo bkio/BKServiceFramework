@@ -16,8 +16,6 @@
 	#include <netdb.h>
 #endif
 
-typedef std::function<void(sockaddr*, class UWUDPHandler*, WJson::Node)> WUDPClient_DataReceived;
-
 class UWUDPClient : public UWAsyncTaskParameter
 {
 
@@ -41,7 +39,7 @@ private:
 
     bool bClientStarted = false;
 
-    WUDPClient_DataReceived UDPListenCallback = nullptr;
+    std::function<void(class UWUDPClient*, WJson::Node)> UDPListenCallback = nullptr;
 
     bool InitializeClient();
     void CloseSocket();
@@ -51,11 +49,20 @@ private:
     bool StartUDPClient(std::string& _ServerAddress, uint16 _ServerPort);
 
 public:
-    static UWUDPClient* NewUDPClient(std::string _ServerAddress, uint16 _ServerPort, WUDPClient_DataReceived& _DataReceivedCallback);
+    static UWUDPClient* NewUDPClient(std::string _ServerAddress, uint16 _ServerPort, std::function<void(class UWUDPClient*, WJson::Node)>& _DataReceivedCallback);
 
     void EndUDPClient();
+    void MarkPendingKill();
+    void LazySuicide();
+
+    struct sockaddr* GetSocketAddress()
+    {
+        return SocketAddress;
+    }
 
     class UWUDPHandler* GetUDPHandler();
 };
+
+typedef std::function<void(class UWUDPClient*, WJson::Node)> WUDPClient_DataReceived;
 
 #endif //Pragma_Once_WUDPClient

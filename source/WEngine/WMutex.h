@@ -129,7 +129,7 @@ public:
     explicit WScopeGuard_Internal(WMutex* Mutex, bool bDoNoLock = false)
     {
         RelativeMutex = Mutex;
-        if (!bDoNoLock && RelativeMutex != nullptr)
+        if (!bDoNoLock && RelativeMutex)
         {
             RelativeMutex->lock();
         }
@@ -137,7 +137,7 @@ public:
     volatile WScopeGuard_Internal& operator=(WMutex* Mutex) volatile noexcept
     {
         RelativeMutex = Mutex;
-        if (RelativeMutex != nullptr)
+        if (RelativeMutex)
         {
             RelativeMutex->lock();
         }
@@ -157,7 +157,7 @@ public:
 
     ~WScopeGuard_Internal()
     {
-        if (RelativeMutex != nullptr && !bRedirected)
+        if (RelativeMutex && !bRedirected)
         {
             RelativeMutex->unlock();
         }
@@ -169,7 +169,7 @@ public:
     void SleepWithCondition(pthread_cond_t* Condition) volatile
 #endif
     {
-        if (Condition == nullptr) return;
+        if (!Condition) return;
 
 #if PLATFORM_WINDOWS
         SleepConditionVariableCS(Condition, RelativeMutex->handle(), INFINITE);

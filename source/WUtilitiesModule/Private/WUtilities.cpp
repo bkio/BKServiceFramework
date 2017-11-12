@@ -53,7 +53,7 @@ WMutex UWUtilities::PrintMutex;
 void UWUtilities::Print(EWLogType LogType, const FString& Format)
 {
     std::wstringstream Message;
-    Message << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error: ")) << std::wstring(*Format) << "\n";
+    Message << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error: ")) << std::wstring(*Format) << L"\n";
 
     WScopeGuard Guard(&PrintMutex);
     std::wcout << Message.str();

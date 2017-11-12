@@ -5,7 +5,7 @@
 #include "WUDPHelper.h"
 #include "WAsyncTaskManager.h"
 
-UWUDPClient* UWUDPClient::NewUDPClient(std::string _ServerAddress, uint16 _ServerPort, WUDPClient_DataReceived& _DataReceivedCallback)
+UWUDPClient* UWUDPClient::NewUDPClient(std::string _ServerAddress, uint16 _ServerPort, std::function<void(class UWUDPClient*, WJson::Node)>& _DataReceivedCallback)
 {
     auto NewClient = new UWUDPClient();
 
@@ -42,7 +42,36 @@ bool UWUDPClient::StartUDPClient(std::string& _ServerAddress, uint16 _ServerPort
         }
         UDPHandler = new UWUDPHandler(UDPSocket);
         UDPHandler->StartSystem();
+        return true;
     }
+    return false;
+}
+
+void UWUDPClient::MarkPendingKill()
+{
+    if (UDPHandler)
+    {
+        UDPHandler->MarkPendingKill(std::bind(&UWUDPClient::LazySuicide, this));
+    }
+}
+void UWUDPClient::LazySuicide()
+{
+    TArray<UWAsyncTaskParameter*> PassParameters;
+    PassParameters.Add(this);
+
+    WFutureAsyncTask Lambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+    {
+        if (TaskParameters.Num() >= 1 && TaskParameters[0])
+        {
+            auto ClientInstance = reinterpret_cast<UWUDPClient*>(TaskParameters[0]);
+            if (ClientInstance)
+            {
+                ClientInstance->EndUDPClient();
+                //Will be deleted after, by AsyncTaskManager.
+            }
+        }
+    };
+    UWAsyncTaskManager::NewAsyncTask(Lambda, PassParameters, false); //false parameter: Deallocate self after
 }
 
 void UWUDPClient::EndUDPClient()
@@ -56,12 +85,12 @@ void UWUDPClient::EndUDPClient()
         delete (UDPHandler);
     }
     CloseSocket();
-    if (SocketAddress != nullptr)
+    if (SocketAddress)
     {
         FMemory::Free(SocketAddress);
     }
     UDPListenCallback = nullptr;
-    if (UDPClientThread != nullptr)
+    if (UDPClientThread)
     {
         if (UDPClientThread->IsJoinable())
         {
@@ -185,12 +214,19 @@ void UWUDPClient::ListenServer()
 
         WFutureAsyncTask Lambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
         {
-            if (TaskParameters.Num() >= 2)
+            if (TaskParameters.Num() >= 2 && TaskParameters[0] && TaskParameters[1])
             {
-                auto ClientInstance = dynamic_cast<UWUDPClient*>(TaskParameters[0]);
-                auto Parameter = dynamic_cast<UWUDPTaskParameter*>(TaskParameters[1]);
+                auto ClientInstance = reinterpret_cast<UWUDPClient*>(TaskParameters[0]);
+                auto Parameter = reinterpret_cast<UWUDPTaskParameter*>(TaskParameters[1]);
 
-                if (!ClientInstance || !ClientInstance->bClientStarted || !ClientInstance->UDPListenCallback || !ClientInstance->UDPHandler) return;
+                if (!ClientInstance || !ClientInstance->bClientStarted || !ClientInstance->UDPListenCallback || !ClientInstance->UDPHandler)
+                {
+                    if (Parameter)
+                    {
+                        delete (Parameter);
+                    }
+                    return;
+                }
 
                 if (Parameter)
                 {
@@ -198,7 +234,12 @@ void UWUDPClient::ListenServer()
 
                     WJson::Node AnalyzedData = ClientInstance->UDPHandler->AnalyzeNetworkDataWithByteArray(BufferWrapped, Parameter->OtherParty);
 
-                    ClientInstance->UDPListenCallback(ClientInstance->SocketAddress, ClientInstance->UDPHandler, AnalyzedData);
+                    if (AnalyzedData.GetType() != WJson::Node::Type::T_VALIDATION &&
+                        AnalyzedData.GetType() != WJson::Node::Type::T_INVALID &&
+                        AnalyzedData.GetType() != WJson::Node::Type::T_NULL)
+                    {
+                        ClientInstance->UDPListenCallback(ClientInstance, AnalyzedData);
+                    }
                     delete (Parameter);
                 }
             }

@@ -30,7 +30,7 @@ void UWSystemManager::EndSystem()
     if (!bSystemStarted) return;
     bSystemStarted = false;
 
-    if (ManagerInstance != nullptr)
+    if (ManagerInstance)
     {
         ManagerInstance->EndSystem_Internal();
         delete (ManagerInstance);
@@ -39,7 +39,7 @@ void UWSystemManager::EndSystem()
 }
 void UWSystemManager::EndSystem_Internal()
 {
-    if (SystemManagerThread != nullptr)
+    if (SystemManagerThread)
     {
         if (SystemManagerThread->IsJoinable())
         {
@@ -61,7 +61,7 @@ void UWSystemManager::SystemThreadsDen()
         Process_CPU_Utilization = CPUMonitor.GetUsage(&Total_CPU_Utilization);
         Process_Memory_Utilization = MemoryMonitor.GetUsage(&Total_Memory_Utilization);
 
-        UWUtilities::Print(EWLogType::Log,
+        /*UWUtilities::Print(EWLogType::Log,
                            FString(L"Process CPU: ") +
                            FString::FromInt(Process_CPU_Utilization) +
                            FString(L"\t Total CPU: ") +
@@ -69,7 +69,7 @@ void UWSystemManager::SystemThreadsDen()
                            FString(L"\t Process Memory: ") +
                            FString::FromInt(Process_Memory_Utilization) +
                            FString(L"\t Total Memory: ") +
-                           FString::FromInt(Total_Memory_Utilization));
+                           FString::FromInt(Total_Memory_Utilization));*/
 
         WThread::SleepThread(200);
     }

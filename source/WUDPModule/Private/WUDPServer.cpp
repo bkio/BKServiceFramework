@@ -95,12 +95,19 @@ void UWUDPServer::ListenSocket()
 
         WFutureAsyncTask Lambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
         {
-            if (TaskParameters.Num() >= 2)
+            if (TaskParameters.Num() >= 2 && TaskParameters[0] && TaskParameters[1])
             {
-                auto ServerInstance = dynamic_cast<UWUDPServer*>(TaskParameters[0]);
-                auto Parameter = dynamic_cast<UWUDPTaskParameter*>(TaskParameters[1]);
+                auto ServerInstance = reinterpret_cast<UWUDPServer*>(TaskParameters[0]);
+                auto Parameter = reinterpret_cast<UWUDPTaskParameter*>(TaskParameters[1]);
 
-                if (!ServerInstance || !ServerInstance->bSystemStarted || !ServerInstance->UDPListenCallback) return;
+                if (!ServerInstance || !ServerInstance->bSystemStarted || !ServerInstance->UDPListenCallback)
+                {
+                    if (Parameter)
+                    {
+                        delete (Parameter);
+                    }
+                    return;
+                }
 
                 if (Parameter)
                 {
@@ -151,7 +158,7 @@ void UWUDPServer::EndSystem()
     }
     CloseSocket();
     UDPListenCallback = nullptr;
-    if (UDPSystemThread != nullptr)
+    if (UDPSystemThread)
     {
         if (UDPSystemThread->IsJoinable())
         {
@@ -159,22 +166,4 @@ void UWUDPServer::EndSystem()
         }
         delete (UDPSystemThread);
     }
-}
-bool WReliableConnectionRecord::ResetterFunction()
-{
-    if (ResponsibleHandler == nullptr) return true;
-    if (GetBuffer() == nullptr || !GetBuffer()->IsValid()) return true;
-
-    if (GetHandshakingStatus() == 3) return true;
-    if (++FailureTrialCount >= 5)
-    {
-        if (!bAsSender) return true;
-        FailureTrialCount = 0;
-        SetHandshakingStatus(0);
-    }
-
-    UpdateLastInteraction();
-    ResponsibleHandler->Send(GetClient(), *GetBuffer());
-
-    return false;
 }

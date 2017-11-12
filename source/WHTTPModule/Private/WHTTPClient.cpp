@@ -105,7 +105,7 @@ bool UWHTTPClient::InitializeSocket()
     }
 
     // Each of the returned IP address is tried.
-    for (; Result != nullptr; Result = Result->ai_next)
+    for (; Result; Result = Result->ai_next)
     {
         HTTPSocket = socket(Result->ai_family, Result->ai_socktype, Result->ai_protocol);
         if (HTTPSocket < 0)
