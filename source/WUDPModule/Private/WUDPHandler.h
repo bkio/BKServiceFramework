@@ -10,9 +10,9 @@
 #include "WReferenceCounter.h"
 #include "WUtilities.h"
 #include "WTaskDefines.h"
+#include "WSafeQueue.h"
 #include <unordered_map>
 #include <unordered_set>
-#include "WSafeQueue.h"
 #if PLATFORM_WINDOWS
     #pragma comment(lib, "ws2_32.lib")
     #include <winsock2.h>
@@ -355,11 +355,7 @@ public:
 
     void MarkPendingKill(std::function<void()> _ReadyToDieCallback);
 
-#if PLATFORM_WINDOWS
     void Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer);
-#else
-    void Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer);
-#endif
 };
 
 #endif //Pragma_Once_WUDProtocol

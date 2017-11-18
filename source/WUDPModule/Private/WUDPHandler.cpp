@@ -126,6 +126,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
             {
                 AsReceiverReliableSYNFailure(OtherParty, MessageID);
             }
+            Hashed.DeallocateValue();
             return WJson::Node(WJson::Node::T_INVALID);
         }
     }
@@ -923,12 +924,6 @@ void UWUDPHandler::StartSystem()
         uint64 CurrentTimestamp = UWUtilities::GetTimeStampInMS();
 
         WQueue<WUDPRecord*> Tmp_RecordsForTimeoutCheck;
-
-        /*int32 DebugSize = HandlerInstance->UDPRecordsForTimeoutCheck.Size();
-        if (DebugSize > 0)
-        {
-            UWUtilities::Print(EWLogType::Log, FString::FromInt(DebugSize));
-        }*/
 
         WQueue<WUDPRecord*> CurrentSnapshotOf_RecordsForTimeoutCheck;
         HandlerInstance->UDPRecordsForTimeoutCheck.CopyTo(CurrentSnapshotOf_RecordsForTimeoutCheck, true);

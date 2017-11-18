@@ -22,15 +22,15 @@ class WUDPHelper
 {
 
 public:
-    static std::string GetAddressPortFromOtherParty(struct sockaddr *Client, uint32 MessageID,
+    static std::string GetAddressPortFromOtherParty(struct sockaddr *OtherParty, uint32 MessageID,
                                                     bool bDoNotAppendMessageID = false)
     {
-        if (!Client) return "";
+        if (!OtherParty) return "";
 
-        auto ClientAsBroad = (struct sockaddr_in*)Client;
+        auto OtherPartyAsBroad = (struct sockaddr_in*)OtherParty;
 
         std::stringstream Stream;
-        Stream << inet_ntoa(ClientAsBroad->sin_addr) << ':' << htons(ClientAsBroad->sin_port);
+        Stream << inet_ntoa(OtherPartyAsBroad->sin_addr) << ':' << htons(OtherPartyAsBroad->sin_port);
         if (!bDoNotAppendMessageID)
         {
             Stream << ':' << MessageID;
