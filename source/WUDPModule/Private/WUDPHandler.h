@@ -339,14 +339,14 @@ public:
     FWCHARWrapper MakeByteArrayForNetworkData(
             sockaddr* OtherParty,
             WJson::Node Parameter,
+            bool bDoubleContentCount = false,
             bool bTimeOrderCriticalData = false,
             bool bReliableSYN = false,
             bool bReliableSYNSuccess = false,
             bool bReliableSYNFailure = false,
             bool bReliableSYNACKSuccess = false,
             bool bReliableACK = false,
-            int32 ReliableMessageID = 0,
-            bool bDoubleContentCount = false);
+            int32 ReliableMessageID = 0);
 
     void StartSystem();
     void EndSystem();

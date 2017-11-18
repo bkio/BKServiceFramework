@@ -387,14 +387,14 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
 FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
         sockaddr* OtherParty,
         WJson::Node Parameter,
+        bool bDoubleContentCount,
         bool bTimeOrderCriticalData,
         bool bReliableSYN,
         bool bReliableSYNSuccess,
         bool bReliableSYNFailure,
         bool bReliableSYNACKSuccess,
         bool bReliableACK,
-        int32 ReliableMessageID,
-        bool bDoubleContentCount)
+        int32 ReliableMessageID)
 {
     if (!bSystemStarted) return FWCHARWrapper();
     if (!OtherParty ||
@@ -722,7 +722,7 @@ void UWUDPHandler::AsReceiverReliableSYNSuccess(sockaddr* OtherParty, uint32 Mes
     //Send SYN-ACK
     //UWUtilities::Print(EWLogType::Log, L"Send SYN-ACK: " + FString::FromInt(MessageID));
 
-    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, true, false, false, false, MessageID);
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, true, false, false, false, MessageID);
 
     WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, false, 0, false);
     if (Record)
@@ -750,7 +750,7 @@ void UWUDPHandler::AsReceiverReliableSYNFailure(sockaddr* OtherParty, uint32 Mes
     //Send SYN-fail
     //UWUtilities::Print(EWLogType::Log, L"Send SYN-fail: " + FString::FromInt(MessageID));
 
-    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, true, false, false, MessageID);
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, true, false, false, MessageID);
 
     WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, false, 0, true);
     if (Record)
@@ -784,7 +784,7 @@ void UWUDPHandler::HandleReliableSYNSuccess(sockaddr* OtherParty, uint32 Message
     //Send ACK
     //UWUtilities::Print(EWLogType::Log, L"Send ACK: " + FString::FromInt(MessageID));
 
-    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, true, false, MessageID);
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, false, true, false, MessageID);
 
     WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, true, 1, false);
     if (Record)
@@ -828,7 +828,7 @@ void UWUDPHandler::HandleReliableSYNACKSuccess(sockaddr* OtherParty, uint32 Mess
     //ACK received. Send ACK-ACK, then close the case.
     //UWUtilities::Print(EWLogType::Log, L"ACK received. Send ACK-ACK, then close the case: " + FString::FromInt(MessageID));
 
-    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, false, true, MessageID);
+    FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, false, false, true, MessageID);
 
     WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, WrappedFinalData, false, 2, false);
     if (Record)

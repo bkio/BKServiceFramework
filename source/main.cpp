@@ -28,7 +28,7 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
                 AnalyzedData.GetType() != WJson::Node::Type::T_INVALID &&
                 AnalyzedData.GetType() != WJson::Node::Type::T_NULL)
             {
-                FWCHARWrapper FinalBuffer = HandlerInstance->MakeByteArrayForNetworkData(Parameter->OtherParty, AnalyzedData, false, true);
+                FWCHARWrapper FinalBuffer = HandlerInstance->MakeByteArrayForNetworkData(Parameter->OtherParty, AnalyzedData, false, false, true);
                 HandlerInstance->Send(Parameter->OtherParty, FinalBuffer);
                 FinalBuffer.DeallocateValue();
             }
@@ -122,7 +122,7 @@ void SendUDPPacketToServer()
     {
         if (UDPClient && UDPClient->GetUDPHandler())
         {
-            FWCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), Parameter, false, true);
+            FWCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), Parameter, false, false, true);
 
             UDPClient->GetUDPHandler()->Send(UDPClient->GetSocketAddress(), WrappedData);
 
@@ -135,7 +135,7 @@ void SendUDPPacketToServer()
         WJson::Node DataToSend = WJson::Node(WJson::Node::T_OBJECT);
         DataToSend.Add("CharArray", WJson::Node("Hello pagan world!"));
 
-        FWCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), DataToSend, false, true);
+        FWCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), DataToSend, false, false, true);
 
         UDPClient->GetUDPHandler()->Send(UDPClient->GetSocketAddress(), WrappedData);
 
