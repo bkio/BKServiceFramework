@@ -140,7 +140,7 @@ bool FBase64::Decode(const FString& Source, TArray<uint8>& Dest)
     auto * NewDestData = new uint8[ExpectedLength];
 
     auto * AsAnsi = new ANSICHAR[Length];
-    std::wcstombs(AsAnsi, *Source, Length);
+    std::wcstombs(AsAnsi, Source.GetWideCharArray(), Length);
 
     uint32 PadCount = 0;
     bool bWasSuccessful = Decode(AsAnsi, Length, NewDestData, PadCount);
@@ -172,11 +172,8 @@ bool FBase64::Decode(const FString& Source, TArray<uint8>& Dest)
  */
 FString FBase64::Encode(const FString& Source)
 {
-    auto * AsAnsi = new ANSICHAR[Source.Len()];
-    std::wcstombs(AsAnsi, *Source, static_cast<size_t>(Source.Len()));
-    FString Result = Encode((uint8*)AsAnsi, static_cast<uint32>(Source.Len()));
-    delete[] AsAnsi;
-    return Result;
+    assert(!Source.IsWide());
+    return Encode((uint8*)Source.GetAnsiCharArray(), static_cast<uint32>(Source.Len()));
 }
 
 /**

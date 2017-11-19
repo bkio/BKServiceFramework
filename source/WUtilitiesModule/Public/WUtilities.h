@@ -148,7 +148,7 @@ private:
     UTFCHAR* WCharArray = nullptr;
 };
 
-class UWUtilities
+class WUtilities
 {
 
 private:

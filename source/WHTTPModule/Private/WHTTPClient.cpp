@@ -5,7 +5,7 @@
 #include "WScheduledTaskManager.h"
 #include "WHTTPClient.h"
 
-void UWHTTPClient::NewHTTPRequest(
+void WHTTPClient::NewHTTPRequest(
         std::string _ServerAddress,
         uint16 _ServerPort,
         std::wstring _Payload,
@@ -16,19 +16,19 @@ void UWHTTPClient::NewHTTPRequest(
         WFutureAsyncTask& _RequestCallback,
         WFutureAsyncTask& _TimeoutCallback)
 {
-    auto NewClient = new UWHTTPClient();
+    auto NewClient = new WHTTPClient();
     NewClient->ServerAddress = std::move(_ServerAddress);
     NewClient->ServerPort = _ServerPort;
     NewClient->Headers = std::move(_Headers);
     NewClient->Payload = std::move(_Payload);
     NewClient->RequestLine = _Verb + " " + _Path + " HTTP/1.1";
 
-    TArray<UWAsyncTaskParameter*> AsArray(NewClient);
-    UWAsyncTaskManager::NewAsyncTask(_RequestCallback, AsArray, true);
-    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(_TimeoutCallback, AsArray, _TimeoutMs, false, true);
+    TArray<WAsyncTaskParameter*> AsArray(NewClient);
+    WAsyncTaskManager::NewAsyncTask(_RequestCallback, AsArray, true);
+    WScheduledAsyncTaskManager::NewScheduledAsyncTask(_TimeoutCallback, AsArray, _TimeoutMs, false, true);
 }
 
-bool UWHTTPClient::ProcessRequest()
+bool WHTTPClient::ProcessRequest()
 {
     bool bResult = false;
     {
@@ -46,7 +46,7 @@ bool UWHTTPClient::ProcessRequest()
     return bResult;
 }
 
-void UWHTTPClient::CancelRequest()
+void WHTTPClient::CancelRequest()
 {
     WScopeGuard RequestGuard(&RequestMutex);
     if (!bRequestInitialized) return;
@@ -54,7 +54,7 @@ void UWHTTPClient::CancelRequest()
     CloseSocket();
 }
 
-bool UWHTTPClient::InitializeSocket()
+bool WHTTPClient::InitializeSocket()
 {
 #if PLATFORM_WINDOWS
     HTTPSocket = static_cast<SOCKET>(-1);
@@ -70,7 +70,7 @@ bool UWHTTPClient::InitializeSocket()
     RetVal = WSAStartup(0x202, &WSAData);
     if (RetVal != 0)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"WSAStartup() failed with error: ") + FString::FromInt(WSAGetLastError()));
+        WUtilities::Print(EWLogType::Error, FString("WSAStartup() failed with error: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
         return false;
     }
@@ -89,17 +89,17 @@ bool UWHTTPClient::InitializeSocket()
     struct addrinfo* Result;
 
 #if PLATFORM_WINDOWS
-    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray().c_str(), &Hint, &Result));
+    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray(), &Hint, &Result));
 #else
-    AddrInfo = getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray().c_str(), &Hint, &Result);
+    AddrInfo = getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray(), &Hint, &Result);
 #endif
     if (AddrInfo != 0)
     {
 #if PLATFORM_WINDOWS
-        UWUtilities::Print(EWLogType::Error, FString(L"Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
+        WUtilities::Print(EWLogType::Error, FString("Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
         WSACleanup();
 #else
-        UWUtilities::Print(EWLogType::Error, FString(L"Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
+        WUtilities::Print(EWLogType::Error, FString("Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
 #endif
         return false;
     }
@@ -111,10 +111,10 @@ bool UWHTTPClient::InitializeSocket()
         if (HTTPSocket < 0)
         {
 #if PLATFORM_WINDOWS
-            UWUtilities::Print(EWLogType::Error, FString(L"Create socket failed with error: ") + FString::FromInt(WSAGetLastError()));
+            WUtilities::Print(EWLogType::Error, FString("Create socket failed with error: ") + FString::FromInt(WSAGetLastError()));
             WSACleanup();
 #else
-            UWUtilities::Print(EWLogType::Error, FString(L"Create socket failed."));
+            WUtilities::Print(EWLogType::Error, FString("Create socket failed."));
 #endif
             return false;
         }
@@ -152,16 +152,16 @@ bool UWHTTPClient::InitializeSocket()
 #endif
     {
 #if PLATFORM_WINDOWS
-        UWUtilities::Print(EWLogType::Error, FString(L"Error has occurred during connecting to server: ") + FString::FromInt(WSAGetLastError()));
+        WUtilities::Print(EWLogType::Error, FString("Error has occurred during connecting to server: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
 #else
-        UWUtilities::Print(EWLogType::Error, FString(L"Error has occurred during connecting to server."));
+        WUtilities::Print(EWLogType::Error, FString("Error has occurred during connecting to server."));
 #endif
         return false;
     }
     return true;
 }
-void UWHTTPClient::CloseSocket()
+void WHTTPClient::CloseSocket()
 {
     if (bSocketClosed) return;
     bSocketClosed = true;
@@ -176,7 +176,7 @@ void UWHTTPClient::CloseSocket()
 #endif
 }
 
-void UWHTTPClient::SendData()
+void WHTTPClient::SendData()
 {
     if (!bRequestInitialized) return;
 
@@ -196,7 +196,7 @@ void UWHTTPClient::SendData()
 #endif
 }
 
-bool UWHTTPClient::ReceiveData()
+bool WHTTPClient::ReceiveData()
 {
     if (!bRequestInitialized) return false;
 
@@ -238,7 +238,7 @@ bool UWHTTPClient::ReceiveData()
     return true;
 }
 
-bool UWHTTPClient::DestroyApproval()
+bool WHTTPClient::DestroyApproval()
 {
     WScopeGuard ReceivedDestroyApproval_Guard(&ReceivedDestroyApproval_Mutex);
     return ++ReceivedDestroyApproval >= 2;

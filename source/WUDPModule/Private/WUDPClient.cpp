@@ -5,9 +5,9 @@
 #include "WUDPHelper.h"
 #include "WAsyncTaskManager.h"
 
-UWUDPClient* UWUDPClient::NewUDPClient(std::string _ServerAddress, uint16 _ServerPort, std::function<void(class UWUDPClient*, WJson::Node)>& _DataReceivedCallback)
+WUDPClient* WUDPClient::NewUDPClient(std::string _ServerAddress, uint16 _ServerPort, std::function<void(class WUDPClient*, WJson::Node)>& _DataReceivedCallback)
 {
-    auto NewClient = new UWUDPClient();
+    auto NewClient = new WUDPClient();
 
     NewClient->UDPListenCallback = _DataReceivedCallback;
 
@@ -20,12 +20,12 @@ UWUDPClient* UWUDPClient::NewUDPClient(std::string _ServerAddress, uint16 _Serve
     return NewClient;
 }
 
-UWUDPHandler* UWUDPClient::GetUDPHandler()
+WUDPHandler* WUDPClient::GetUDPHandler()
 {
     return UDPHandler;
 }
 
-bool UWUDPClient::StartUDPClient(std::string& _ServerAddress, uint16 _ServerPort)
+bool WUDPClient::StartUDPClient(std::string& _ServerAddress, uint16 _ServerPort)
 {
     if (bClientStarted) return false;
     bClientStarted = true;
@@ -35,35 +35,35 @@ bool UWUDPClient::StartUDPClient(std::string& _ServerAddress, uint16 _ServerPort
 
     if (InitializeClient())
     {
-        UDPClientThread = new WThread(std::bind(&UWUDPClient::ListenServer, this), std::bind(&UWUDPClient::ServerListenerStopped, this));
+        UDPClientThread = new WThread(std::bind(&WUDPClient::ListenServer, this), std::bind(&WUDPClient::ServerListenerStopped, this));
         if (UDPHandler)
         {
             delete (UDPHandler);
         }
-        UDPHandler = new UWUDPHandler(UDPSocket);
+        UDPHandler = new WUDPHandler(UDPSocket);
         UDPHandler->StartSystem();
         return true;
     }
     return false;
 }
 
-void UWUDPClient::MarkPendingKill()
+void WUDPClient::MarkPendingKill()
 {
     if (UDPHandler)
     {
-        UDPHandler->MarkPendingKill(std::bind(&UWUDPClient::LazySuicide, this));
+        UDPHandler->MarkPendingKill(std::bind(&WUDPClient::LazySuicide, this));
     }
 }
-void UWUDPClient::LazySuicide()
+void WUDPClient::LazySuicide()
 {
-    TArray<UWAsyncTaskParameter*> PassParameters;
+    TArray<WAsyncTaskParameter*> PassParameters;
     PassParameters.Add(this);
 
-    WFutureAsyncTask Lambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+    WFutureAsyncTask Lambda = [](TArray<WAsyncTaskParameter*> TaskParameters)
     {
         if (TaskParameters.Num() >= 1 && TaskParameters[0])
         {
-            auto ClientInstance = reinterpret_cast<UWUDPClient*>(TaskParameters[0]);
+            auto ClientInstance = reinterpret_cast<WUDPClient*>(TaskParameters[0]);
             if (ClientInstance)
             {
                 ClientInstance->EndUDPClient();
@@ -71,10 +71,10 @@ void UWUDPClient::LazySuicide()
             }
         }
     };
-    UWAsyncTaskManager::NewAsyncTask(Lambda, PassParameters, false); //false parameter: Deallocate self after
+    WAsyncTaskManager::NewAsyncTask(Lambda, PassParameters, false); //false parameter: Deallocate self after
 }
 
-void UWUDPClient::EndUDPClient()
+void WUDPClient::EndUDPClient()
 {
     if (!bClientStarted) return;
     bClientStarted = false;
@@ -100,7 +100,7 @@ void UWUDPClient::EndUDPClient()
     }
 }
 
-bool UWUDPClient::InitializeClient()
+bool WUDPClient::InitializeClient()
 {
 #if PLATFORM_WINDOWS
     WSADATA WSAData{};
@@ -109,7 +109,7 @@ bool UWUDPClient::InitializeClient()
     int32 RetVal = WSAStartup(0x202, &WSAData);
     if (RetVal != 0)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"WSAStartup() failed with error: ") + FString::FromInt(WSAGetLastError()));
+        WUtilities::Print(EWLogType::Error, FString("WSAStartup() failed with error: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
         return false;
     }
@@ -128,17 +128,17 @@ bool UWUDPClient::InitializeClient()
     struct addrinfo* Result;
 
 #if PLATFORM_WINDOWS
-    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray().c_str(), &Hint, &Result));
+    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray(), &Hint, &Result));
 #else
-    AddrInfo = getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray().c_str(), &Hint, &Result);
+    AddrInfo = getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray(), &Hint, &Result);
 #endif
     if (AddrInfo != 0)
     {
 #if PLATFORM_WINDOWS
-        UWUtilities::Print(EWLogType::Error, FString(L"Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
+        WUtilities::Print(EWLogType::Error, FString("Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
         WSACleanup();
 #else
-        UWUtilities::Print(EWLogType::Error, FString(L"Cannot resolve address."));
+        WUtilities::Print(EWLogType::Error, FString("Cannot resolve address."));
 #endif
         return false;
     }
@@ -149,10 +149,10 @@ bool UWUDPClient::InitializeClient()
         freeaddrinfo(Result);
 
 #if PLATFORM_WINDOWS
-        UWUtilities::Print(EWLogType::Error, FString(L"Cannot create socket. Error: ") + FString::FromInt(WSAGetLastError()));
+        WUtilities::Print(EWLogType::Error, FString("Cannot create socket. Error: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
 #else
-        UWUtilities::Print(EWLogType::Error, FString(L"Cannot create socket."));
+        WUtilities::Print(EWLogType::Error, FString("Cannot create socket."));
 #endif
         return false;
     }
@@ -174,16 +174,16 @@ bool UWUDPClient::InitializeClient()
     if (UDPSocket < 0)
     {
 #if PLATFORM_WINDOWS
-        UWUtilities::Print(EWLogType::Error, FString(L"Error has occurred during opening a socket: ") + FString::FromInt(WSAGetLastError()));
+        WUtilities::Print(EWLogType::Error, FString("Error has occurred during opening a socket: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
 #else
-        UWUtilities::Print(EWLogType::Error, FString(L"Error has occurred during opening a socket."));
+        WUtilities::Print(EWLogType::Error, FString("Error has occurred during opening a socket."));
 #endif
         return false;
     }
     return true;
 }
-void UWUDPClient::CloseSocket()
+void WUDPClient::CloseSocket()
 {
 #if PLATFORM_WINDOWS
     closesocket(UDPSocket);
@@ -193,7 +193,7 @@ void UWUDPClient::CloseSocket()
 	close(UDPSocket);
 #endif
 }
-void UWUDPClient::ListenServer()
+void WUDPClient::ListenServer()
 {
     while (bClientStarted)
     {
@@ -208,16 +208,16 @@ void UWUDPClient::ListenServer()
         }
         if (RetrievedSize == 0) continue;
 
-        TArray<UWAsyncTaskParameter*> PassParameters;
+        TArray<WAsyncTaskParameter*> PassParameters;
         PassParameters.Add(this);
-        PassParameters.Add(new UWUDPTaskParameter(RetrievedSize, Buffer, SocketAddress, false));
+        PassParameters.Add(new WUDPTaskParameter(RetrievedSize, Buffer, SocketAddress, false));
 
-        WFutureAsyncTask Lambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+        WFutureAsyncTask Lambda = [](TArray<WAsyncTaskParameter*> TaskParameters)
         {
             if (TaskParameters.Num() >= 2 && TaskParameters[0] && TaskParameters[1])
             {
-                auto ClientInstance = reinterpret_cast<UWUDPClient*>(TaskParameters[0]);
-                auto Parameter = reinterpret_cast<UWUDPTaskParameter*>(TaskParameters[1]);
+                auto ClientInstance = reinterpret_cast<WUDPClient*>(TaskParameters[0]);
+                auto Parameter = reinterpret_cast<WUDPTaskParameter*>(TaskParameters[1]);
 
                 if (!ClientInstance || !ClientInstance->bClientStarted || !ClientInstance->UDPListenCallback || !ClientInstance->UDPHandler)
                 {
@@ -244,13 +244,13 @@ void UWUDPClient::ListenServer()
                 }
             }
         };
-        UWAsyncTaskManager::NewAsyncTask(Lambda, PassParameters, true);
+        WAsyncTaskManager::NewAsyncTask(Lambda, PassParameters, true);
     }
 }
-uint32 UWUDPClient::ServerListenerStopped()
+uint32 WUDPClient::ServerListenerStopped()
 {
     if (!bClientStarted) return 0;
     if (UDPClientThread) delete (UDPClientThread);
-    UDPClientThread = new WThread(std::bind(&UWUDPClient::ListenServer, this), std::bind(&UWUDPClient::ServerListenerStopped, this));
+    UDPClientThread = new WThread(std::bind(&WUDPClient::ListenServer, this), std::bind(&WUDPClient::ServerListenerStopped, this));
     return 0;
 }

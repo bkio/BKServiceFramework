@@ -33,7 +33,7 @@ public:
     uint32 WorkersStopCallback();
 };
 
-class UWAsyncTaskManager
+class WAsyncTaskManager
 {
 
 public:
@@ -45,17 +45,17 @@ public:
     static void PushFreeWorker(FWAsyncWorker* Worker);
     static FWAwaitingTask* TryToGetAwaitingTask();
 
-    static void NewAsyncTask(WFutureAsyncTask& NewTask, TArray<UWAsyncTaskParameter*>& TaskParameters, bool bDoNotDeallocateParameters = false);
+    static void NewAsyncTask(WFutureAsyncTask& NewTask, TArray<WAsyncTaskParameter*>& TaskParameters, bool bDoNotDeallocateParameters = false);
 
 private:
     static bool bSystemStarted;
 
-    static UWAsyncTaskManager* ManagerInstance;
+    static WAsyncTaskManager* ManagerInstance;
 
-    UWAsyncTaskManager() = default;
-    ~UWAsyncTaskManager() = default;
-    UWAsyncTaskManager(const UWAsyncTaskManager& Other);
-    UWAsyncTaskManager& operator=(const UWAsyncTaskManager& Other)
+    WAsyncTaskManager() = default;
+    ~WAsyncTaskManager() = default;
+    WAsyncTaskManager(const WAsyncTaskManager& Other);
+    WAsyncTaskManager& operator=(const WAsyncTaskManager& Other)
     {
         return *this;
     }

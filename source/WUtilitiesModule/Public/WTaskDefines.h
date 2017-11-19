@@ -8,15 +8,15 @@
 #include "WConditionVariable.h"
 #include <utility>
 
-class UWAsyncTaskParameter
+class WAsyncTaskParameter
 {
 
 public:
-    UWAsyncTaskParameter() = default;
-    virtual ~UWAsyncTaskParameter() = default;
+    WAsyncTaskParameter() = default;
+    virtual ~WAsyncTaskParameter() = default;
 };
 
-typedef std::function<void(TArray<UWAsyncTaskParameter*>)> WFutureAsyncTask;
+typedef std::function<void(TArray<WAsyncTaskParameter*>)> WFutureAsyncTask;
 
 struct FWAwaitingTask
 {
@@ -31,10 +31,10 @@ public:
     double QueuedTimestamp = 0;
 
     WFutureAsyncTask FunctionPtr;
-    TArray<UWAsyncTaskParameter*> Parameters;
+    TArray<WAsyncTaskParameter*> Parameters;
 
     //For normal tasks
-    FWAwaitingTask(WFutureAsyncTask& Function, TArray<UWAsyncTaskParameter*>& Array, bool _bDoNotDeallocateParameters = false)
+    FWAwaitingTask(WFutureAsyncTask& Function, TArray<WAsyncTaskParameter*>& Array, bool _bDoNotDeallocateParameters = false)
     {
         FunctionPtr = Function;
         Parameters = Array;
@@ -42,7 +42,7 @@ public:
     }
 
     //For scheduled tasks
-    FWAwaitingTask(WFutureAsyncTask& Function, TArray<UWAsyncTaskParameter*>& Array, uint32 _WaitTimeMs, bool _bLoop, bool _bDoNotDeallocateParameters = false)
+    FWAwaitingTask(WFutureAsyncTask& Function, TArray<WAsyncTaskParameter*>& Array, uint32 _WaitTimeMs, bool _bLoop, bool _bDoNotDeallocateParameters = false)
     {
         FunctionPtr = Function;
         Parameters = Array;
@@ -53,18 +53,18 @@ public:
 };
 
 template <typename T>
-class UWGenericParameter : public UWAsyncTaskParameter
+class WGenericParameter : public WAsyncTaskParameter
 {
 
 private:
-    UWGenericParameter() = default;
+    WGenericParameter() = default;
 
     T Value;
 
     WMutex Mutex;
 
 public:
-    explicit UWGenericParameter(T _Value)
+    explicit WGenericParameter(T _Value)
     {
         Value = _Value;
     }

@@ -7,7 +7,7 @@
 #include "WTaskDefines.h"
 #include "WSafeQueue.h"
 
-class UWScheduledAsyncTaskManager
+class WScheduledAsyncTaskManager
 {
 
 public:
@@ -16,7 +16,7 @@ public:
 
     static bool IsSystemStarted();
 
-    static void NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<UWAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters = false);
+    static void NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<WAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters = false);
 
 private:
     static bool bSystemStarted;
@@ -30,12 +30,12 @@ private:
 
     WSafeQueue<FWAwaitingTask*> AwaitingScheduledTasks;
 
-    static UWScheduledAsyncTaskManager* ManagerInstance;
+    static WScheduledAsyncTaskManager* ManagerInstance;
 
-    UWScheduledAsyncTaskManager() = default;
-    ~UWScheduledAsyncTaskManager() = default;
-    UWScheduledAsyncTaskManager(const UWScheduledAsyncTaskManager& Other);
-    UWScheduledAsyncTaskManager& operator=(const UWScheduledAsyncTaskManager& Other)
+    WScheduledAsyncTaskManager() = default;
+    ~WScheduledAsyncTaskManager() = default;
+    WScheduledAsyncTaskManager(const WScheduledAsyncTaskManager& Other);
+    WScheduledAsyncTaskManager& operator=(const WScheduledAsyncTaskManager& Other)
     {
         return *this;
     }

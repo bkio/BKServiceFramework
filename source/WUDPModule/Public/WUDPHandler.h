@@ -37,9 +37,9 @@ protected:
     WMutex LastInteraction_Mutex;
     uint64 LastInteraction = 0;
 
-    class UWUDPHandler* ResponsibleHandler = nullptr;
+    class WUDPHandler* ResponsibleHandler = nullptr;
 
-    explicit WUDPRecord(class UWUDPHandler* _ResponsibleHandler);
+    explicit WUDPRecord(class WUDPHandler* _ResponsibleHandler);
 
     EWReliableRecordType Type = EWReliableRecordType::None;
 
@@ -54,7 +54,7 @@ public:
     virtual void UpdateLastInteraction()
     {
         WScopeGuard Guard(&LastInteraction_Mutex);
-        LastInteraction = UWUtilities::GetTimeStampInMS();
+        LastInteraction = WUtilities::GetTimeStampInMS();
     }
 
     EWReliableRecordType GetType()
@@ -114,7 +114,7 @@ public:
         return OtherPartyKey;
     }
 
-    explicit WOtherPartyRecord(class UWUDPHandler* ResponsibleHandler, std::string& _OtherPartyKey) : WUDPRecord(ResponsibleHandler)
+    explicit WOtherPartyRecord(class WUDPHandler* ResponsibleHandler, std::string& _OtherPartyKey) : WUDPRecord(ResponsibleHandler)
     {
         Type = EWReliableRecordType::OtherPartyRecord;
         OtherPartyKey = _OtherPartyKey;
@@ -135,7 +135,7 @@ private:
 
     uint32 TimeoutValueMS() override { return 2000; }
 
-    explicit WReliableConnectionRecord(class UWUDPHandler* ResponsibleHandler) : WUDPRecord(ResponsibleHandler)
+    explicit WReliableConnectionRecord(class WUDPHandler* ResponsibleHandler) : WUDPRecord(ResponsibleHandler)
     {
         Type = EWReliableRecordType::ReliableConnectionRecord;
     }
@@ -153,7 +153,7 @@ private:
     WMutex HandshakingStatus_Mutex{};
 
 public:
-    explicit WReliableConnectionRecord(class UWUDPHandler* ResponsibleHandler, uint32 MessageID, sockaddr& OtherPartyRef, std::string& _OtherPartyKey, FWCHARWrapper& BufferRef, bool bAsSenderParameter) : WUDPRecord(ResponsibleHandler)
+    explicit WReliableConnectionRecord(class WUDPHandler* ResponsibleHandler, uint32 MessageID, sockaddr& OtherPartyRef, std::string& _OtherPartyKey, FWCHARWrapper& BufferRef, bool bAsSenderParameter) : WUDPRecord(ResponsibleHandler)
     {
         Type = EWReliableRecordType::ReliableConnectionRecord;
 
@@ -221,7 +221,7 @@ public:
 #define PENDING_DELETE_CHECK_TIME_INTERVAL 100
 #define RELIABLE_CONNECTION_NOT_FOUND 255
 
-class UWUDPHandler : public UWAsyncTaskParameter
+class WUDPHandler : public WAsyncTaskParameter
 {
 
 private:
@@ -280,13 +280,13 @@ private:
     WReliableConnectionRecord* Create_AddOrGet_ReliableConnectionRecord(sockaddr* OtherParty, uint32 MessageID, FWCHARWrapper& Buffer, bool bAsSender, uint8 EnsureHandshakingStatusEqualsTo = 0, bool bIgnoreFailure = false);
     void CloseCase(WReliableConnectionRecord* Record);
 
-    UWUDPHandler() = default;
+    WUDPHandler() = default;
 
 public:
 #if PLATFORM_WINDOWS
-    explicit UWUDPHandler(SOCKET _UDPSocket);
+    explicit WUDPHandler(SOCKET _UDPSocket);
 #else
-    explicit UWUDPHandler(int32 _UDPSocket);
+    explicit WUDPHandler(int32 _UDPSocket);
 #endif
 
     /*

@@ -3,18 +3,18 @@
 #include "WScheduledTaskManager.h"
 #include "WAsyncTaskManager.h"
 
-UWScheduledAsyncTaskManager* UWScheduledAsyncTaskManager::ManagerInstance = nullptr;
+WScheduledAsyncTaskManager* WScheduledAsyncTaskManager::ManagerInstance = nullptr;
 
-bool UWScheduledAsyncTaskManager::bSystemStarted = false;
-void UWScheduledAsyncTaskManager::StartSystem(uint32 SleepDurationMs)
+bool WScheduledAsyncTaskManager::bSystemStarted = false;
+void WScheduledAsyncTaskManager::StartSystem(uint32 SleepDurationMs)
 {
     if (bSystemStarted) return;
     bSystemStarted = true;
 
-    ManagerInstance = new UWScheduledAsyncTaskManager;
+    ManagerInstance = new WScheduledAsyncTaskManager;
     ManagerInstance->StartSystem_Internal(SleepDurationMs > 0 ? SleepDurationMs : 50);
 }
-void UWScheduledAsyncTaskManager::EndSystem()
+void WScheduledAsyncTaskManager::EndSystem()
 {
     if (!bSystemStarted) return;
     bSystemStarted = false;
@@ -26,17 +26,17 @@ void UWScheduledAsyncTaskManager::EndSystem()
         ManagerInstance = nullptr;
     }
 }
-bool UWScheduledAsyncTaskManager::IsSystemStarted()
+bool WScheduledAsyncTaskManager::IsSystemStarted()
 {
     return bSystemStarted;
 }
 
-void UWScheduledAsyncTaskManager::StartSystem_Internal(uint32 SleepDurationMs)
+void WScheduledAsyncTaskManager::StartSystem_Internal(uint32 SleepDurationMs)
 {
     SleepMsBetweenCheck = SleepDurationMs;
-    TickThread = new WThread(std::bind(&UWScheduledAsyncTaskManager::TickerRun, this), std::bind(&UWScheduledAsyncTaskManager::TickerStop, this));
+    TickThread = new WThread(std::bind(&WScheduledAsyncTaskManager::TickerRun, this), std::bind(&WScheduledAsyncTaskManager::TickerStop, this));
 }
-void UWScheduledAsyncTaskManager::EndSystem_Internal()
+void WScheduledAsyncTaskManager::EndSystem_Internal()
 {
     if (TickThread)
     {
@@ -54,7 +54,7 @@ void UWScheduledAsyncTaskManager::EndSystem_Internal()
         {
             if (!AwaitingScheduledTask->bDoNotDeallocateParameters)
             {
-                for (UWAsyncTaskParameter* Param : AwaitingScheduledTask->Parameters)
+                for (WAsyncTaskParameter* Param : AwaitingScheduledTask->Parameters)
                 {
                     if (Param)
                     {
@@ -68,12 +68,12 @@ void UWScheduledAsyncTaskManager::EndSystem_Internal()
     }
 }
 
-void UWScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<UWAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters)
+void WScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<WAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters)
 {
     if (!bSystemStarted || !ManagerInstance) return;
     if (WaitFor == 0)
     {
-        UWAsyncTaskManager::NewAsyncTask(NewTask, TaskParameters, bDoNotDeallocateParameters);
+        WAsyncTaskManager::NewAsyncTask(NewTask, TaskParameters, bDoNotDeallocateParameters);
         return;
     }
 
@@ -81,7 +81,7 @@ void UWScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask
     ManagerInstance->AwaitingScheduledTasks.Push(AsTask);
 }
 
-void UWScheduledAsyncTaskManager::TickerRun()
+void WScheduledAsyncTaskManager::TickerRun()
 {
     while (bSystemStarted)
     {
@@ -106,7 +106,7 @@ void UWScheduledAsyncTaskManager::TickerRun()
                     {
                         if (!PossibleAwaitingTask->bDoNotDeallocateParameters)
                         {
-                            for (UWAsyncTaskParameter* Parameter : PossibleAwaitingTask->Parameters)
+                            for (WAsyncTaskParameter* Parameter : PossibleAwaitingTask->Parameters)
                             {
                                 if (Parameter)
                                 {
@@ -132,9 +132,9 @@ void UWScheduledAsyncTaskManager::TickerRun()
         AwaitingScheduledTasks.AddAll_NotTSTemporaryQueue(NewQueueAfterTick);
     }
 }
-uint32 UWScheduledAsyncTaskManager::TickerStop()
+uint32 WScheduledAsyncTaskManager::TickerStop()
 {
     if (!bSystemStarted) return 0;
     if (TickThread) delete (TickThread);
-    TickThread = new WThread(std::bind(&UWScheduledAsyncTaskManager::TickerRun, this), std::bind(&UWScheduledAsyncTaskManager::TickerStop, this));
+    TickThread = new WThread(std::bind(&WScheduledAsyncTaskManager::TickerRun, this), std::bind(&WScheduledAsyncTaskManager::TickerStop, this));
 }

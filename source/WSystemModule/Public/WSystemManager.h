@@ -8,7 +8,7 @@
 #include "../Private/WCPUMonitor.h"
 #include "../Private/WMemoryMonitor.h"
 
-class UWSystemManager
+class WSystemManager
 {
 
 public:
@@ -23,8 +23,8 @@ private:
 
     WThread* SystemManagerThread{};
 
-    static UWSystemManager* ManagerInstance;
-    UWSystemManager() = default;
+    static WSystemManager* ManagerInstance;
+    WSystemManager() = default;
 
     void SystemThreadsDen();
     uint32 SystemThreadStopped();

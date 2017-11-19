@@ -12,7 +12,7 @@
 #define DEFAULT_HTTP_REQUEST_HEADERS std::map<std::string, std::string>()
 #define DEFAULT_TIMEOUT_MS 2500
 
-class UWHTTPClient : public UWAsyncTaskParameter
+class WHTTPClient : public WAsyncTaskParameter
 {
 
 private:
@@ -43,7 +43,7 @@ private:
     ANSICHAR RecvBuffer[HTTP_BUFFER_SIZE]{};
     int32 BytesReceived{};
 
-    UWHTTPClient() = default;
+    WHTTPClient() = default;
 
 public:
     static void NewHTTPRequest(

@@ -2,18 +2,18 @@
 
 #include "WAsyncTaskManager.h"
 
-UWAsyncTaskManager* UWAsyncTaskManager::ManagerInstance = nullptr;
+WAsyncTaskManager* WAsyncTaskManager::ManagerInstance = nullptr;
 
-bool UWAsyncTaskManager::bSystemStarted = false;
-void UWAsyncTaskManager::StartSystem(int32 WorkerThreadNo)
+bool WAsyncTaskManager::bSystemStarted = false;
+void WAsyncTaskManager::StartSystem(int32 WorkerThreadNo)
 {
     if (bSystemStarted) return;
     bSystemStarted = true;
 
-    ManagerInstance = new UWAsyncTaskManager;
+    ManagerInstance = new WAsyncTaskManager;
     ManagerInstance->StartSystem_Internal(WorkerThreadNo);
 }
-void UWAsyncTaskManager::EndSystem()
+void WAsyncTaskManager::EndSystem()
 {
     if (!bSystemStarted) return;
     bSystemStarted = false;
@@ -25,16 +25,16 @@ void UWAsyncTaskManager::EndSystem()
         ManagerInstance = nullptr;
     }
 }
-bool UWAsyncTaskManager::IsSystemStarted()
+bool WAsyncTaskManager::IsSystemStarted()
 {
     return bSystemStarted;
 }
 
-void UWAsyncTaskManager::StartSystem_Internal(int32 WorkerThreadNo)
+void WAsyncTaskManager::StartSystem_Internal(int32 WorkerThreadNo)
 {
     StartWorkers(WorkerThreadNo);
 }
-void UWAsyncTaskManager::StartWorkers(int32 WorkerThreadNo)
+void WAsyncTaskManager::StartWorkers(int32 WorkerThreadNo)
 {
     if (WorkerThreadNo <= 0) WorkerThreadNo = 1;
     WorkerThreadCount = WorkerThreadNo;
@@ -46,7 +46,7 @@ void UWAsyncTaskManager::StartWorkers(int32 WorkerThreadNo)
         AsyncWorkers[i]->StartWorker();
     }
 }
-void UWAsyncTaskManager::EndSystem_Internal()
+void WAsyncTaskManager::EndSystem_Internal()
 {
     for (int32 i = 0; i < WorkerThreadCount; i++)
     {
@@ -63,7 +63,7 @@ void UWAsyncTaskManager::EndSystem_Internal()
     {
         if (AwaitingTask)
         {
-            for (UWAsyncTaskParameter* Param : AwaitingTask->Parameters)
+            for (WAsyncTaskParameter* Param : AwaitingTask->Parameters)
             {
                 if (Param)
                 {
@@ -76,13 +76,13 @@ void UWAsyncTaskManager::EndSystem_Internal()
     }
 }
 
-void UWAsyncTaskManager::PushFreeWorker(FWAsyncWorker* Worker)
+void WAsyncTaskManager::PushFreeWorker(FWAsyncWorker* Worker)
 {
     if (!bSystemStarted || !ManagerInstance || !Worker) return;
     ManagerInstance->FreeWorkers.Push(Worker);
 }
 
-void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<UWAsyncTaskParameter*>& TaskParameters, bool bDoNotDeallocateParameters)
+void WAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<WAsyncTaskParameter*>& TaskParameters, bool bDoNotDeallocateParameters)
 {
     if (!bSystemStarted || !ManagerInstance) return;
 
@@ -94,12 +94,12 @@ void UWAsyncTaskManager::NewAsyncTask(WFutureAsyncTask& NewTask, TArray<UWAsyncT
     }
     else
     {
-        AsTask->QueuedTimestamp = UWUtilities::GetTimeStampInMSDetailed();
+        AsTask->QueuedTimestamp = WUtilities::GetTimeStampInMSDetailed();
         AsTask->bQueued = true;
         ManagerInstance->AwaitingTasks.Push(AsTask);
     }
 }
-FWAwaitingTask* UWAsyncTaskManager::TryToGetAwaitingTask()
+FWAwaitingTask* WAsyncTaskManager::TryToGetAwaitingTask()
 {
     if (!bSystemStarted || !ManagerInstance) return nullptr;
 
@@ -108,7 +108,7 @@ FWAwaitingTask* UWAsyncTaskManager::TryToGetAwaitingTask()
 
     return Destination;
 }
-uint32 UWAsyncTaskManager::AsyncWorkerStopped(FWAsyncWorker* StoppedWorker)
+uint32 WAsyncTaskManager::AsyncWorkerStopped(FWAsyncWorker* StoppedWorker)
 {
     if (!bSystemStarted || !ManagerInstance || !StoppedWorker) return 0;
 
@@ -124,7 +124,7 @@ uint32 UWAsyncTaskManager::AsyncWorkerStopped(FWAsyncWorker* StoppedWorker)
             delete (ManagerInstance->AsyncWorkers[i]);
             ManagerInstance->AsyncWorkers[i] = new FWAsyncWorker;
             ManagerInstance->AsyncWorkers[i]->StartWorker();
-            UWUtilities::Print(EWLogType::Warning, FString(L"An AsyncWorker has stopped. Another worker has just been started."));
+            WUtilities::Print(EWLogType::Warning, FString("An AsyncWorker has stopped. Another worker has just been started."));
             return 0;
         }
     }
@@ -134,7 +134,7 @@ uint32 UWAsyncTaskManager::AsyncWorkerStopped(FWAsyncWorker* StoppedWorker)
 
 FWAsyncWorker::FWAsyncWorker()
 {
-    UWAsyncTaskManager::PushFreeWorker(this);
+    WAsyncTaskManager::PushFreeWorker(this);
 }
 void FWAsyncWorker::SetData(FWAwaitingTask* Task, bool bSendSignal)
 {
@@ -150,22 +150,22 @@ void FWAsyncWorker::SetData(FWAwaitingTask* Task, bool bSendSignal)
 }
 void FWAsyncWorker::WorkersDen()
 {
-    while (UWAsyncTaskManager::IsSystemStarted())
+    while (WAsyncTaskManager::IsSystemStarted())
     {
         {
             WScopeGuard Lock(&Mutex);
-            while (!DataReady && UWAsyncTaskManager::IsSystemStarted())
+            while (!DataReady && WAsyncTaskManager::IsSystemStarted())
             {
                 Condition.wait(Lock);
             }
         }
-        if (!UWAsyncTaskManager::IsSystemStarted()) return;
+        if (!WAsyncTaskManager::IsSystemStarted()) return;
         ProcessData();
     }
 }
 uint32 FWAsyncWorker::WorkersStopCallback()
 {
-    return UWAsyncTaskManager::AsyncWorkerStopped(this);
+    return WAsyncTaskManager::AsyncWorkerStopped(this);
 }
 void FWAsyncWorker::ProcessData_CriticalPart()
 {
@@ -177,7 +177,7 @@ void FWAsyncWorker::ProcessData_CriticalPart()
         }
         if (!CurrentData->bDoNotDeallocateParameters)
         {
-            for (UWAsyncTaskParameter* Parameter : CurrentData->Parameters)
+            for (WAsyncTaskParameter* Parameter : CurrentData->Parameters)
             {
                 if (Parameter)
                 {
@@ -195,15 +195,15 @@ void FWAsyncWorker::ProcessData()
     ProcessData_CriticalPart();
     DataReady = false;
 
-    FWAwaitingTask* PossibleAwaitingTask = UWAsyncTaskManager::TryToGetAwaitingTask();
+    FWAwaitingTask* PossibleAwaitingTask = WAsyncTaskManager::TryToGetAwaitingTask();
     if (PossibleAwaitingTask)
     {
         if (PossibleAwaitingTask->bQueued)
         {
-            double DiffMs = UWUtilities::GetTimeStampInMSDetailed() - PossibleAwaitingTask->QueuedTimestamp;
+            double DiffMs = WUtilities::GetTimeStampInMSDetailed() - PossibleAwaitingTask->QueuedTimestamp;
             if (DiffMs > 1000)
             {
-                UWUtilities::Print(EWLogType::Warning, FString(L"WAsyncTask was in queue for ") + FString::FromFloat(DiffMs));
+                WUtilities::Print(EWLogType::Warning, FString("WAsyncTask was in queue for ") + FString::FromFloat(DiffMs));
             }
 
             PossibleAwaitingTask->bQueued = false;
@@ -214,7 +214,7 @@ void FWAsyncWorker::ProcessData()
     }
     else
     {
-        UWAsyncTaskManager::PushFreeWorker(this);
+        WAsyncTaskManager::PushFreeWorker(this);
     }
 }
 void FWAsyncWorker::StartWorker()

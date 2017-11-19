@@ -9,6 +9,7 @@
 #include <cstdarg>
 #include <regex>
 #include <codecvt>
+#include <cassert>
 
 #if PLATFORM_WINDOWS
     #include "windows.h"
@@ -44,9 +45,43 @@ class FString
 {
 
 private:
-    std::wstring Data;
+    bool bIsWide = false;
+
+    std::wstring DataWide;
+    std::string DataAnsi;
 
 public:
+    bool IsWide()const
+    {
+        return bIsWide;
+    }
+
+    const UTFCHAR& AtWide(uint32 Ix) const
+    {
+        assert(bIsWide);
+        assert(Ix >= 0 && Ix < DataWide.length());
+        return DataWide.at(Ix);
+    }
+    UTFCHAR& AtWide(uint32 Ix)
+    {
+        assert(bIsWide);
+        assert(Ix >= 0 && Ix < DataWide.length());
+        return DataWide.at(Ix);
+    }
+
+    const ANSICHAR& AtAnsi(uint32 Ix) const
+    {
+        assert(!bIsWide);
+        assert(Ix >= 0 && Ix < DataAnsi.length());
+        return DataAnsi.at(Ix);
+    }
+    ANSICHAR& AtAnsi(uint32 Ix)
+    {
+        assert(!bIsWide);
+        assert(Ix >= 0 && Ix < DataAnsi.length());
+        return DataAnsi.at(Ix);
+    }
+
     static std::wstring StringToWString(const std::string& t_str)
     {
         std::wstringstream WStringStream;
@@ -102,482 +137,729 @@ public:
     template <typename T>
     static T ConvertToInteger(const FString &Input)
     {
-        std::string NormalString = FString::WStringToString(Input.Data);
+        std::string NormalString;
+        if (Input.bIsWide)
+        {
+            NormalString = WStringToString(Input.DataWide);
+        }
+        else
+        {
+            NormalString = Input.DataAnsi;
+        }
         return ConvertToInteger<T>(NormalString.c_str());
+    }
+
+    #define FromNumeric_Define( CastTo ) \
+        if (bMakeWideOutput){ \
+            std::wstringstream Stream; \
+            Stream << (CastTo)Num; \
+            return FString(Stream.str()); \
+        } \
+        std::stringstream Stream; \
+        Stream << (CastTo)Num; \
+        return FString(Stream.str());
+
+    static FString FromInt( int8 Num, bool bMakeWideOutput = false )
+    {
+        FromNumeric_Define(int8);
+    }
+    static FString FromInt( int16 Num, bool bMakeWideOutput = false )
+    {
+        FromNumeric_Define(int16);
+    }
+    static FString FromInt( int32 Num, bool bMakeWideOutput = false )
+    {
+        FromNumeric_Define(int32);
+    }
+    static FString FromInt( int64 Num, bool bMakeWideOutput = false )
+    {
+        FromNumeric_Define(int64);
+    }
+    static FString FromInt( uint8 Num, bool bMakeWideOutput = false )
+    {
+        FromNumeric_Define(int16);
+    }
+    static FString FromInt( uint16 Num, bool bMakeWideOutput = false )
+    {
+        FromNumeric_Define(int32);
+    }
+    static FString FromInt( uint32 Num, bool bMakeWideOutput = false )
+    {
+        FromNumeric_Define(int64);
+    }
+    static FString FromFloat( float Num, bool bMakeWideOutput = false )
+    {
+        FromNumeric_Define(float);
+    }
+    static FString FromFloat( double Num, bool bMakeWideOutput = false )
+    {
+        FromNumeric_Define(double);
     }
 
     int32 Len() const
     {
-        return Data.length();
+        if (bIsWide) return DataWide.length();
+        return DataAnsi.length();
     }
 
     int32 AddUninitialized(int32 Count = 1)
     {
-        const int32 OldNum = Data.length();
-        Data.resize(Data.length() + Count);
+        int32 OldNum;
+        if (bIsWide)
+        {
+            OldNum = DataWide.length();
+            DataWide.resize(DataWide.length() + Count);
+        }
+        else
+        {
+            OldNum = DataAnsi.length();
+            DataAnsi.resize(DataAnsi.length() + Count);
+        }
         return OldNum;
     }
     void InsertUninitialized(int32 Index, int32 Count = 1)
     {
-        Data.resize(Data.length() + Count);
+        if (bIsWide)
+        {
+            DataWide.resize(DataWide.length() + Count);
+        }
+        else
+        {
+            DataAnsi.resize(DataAnsi.length() + Count);
+        }
     }
 
     FString() = default;
     FString(const FString& Other)
     {
-        Data = Other.Data;
+        if (Other.bIsWide)
+        {
+            bIsWide = true;
+            DataWide = Other.DataWide;
+        }
+        else
+        {
+            bIsWide = false;
+            DataAnsi = Other.DataAnsi;
+        }
     }
     explicit FString(const UTFCHAR* Other)
     {
-        Data = Other;
+        bIsWide = true;
+        DataWide = Other;
     }
     explicit FString(const ANSICHAR* Other)
     {
-        Data = StringToWString(Other);
+        bIsWide = false;
+        DataAnsi = Other;
     }
     explicit FString(const std::wstring& Other)
     {
-        Data = Other;
+        bIsWide = true;
+        DataWide = Other;
     }
     explicit FString(const std::string& Other)
     {
-        Data = StringToWString(Other);
+        bIsWide = false;
+        DataAnsi = Other;
     }
     FString(int32 InCount, const UTFCHAR* InSrc)
     {
+        bIsWide = true;
+
         AddUninitialized(InCount ? InCount + 1 : 0);
 
-        if(Data.length() > 0)
+        if (DataWide.length() > 0)
         {
             for (int32 i = InCount; i < InCount + 1; i++)
             {
-                Data[i] = InSrc[i - InCount];
+                DataWide[i] = InSrc[i - InCount];
+            }
+        }
+    }
+    FString(int32 InCount, const ANSICHAR* InSrc)
+    {
+        bIsWide = false;
+
+        AddUninitialized(InCount ? InCount + 1 : 0);
+
+        if (DataAnsi.length() > 0)
+        {
+            for (int32 i = InCount; i < InCount + 1; i++)
+            {
+                DataAnsi[i] = InSrc[i - InCount];
             }
         }
     }
     FString(const UTFCHAR* Other, uint32 Size)
     {
-        Data.resize(Size);
+        DataWide.resize(Size);
         for (int32 i = 0; i < Size; i++)
         {
-            Data[i] = Other[i];
+            DataWide[i] = Other[i];
         }
     }
     FString(const ANSICHAR* Other, uint32 Size)
     {
-        Data.resize(Size);
+        DataAnsi.resize(Size);
         for (int32 i = 0; i < Size; i++)
         {
-            Data[i] = Other[i];
+            DataAnsi[i] = Other[i];
         }
     }
     FString& operator=(const FString& Other) = default;
 
     FString& operator=(const UTFCHAR* Other)
     {
-        Data = Other;
+        bIsWide = true;
+        DataAnsi.clear();
+        DataWide = Other;
         return *this;
     }
     FString& operator=(const ANSICHAR* Other)
     {
-        Data = StringToWString(Other);
+        bIsWide = false;
+        DataWide.clear();
+        DataAnsi = Other;
         return *this;
     }
     FString& operator=(const std::wstring& Other)
     {
-        Data = Other;
+        bIsWide = true;
+        DataAnsi.clear();
+        DataWide = Other;
         return *this;
     }
     FString& operator=(const std::string& Other)
     {
-        Data = StringToWString(Other);
+        bIsWide = false;
+        DataWide.clear();
+        DataAnsi = Other;
         return *this;
     }
     bool operator==(const FString& Other)
     {
-        return 0 == Data.compare(Other.Data);
+        assert(bIsWide == Other.bIsWide);
+        if (bIsWide) return DataWide.compare(Other.DataWide) == 0;
+        return DataAnsi.compare(Other.DataAnsi) == 0;
     }
     bool operator!=(const FString& Other)
     {
-        return 0 == Data.compare(Other.Data);
+        if (bIsWide) return DataWide.compare(Other.DataWide) != 0;
+        return DataAnsi.compare(Other.DataAnsi) != 0;
     }
 
     const UTFCHAR* operator*() const
     {
-        return Data.data();
+        assert(bIsWide);
+        return DataWide.data();
     }
     FString& operator/= (const FString& Str)
     {
-        Data += L"/";
-        Data += Str.Data;
+        assert(bIsWide == Str.bIsWide);
+        if (bIsWide)
+        {
+            DataWide += L"/";
+            DataWide += Str.DataWide;
+        }
+        else
+        {
+            DataAnsi += "/";
+            DataAnsi += Str.DataAnsi;
+        }
         return *this;
     }
     FString& operator/= (const UTFCHAR* Str)
     {
-        Data += L"/";
-        Data += Str;
+        assert(bIsWide);
+        DataWide += L"/";
+        DataWide += Str;
         return *this;
     }
-    UTFCHAR& operator[] (uint32 Index)
+    FString& operator/= (const ANSICHAR* Str)
     {
-        return Data.at(Index);
+        assert(!bIsWide);
+        DataAnsi += "/";
+        DataAnsi += Str;
+        return *this;
     }
-    const UTFCHAR& operator[] (uint32 Index) const
-    {
-        return Data.at(Index);
-    }
+
     FString& operator+= (const FString& Str)
     {
-        Data += Str.Data;
+        assert(bIsWide == Str.bIsWide);
+        if (bIsWide)
+        {
+            DataWide += Str.DataWide;
+        }
+        else
+        {
+            DataAnsi += Str.DataAnsi;
+        }
         return *this;
     }
     FString& operator+= (const UTFCHAR* Str)
     {
-        Data += Str;
+        assert(bIsWide);
+        DataWide += Str;
         return *this;
     }
     FString& operator+= (UTFCHAR Character)
     {
-        Data += Character;
+        assert(bIsWide);
+        DataWide += Character;
         return *this;
+    }
+    FString& operator+= (const ANSICHAR* Str)
+    {
+        assert(!bIsWide);
+        DataAnsi += Str;
+        return *this;
+    }
+    FString& operator+= (ANSICHAR Character)
+    {
+        assert(!bIsWide);
+        DataAnsi += Character;
+        return *this;
+    }
+
+    const UTFCHAR* GetWideCharArray() const
+    {
+        assert(bIsWide);
+        return DataWide.data();
+    }
+    const ANSICHAR* GetAnsiCharArray() const
+    {
+        assert(!bIsWide);
+        return DataAnsi.data();
+    }
+    std::wstring GetWideCharString() const
+    {
+        assert(bIsWide);
+        return DataWide;
+    }
+    const std::string GetCharString() const
+    {
+        assert(!bIsWide);
+        return DataAnsi;
     }
 
     FString& Append(const UTFCHAR* Text, int32 Count)
     {
-        Data.append(Text);
+        assert(bIsWide);
+        DataWide.append(Text);
+        return *this;
+    }
+    FString& Append(const ANSICHAR* Text, int32 Count)
+    {
+        assert(!bIsWide);
+        DataAnsi.append(Text);
         return *this;
     }
     FString& Append(const FString& Text)
     {
-        Data.append(Text.Data);
+        assert(bIsWide == Text.bIsWide);
+        if (bIsWide)
+        {
+            DataWide.append(Text.DataWide);
+        }
+        else
+        {
+            DataAnsi.append(Text.DataAnsi);
+        }
         return *this;
     }
     FString& AppendChar(const UTFCHAR InChar)
     {
-        Data += InChar;
+        assert(bIsWide);
+        DataWide += InChar;
+        return *this;
+    }
+    FString& AppendChar(const ANSICHAR InChar)
+    {
+        assert(!bIsWide);
+        DataAnsi += InChar;
         return *this;
     }
     void AppendChars(const UTFCHAR* Array, uint32 Count)
     {
+        assert(bIsWide);
+
         if (Count <= 0) return;
-        int32 OldSize = Data.size();
-        Data.reserve(OldSize + Count);
+        int32 OldSize = DataWide.size();
+        DataWide.reserve(OldSize + Count);
         for (int32 i = 0; i < Count; i++)
         {
-            Data[OldSize + i] = Array[i];
+            DataWide[OldSize + i] = Array[i];
         }
     }
-    static FString FromInt( int8 Num )
+    void AppendChars(const ANSICHAR* Array, uint32 Count)
     {
-        std::wstringstream Stream;
-        Stream << Num;
-        return FString(Stream.str());
+        assert(!bIsWide);
+
+        if (Count <= 0) return;
+        int32 OldSize = DataAnsi.size();
+        DataAnsi.reserve(OldSize + Count);
+        for (int32 i = 0; i < Count; i++)
+        {
+            DataAnsi[OldSize + i] = Array[i];
+        }
     }
-    static FString FromInt( int16 Num )
-    {
-        std::wstringstream Stream;
-        Stream << Num;
-        return FString(Stream.str());
-    }
-    static FString FromInt( int32 Num )
-    {
-        std::wstringstream Stream;
-        Stream << Num;
-        return FString(Stream.str());
-    }
-    static FString FromInt( int64 Num )
-    {
-        std::wstringstream Stream;
-        Stream << Num;
-        return FString(Stream.str());
-    }
-    static FString FromInt( uint8 Num )
-    {
-        std::wstringstream Stream;
-        Stream << (int16)Num;
-        return FString(Stream.str());
-    }
-    static FString FromInt( uint16 Num )
-    {
-        std::wstringstream Stream;
-        Stream << (int32)Num;
-        return FString(Stream.str());
-    }
-    static FString FromInt( uint32 Num )
-    {
-        std::wstringstream Stream;
-        Stream << (int64)Num;
-        return FString(Stream.str());
-    }
-    static FString FromFloat( float Num )
-    {
-        std::wstringstream Stream;
-        Stream << Num;
-        return FString(Stream.str());
-    }
-    static FString FromFloat( double Num )
-    {
-        std::wstringstream Stream;
-        Stream << Num;
-        return FString(Stream.str());
-    }
+
+    #define Contains_Define( DataVariable, std_str ) \
+    if (SearchCase == ESearchCase::IgnoreCase) \
+    { \
+        std::std_str Tmp = DataVariable; \
+        std::std_str LookFor = SubStr; \
+        \
+        std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower); \
+        std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower); \
+        \
+        return SearchDir == ESearchDir::FromStart ? \
+               Tmp.find(LookFor) != std::std_str::npos : \
+               Tmp.rfind(LookFor) != std::std_str::npos; \
+    } \
+    return SearchDir == ESearchDir::FromStart ? \
+    DataVariable.find(SubStr) != std::std_str::npos : \
+            DataVariable.rfind(SubStr) != std::std_str::npos;
+
     bool Contains(const UTFCHAR* SubStr, int32 Size, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, ESearchDir::Type SearchDir = ESearchDir::FromStart)
     {
-        if (SearchCase == ESearchCase::IgnoreCase)
-        {
-            std::wstring Tmp = Data;
-            std::wstring LookFor = SubStr;
-
-            std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower);
-            std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower);
-
-            return SearchDir == ESearchDir::FromStart ?
-                   Tmp.find(LookFor) != std::wstring::npos :
-                    Tmp.rfind(LookFor) != std::wstring::npos;
-        }
-        return SearchDir == ESearchDir::FromStart ?
-               Data.find(SubStr) != std::wstring::npos :
-               Data.rfind(SubStr) != std::wstring::npos;
+        assert(bIsWide);
+        Contains_Define(DataWide, wstring);
+    }
+    bool Contains(const ANSICHAR* SubStr, int32 Size, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, ESearchDir::Type SearchDir = ESearchDir::FromStart)
+    {
+        assert(!bIsWide);
+        Contains_Define(DataAnsi, string);
     }
     bool Contains(const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, ESearchDir::Type SearchDir = ESearchDir::FromStart)
     {
-        return Contains(SubStr.Data.data(), SubStr.Data.length(), SearchCase, SearchDir);
+        assert(bIsWide == SubStr.bIsWide);
+        if (bIsWide)
+        {
+            return Contains(SubStr.DataWide.data(), SubStr.DataWide.length(), SearchCase, SearchDir);
+        }
+        return Contains(SubStr.DataAnsi.data(), SubStr.DataAnsi.length(), SearchCase, SearchDir);
     }
     void Empty(uint32 Slack = 0)
     {
-        Data.empty();
-        if (Slack > 0)
+        if (bIsWide)
         {
-            Data.resize(Slack);
+            DataWide.clear();
+            if (Slack > 0)
+            {
+                DataWide.resize(Slack);
+            }
+        }
+        else
+        {
+            DataAnsi.clear();
+            if (Slack > 0)
+            {
+                DataAnsi.resize(Slack);
+            }
         }
     }
+
+    #define EndsWith_Define( DataVariable, std_str ) \
+    if (Len >= DataVariable.length()) \
+    { \
+        if (SearchCase == ESearchCase::IgnoreCase) \
+        { \
+            std::std_str Tmp = DataVariable; \
+            std::std_str LookFor = InSuffix; \
+            \
+            std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower); \
+            std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower); \
+            \
+            for (uint32 i = Len - 1; i >= 0; i--) \
+            { \
+                if (LookFor.at(i) != Tmp.at(i)) \
+                { \
+                    return false; \
+                } \
+            } \
+        } \
+        else \
+        { \
+            for (uint32 i = Len - 1; i >= 0; i--) \
+            { \
+                if (InSuffix[i] != DataVariable.at(i)) \
+                { \
+                    return false; \
+                } \
+            } \
+        } \
+        return true; \
+    } \
+    return false;
+
     bool EndsWith(const UTFCHAR* InSuffix, uint32 Len, ESearchCase::Type SearchCase)
     {
-        if (Len >= Data.length())
-        {
-            if (SearchCase == ESearchCase::IgnoreCase)
-            {
-                std::wstring Tmp = Data;
-                std::wstring LookFor = InSuffix;
-
-                std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower);
-                std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower);
-
-                for (uint32 i = Len - 1; i >= 0; i--)
-                {
-                    if (LookFor.at(i) != Tmp.at(i))
-                    {
-                        return false;
-                    }
-                }
-            }
-            else
-            {
-                for (uint32 i = Len - 1; i >= 0; i--)
-                {
-                    if (InSuffix[i] != Data.at(i))
-                    {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
-        return false;
+        assert(bIsWide);
+        EndsWith_Define(DataWide, wstring);
+    }
+    bool EndsWith(const ANSICHAR* InSuffix, uint32 Len, ESearchCase::Type SearchCase)
+    {
+        assert(!bIsWide);
+        EndsWith_Define(DataAnsi, string);
     }
     bool EndsWith(const FString& InSuffix, ESearchCase::Type SearchCase)
     {
-        return EndsWith(InSuffix.Data.data(), InSuffix.Data.length(), SearchCase);
+        assert(bIsWide == InSuffix.bIsWide);
+        if (bIsWide)
+        {
+            return EndsWith(InSuffix.DataWide.data(), InSuffix.DataWide.length(), SearchCase);
+        }
+        return EndsWith(InSuffix.DataAnsi.data(), InSuffix.DataAnsi.length(), SearchCase);
     }
+
+    #define StartsWith_Define( DataVariable, std_str ) \
+    if (Len >= DataVariable.length()) \
+    { \
+        if (SearchCase == ESearchCase::IgnoreCase) \
+        { \
+            std::std_str Tmp = DataVariable; \
+            std::std_str LookFor = InPrefix; \
+             \
+            std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower); \
+            std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower); \
+             \
+            for (uint32 i = 0; i < Len; i++) \
+            { \
+                if (LookFor.at(i) != Tmp.at(i)) \
+                { \
+                    return false; \
+                } \
+            } \
+        } \
+        else \
+        { \
+            for (uint32 i = 0; i < Len; i++) \
+            { \
+                if (InPrefix[i] != DataVariable.at(i)) \
+                { \
+                    return false; \
+                } \
+            } \
+        } \
+        return true; \
+    } \
+    return false;
+
     bool StartsWith(const UTFCHAR* InPrefix, int32 Len, ESearchCase::Type SearchCase)
     {
-        if (Len >= Data.length())
-        {
-            if (SearchCase == ESearchCase::IgnoreCase)
-            {
-                std::wstring Tmp = Data;
-                std::wstring LookFor = InPrefix;
-
-                std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower);
-                std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower);
-
-                for (uint32 i = 0; i < Len; i++)
-                {
-                    if (LookFor.at(i) != Tmp.at(i))
-                    {
-                        return false;
-                    }
-                }
-            }
-            else
-            {
-                for (uint32 i = 0; i < Len; i++)
-                {
-                    if (InPrefix[i] != Data.at(i))
-                    {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
-        return false;
+        assert(bIsWide);
+        StartsWith_Define(DataWide, wstring);
+    }
+    bool StartsWith(const ANSICHAR* InPrefix, int32 Len, ESearchCase::Type SearchCase)
+    {
+        assert(!bIsWide);
+        StartsWith_Define(DataAnsi, string);
     }
     bool StartsWith(const FString& InSuffix, ESearchCase::Type SearchCase)
     {
-        return StartsWith(InSuffix.Data.data(), InSuffix.Data.length(), SearchCase);
+        assert(bIsWide == InSuffix.bIsWide);
+        if (bIsWide)
+        {
+            return StartsWith(InSuffix.DataWide.data(), InSuffix.DataWide.length(), SearchCase);
+        }
+        return StartsWith(InSuffix.DataAnsi.data(), InSuffix.DataAnsi.length(), SearchCase);
     }
-    const UTFCHAR* GetCharArray() const
-    {
-        return Data.data();
-    }
-    const std::string GetAnsiCharArray() const
-    {
-        return WStringToString(Data);
-    }
-    std::wstring GetRawData() const
-    {
-        return Data;
-    }
+
     void InsertAt(uint32 Index, UTFCHAR Character)
     {
-        Data.insert(Index, 1, Character);
+        assert(bIsWide);
+        DataWide.insert(Index, 1, Character);
+    }
+    void InsertAt(uint32 Index, ANSICHAR Character)
+    {
+        assert(!bIsWide);
+        DataAnsi.insert(Index, 1, Character);
     }
     void InsertAt(uint32 Index, const FString& Characters)
     {
-        Data.insert(Index, Characters.Data);
+        if (bIsWide)
+        {
+            DataWide.insert(Index, Characters.DataWide);
+        }
+        else
+        {
+            DataAnsi.insert(Index, Characters.DataAnsi);
+        }
     }
     bool IsEmpty()
     {
-        return Data.length() == 0;
+        if (bIsWide)
+        {
+            return DataWide.length() == 0;
+        }
+        return DataAnsi.length() == 0;
     }
+
+    #define IsNumeric_Define( DataVariable, std_str ) \
+    int32 DotCount = 0; \
+    std::std_str::const_iterator it = DataVariable.begin(); \
+    while (it != DataVariable.end() && (std::isdigit(*it) || (it == DataVariable.begin() && *it == '-') || *it == '.')) \
+    { \
+        if (*it == '.') \
+        { \
+            DotCount++; \
+        } \
+        ++it; \
+    } \
+    return !DataVariable.empty() && it == DataVariable.end() && DotCount <= 1;
+
     bool IsNumeric()
     {
-        int32 DotCount = 0;
-        std::wstring::const_iterator it = Data.begin();
-        while (it != Data.end() && (std::isdigit(*it) || (it == Data.begin() && *it == '-') || *it == '.'))
+        if (bIsWide)
         {
-            if (*it == '.')
-            {
-                DotCount++;
-            }
-            ++it;
+            IsNumeric_Define(DataWide, wstring);
         }
-        return !Data.empty() && it == Data.end() && DotCount <= 1;
+        IsNumeric_Define(DataAnsi, string);
     }
     bool IsValidIndex(uint32 Index)
     {
-        return Index >= 0 && Index < Data.length();
+        if (bIsWide)
+        {
+            return Index >= 0 && Index < DataWide.length();
+        }
+        return Index >= 0 && Index < DataAnsi.length();
     }
     FString Left(uint32 Count)
     {
-        return FString(Data.substr(0, Count));
+        if (bIsWide)
+        {
+            return FString(DataWide.substr(0, Count));
+        }
+        return FString(DataAnsi.substr(0, Count));
     }
     FString Right(uint32 FromIx)
     {
-        return FString(Data.substr(FromIx, Data.length() - FromIx));
+        if (bIsWide)
+        {
+            return FString(DataWide.substr(FromIx, DataWide.length() - FromIx));
+        }
+        return FString(DataAnsi.substr(FromIx, DataAnsi.length() - FromIx));
     }
     FString Mid(uint32 Start, uint32 Count) const
     {
-        return FString(Data.substr(Start, Count));
+        if (bIsWide)
+        {
+            return FString(DataWide.substr(Start, Count));
+        }
+        return FString(DataAnsi.substr(Start, Count));
     }
+
+    #define ParseIntoArray_Define_1( DataVariable, char_type, len_func, comp_func ) \
+    OutArray.Empty(); \
+    const char_type *Start = DataVariable.data(); \
+    const int32 Length = DataWide.length(); \
+    if (Start) \
+    { \
+        int32 SubstringBeginIndex = 0; \
+         \
+        for(int32 i = 0; i < DataVariable.length();) \
+        { \
+            int32 SubstringEndIndex = INDEX_NONE; \
+            uint32 DelimiterLength = 0; \
+             \
+            for (int32 DelimIndex = 0; DelimIndex < NumDelims; ++DelimIndex) \
+            { \
+                DelimiterLength = len_func(DelimArray[DelimIndex]); \
+                 \
+                if (comp_func(Start + i, DelimArray[DelimIndex], DelimiterLength) == 0) \
+                { \
+                    SubstringEndIndex = i; \
+                    break; \
+                } \
+            } \
+             \
+            if (SubstringEndIndex != INDEX_NONE) \
+            { \
+                const int32 SubstringLength = SubstringEndIndex - SubstringBeginIndex; \
+                if(!InCullEmpty || SubstringLength != 0) \
+                { \
+                    OutArray.Add(FString(SubstringEndIndex - SubstringBeginIndex, Start + SubstringBeginIndex)); \
+                } \
+                SubstringBeginIndex = SubstringEndIndex + DelimiterLength; \
+                i = SubstringBeginIndex; \
+            } \
+            else \
+            { \
+                ++i; \
+            } \
+        } \
+         \
+        const int32 SubstringLength = Length - SubstringBeginIndex; \
+        if(!InCullEmpty || SubstringLength != 0) \
+        { \
+            OutArray.Add(FString(Start + SubstringBeginIndex)); \
+        } \
+    } \
+    return OutArray.Num();
+
     int32 ParseIntoArray(TArray<FString>& OutArray, const UTFCHAR** DelimArray, int32 NumDelims, bool InCullEmpty) const
     {
-        // Make sure the delimit string is not null or empty
-        OutArray.Empty();
-        const UTFCHAR *Start = Data.data();
-        const int32 Length = Data.length();
-        if (Start)
-        {
-            int32 SubstringBeginIndex = 0;
-
-            // Iterate through string.
-            for(int32 i = 0; i < Data.length();)
-            {
-                int32 SubstringEndIndex = INDEX_NONE;
-                uint32 DelimiterLength = 0;
-
-                // Attempt each delimiter.
-                for(int32 DelimIndex = 0; DelimIndex < NumDelims; ++DelimIndex)
-                {
-                    DelimiterLength = wcslen(DelimArray[DelimIndex]);
-
-                    // If we found a delimiter...
-                    if (wcsncmp(Start + i, DelimArray[DelimIndex], DelimiterLength) == 0)
-                    {
-                        // Mark the end of the substring.
-                        SubstringEndIndex = i;
-                        break;
-                    }
-                }
-
-                if (SubstringEndIndex != INDEX_NONE)
-                {
-                    const int32 SubstringLength = SubstringEndIndex - SubstringBeginIndex;
-                    // If we're not culling empty strings or if we are but the string isn't empty anyways...
-                    if(!InCullEmpty || SubstringLength != 0)
-                    {
-                        // ... add new string from substring beginning up to the beginning of this delimiter.
-                        OutArray.Add(FString(SubstringEndIndex - SubstringBeginIndex, Start + SubstringBeginIndex));
-                    }
-                    // Next substring begins at the end of the discovered delimiter.
-                    SubstringBeginIndex = SubstringEndIndex + DelimiterLength;
-                    i = SubstringBeginIndex;
-                }
-                else
-                {
-                    ++i;
-                }
-            }
-
-            // Add any remaining characters after the last delimiter.
-            const int32 SubstringLength = Length - SubstringBeginIndex;
-            // If we're not culling empty strings or if we are but the string isn't empty anyways...
-            if(!InCullEmpty || SubstringLength != 0)
-            {
-                // ... add new string from substring beginning up to the beginning of this delimiter.
-                OutArray.Add(FString(Start + SubstringBeginIndex));
-            }
-        }
-
-        return OutArray.Num();
+        assert(bIsWide);
+        ParseIntoArray_Define_1(DataWide, UTFCHAR, wcslen, wcsncmp);
     }
+    int32 ParseIntoArray(TArray<FString>& OutArray, const ANSICHAR** DelimArray, int32 NumDelims, bool InCullEmpty) const
+    {
+        assert(!bIsWide);
+        ParseIntoArray_Define_1(DataAnsi, ANSICHAR, strlen, strncmp);
+    }
+
+    #define ParseIntoArray_Define_2( DataVariable, char_type, len_func, strstr_func ) \
+    OutArray.Reset(); \
+    const char_type* Start = DataVariable.data(); \
+    const int32 DelimLength = len_func(pchDelim); \
+    if (Start && DelimLength) \
+    { \
+        while (const char_type *At = strstr_func(Start,pchDelim) ) \
+        { \
+            if (!InCullEmpty || At-Start) \
+            { \
+                OutArray.Emplace(At-Start,Start); \
+            } \
+            Start = At + DelimLength; \
+        } \
+        if (!InCullEmpty || *Start) \
+        { \
+            OutArray.Emplace(Start); \
+        } \
+    } \
+    return OutArray.Num();
+
     int32 ParseIntoArray(TArray<FString>& OutArray, const UTFCHAR* pchDelim, bool InCullEmpty)
     {
-        OutArray.Reset();
-        const UTFCHAR* Start = Data.data();
-        const int32 DelimLength = wcslen(pchDelim);
-        if (Start && DelimLength)
-        {
-            while(const UTFCHAR *At = wcsstr(Start,pchDelim) )
-            {
-                if (!InCullEmpty || At-Start)
-                {
-                    OutArray.Emplace(At-Start,Start);
-                }
-                Start = At + DelimLength;
-            }
-            if (!InCullEmpty || *Start)
-            {
-                OutArray.Emplace(Start);
-            }
-        }
-        return OutArray.Num();
+        assert(bIsWide);
+        ParseIntoArray_Define_2(DataWide, UTFCHAR, wcslen, wcsstr);
     }
+    int32 ParseIntoArray(TArray<FString>& OutArray, const ANSICHAR* pchDelim, bool InCullEmpty)
+    {
+        assert(!bIsWide);
+        ParseIntoArray_Define_2(DataAnsi, ANSICHAR, strlen, strstr);
+    }
+
     int32 ParseIntoArrayWS(TArray<FString>& OutArray, const UTFCHAR* pchExtraDelim, bool InCullEmpty) const
     {
-        static const UTFCHAR* WhiteSpace[] =
-        {
-            L" ",
-            L"\t",
-            L"\r",
-            L"\n",
-            L""
-        };
+        assert(bIsWide);
 
-        // start with just the standard whitespaces
+        static const UTFCHAR* WhiteSpace[] = { L" ", L"\t", L"\r", L"\n", L"" };
         int32 NumWhiteSpaces = 4;
-        // if we got one passed in, use that in addition
+        if (pchExtraDelim && *pchExtraDelim)
+        {
+            WhiteSpace[NumWhiteSpaces++] = pchExtraDelim;
+        }
+        return ParseIntoArray(OutArray, WhiteSpace, NumWhiteSpaces, InCullEmpty);
+    }
+    int32 ParseIntoArrayWS(TArray<FString>& OutArray, const ANSICHAR* pchExtraDelim, bool InCullEmpty) const
+    {
+        assert(!bIsWide);
+
+        static const ANSICHAR* WhiteSpace[] = { " ", "\t", "\r", "\n", "" };
+        int32 NumWhiteSpaces = 4;
         if (pchExtraDelim && *pchExtraDelim)
         {
             WhiteSpace[NumWhiteSpaces++] = pchExtraDelim;
@@ -587,141 +869,218 @@ public:
 
     int32 ParseIntoArrayLines(TArray<FString>& OutArray, bool InCullEmpty) const
     {
-        // default array of LineEndings
-        static const UTFCHAR* LineEndings[] =
-        {
-            L"\r\n",
-            L"\r",
-            L"\n"
-        };
+        static const UTFCHAR* Wide_LineEndings[] = { L"\r\n", L"\r", L"\n" };
+        static const ANSICHAR* Ansi_LineEndings[] = { "\r\n", "\r", "\n" };
+        static const int32 NumLineEndings = 3;
 
-        // start with just the standard line endings
-        int32 NumLineEndings = 3;
-        return ParseIntoArray(OutArray, LineEndings, NumLineEndings, InCullEmpty);
+        if (bIsWide)
+        {
+            return ParseIntoArray(OutArray, Wide_LineEndings, NumLineEndings, InCullEmpty);
+        }
+        return ParseIntoArray(OutArray, Ansi_LineEndings, NumLineEndings, InCullEmpty);
     }
     void RemoveAt(uint32 Index, uint32 Count)
     {
-        Data.erase(Index, Count);
+        if (bIsWide)
+        {
+            DataWide.erase(Index, Count);
+        }
+        else
+        {
+            DataAnsi.erase(Index, Count);
+        }
     }
+
+    #define RemoveFromEnd_Define( DataVariable, std_str, empty_char ) \
+    if (SearchCase == ESearchCase::IgnoreCase) \
+    { \
+        std::std_str Tmp = DataVariable; \
+        std::std_str LookFor = InSuffix.DataVariable; \
+         \
+        std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower); \
+        std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower); \
+         \
+        uint32 Pos = Tmp.rfind(LookFor); \
+        if (Pos != std::std_str::npos) \
+        { \
+            DataVariable.replace(Pos, LookFor.length(), empty_char); \
+            return true; \
+        } \
+    } \
+    else \
+    { \
+        uint32 Pos = DataVariable.rfind(InSuffix.DataVariable); \
+        if (Pos != std::wstring::npos) \
+        { \
+            (DataVariable).replace(Pos, InSuffix.DataVariable.length(), empty_char); \
+            return true; \
+        } \
+    } \
+    return false;
+
     bool RemoveFromEnd(const FString& InSuffix, ESearchCase::Type SearchCase)
     {
-        if (SearchCase == ESearchCase::IgnoreCase)
+        if (bIsWide)
         {
-            std::wstring Tmp = Data;
-            std::wstring LookFor = InSuffix.Data;
-
-            std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower);
-            std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower);
-
-            uint32 Pos = Tmp.rfind(LookFor);
-            if (Pos != std::wstring::npos)
-            {
-                Data.replace(Pos, LookFor.length(), L"");
-                return true;
-            }
+            RemoveFromEnd_Define(DataWide, wstring, L"");
         }
-        else
-        {
-            uint32 Pos = Data.rfind(InSuffix.Data);
-            if (Pos != std::wstring::npos)
-            {
-                Data.replace(Pos, InSuffix.Data.length(), L"");
-                return true;
-            }
-        }
-        return false;
+        RemoveFromEnd_Define(DataAnsi, string, "");
     }
+
+    #define RemoveFromStart_Define( DataVariable, std_str, empty_char ) \
+    if (SearchCase == ESearchCase::IgnoreCase) \
+    { \
+        std::std_str Tmp = DataVariable; \
+        std::std_str LookFor = InPrefix.DataVariable; \
+         \
+        std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower); \
+        std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower); \
+         \
+        uint32 Pos = Tmp.find(LookFor); \
+        if (Pos != std::std_str::npos) \
+        { \
+            DataVariable.replace(Pos, LookFor.length(), empty_char); \
+            return true; \
+        } \
+    } \
+    else \
+    { \
+        auto Pos = DataVariable.find(InPrefix.DataVariable); \
+        if (Pos != std::std_str::npos) \
+        { \
+            DataVariable.replace(Pos, InPrefix.DataVariable.length(), empty_char); \
+            return true; \
+        } \
+    } \
+    return false;
+
     bool RemoveFromStart(const FString& InPrefix, ESearchCase::Type SearchCase)
     {
-        if (SearchCase == ESearchCase::IgnoreCase)
+        if (bIsWide)
         {
-            std::wstring Tmp = Data;
-            std::wstring LookFor = InPrefix.Data;
-
-            std::transform(Tmp.begin(), Tmp.end(), Tmp.begin(), ::tolower);
-            std::transform(LookFor.begin(), LookFor.end(), LookFor.begin(), ::tolower);
-
-            uint32 Pos = Tmp.find(LookFor);
-            if (Pos != std::wstring::npos)
-            {
-                Data.replace(Pos, LookFor.length(), L"");
-                return true;
-            }
+            RemoveFromStart_Define(DataWide, wstring, L"");
         }
-        else
-        {
-            auto Pos = Data.find(InPrefix.Data);
-            if (Pos != std::wstring::npos)
-            {
-                Data.replace(Pos, InPrefix.Data.length(), L"");
-                return true;
-            }
-        }
-        return false;
+        RemoveFromStart_Define(DataAnsi, string, "");
     }
+
+    #define Replace_Define( DataVariable, std_str ) \
+    std::std_str NewData = DataVariable; \
+     \
+    std::std_str FromString = From; \
+    std::std_str ToString = To; \
+     \
+    if (SearchCase == ESearchCase::IgnoreCase) \
+    { \
+        std::std_str Tmp; \
+        std::transform(NewData.begin(), NewData.end(), Tmp.begin(), ::tolower); \
+        std::transform(FromString.begin(), FromString.end(), FromString.begin(), ::tolower); \
+         \
+        auto Pos = Tmp.find(From); \
+        while (Pos != std::std_str::npos) \
+        { \
+            NewData.replace(Pos, FromString.size(), ToString); \
+            Pos = Tmp.find(FromString); \
+        } \
+    } \
+    else \
+    { \
+        size_t Pos = NewData.find(FromString); \
+        if(Pos != std::string::npos) \
+        { \
+            NewData.replace(Pos, FromString.length(), ToString); \
+        } \
+    } \
+    return FString(NewData);
+
     FString Replace(const UTFCHAR* From, const UTFCHAR* To, ESearchCase::Type SearchCase)
     {
-        std::wstring NewData = Data;
+        assert(bIsWide);
+        Replace_Define(DataWide, wstring);
+    }
+    FString Replace(const ANSICHAR* From, const ANSICHAR* To, ESearchCase::Type SearchCase)
+    {
+        assert(!bIsWide);
+        Replace_Define(DataAnsi, string);
+    }
 
-        std::wstring FromString = From;
-        std::wstring ToString = To;
-
-        if (SearchCase == ESearchCase::IgnoreCase)
+    void Reserve(uint32 CharacterCount)
+    {
+        if (bIsWide)
         {
-            std::wstring Tmp;
-            std::transform(NewData.begin(), NewData.end(), Tmp.begin(), ::tolower);
-            std::transform(FromString.begin(), FromString.end(), FromString.begin(), ::tolower);
-
-            auto Pos = Tmp.find(From);
-            while (Pos != std::wstring::npos)
-            {
-                NewData.replace(Pos, FromString.size(), ToString);
-                Pos = Tmp.find(FromString);
-            }
+            DataWide.reserve(CharacterCount);
         }
         else
         {
-            size_t Pos = NewData.find(FromString);
-            if(Pos != std::string::npos)
-            {
-                NewData.replace(Pos, FromString.length(), ToString);
-            }
+            DataAnsi.reserve(CharacterCount);
         }
-        return FString(NewData);
-    }
-    void Reserve(uint32 CharacterCount)
-    {
-        Data.reserve(CharacterCount);
     }
     void Reset()
     {
-        Data.empty();
+        if (bIsWide)
+        {
+            DataWide.empty();
+        }
+        else
+        {
+            DataAnsi.empty();
+        }
     }
     void ReverseString()
     {
-        std::reverse(Data.begin(), Data.end());
+        if (bIsWide)
+        {
+            std::reverse(DataWide.begin(), DataWide.end());
+        }
+        else
+        {
+            std::reverse(DataAnsi.begin(), DataAnsi.end());
+        }
     }
     FString ToLower()
     {
-        std::wstring NewData = Data;
+        if (bIsWide)
+        {
+            std::wstring NewData = DataWide;
+            std::transform(NewData.begin(), NewData.end(), NewData.begin(), ::tolower);
+            return FString(NewData);
+        }
+        std::string NewData = DataAnsi;
         std::transform(NewData.begin(), NewData.end(), NewData.begin(), ::tolower);
         return FString(NewData);
     }
     FString ToUpper()
     {
-        std::wstring NewData = Data;
+        if (bIsWide)
+        {
+            std::wstring NewData = DataWide;
+            std::transform(NewData.begin(), NewData.end(), NewData.begin(), ::tolower);
+            return FString(NewData);
+        }
+        std::string NewData = DataAnsi;
         std::transform(NewData.begin(), NewData.end(), NewData.begin(), ::tolower);
         return FString(NewData);
     }
     FString TrimTrailing()
     {
-        auto last = Data.find_last_not_of(' ');
-        return FString(Data.substr(0, last + 1));
+        if (bIsWide)
+        {
+            auto last = DataWide.find_last_not_of(' ');
+            return FString(DataWide.substr(0, last + 1));
+        }
+        auto last = DataAnsi.find_last_not_of(' ');
+        return FString(DataAnsi.substr(0, last + 1));
     }
     bool FindLastChar(UTFCHAR InChar, int32& Index) const
     {
-        Index = Data.find_last_of(InChar);
+        assert(bIsWide);
+        Index = DataWide.find_last_of(InChar);
         return Index != std::wstring::npos;
+    }
+    bool FindLastChar(ANSICHAR InChar, int32& Index) const
+    {
+        assert(!bIsWide);
+        Index = DataAnsi.find_last_of(InChar);
+        return Index != std::string::npos;
     }
 
 #if PLATFORM_WINDOWS
@@ -745,22 +1104,18 @@ public:
         return NewString;
     }
 #endif
-
-    typedef UTFCHAR* iterator;
-    typedef const UTFCHAR* const_iterator;
-    iterator begin() { return &Data[0]; }
-    const_iterator begin() const { return &Data[0]; }
-    iterator end() { return &Data[Data.length()]; }
-    const_iterator end() const { return &Data[Data.size()]; }
 };
 
 inline FString operator+ (const FString& Left, const FString& Right)
 {
+    assert(Left.IsWide() == Right.IsWide());
+
     FString NewString = Left;
     NewString += Right;
     return NewString;
 }
 
-#define EMPTY_FSTRING FString(L"")
+#define EMPTY_FSTRING_UTF8 FString(L"")
+#define EMPTY_FSTRING_ANSI FString("")
 
 #endif //Pragma_Once_WString

@@ -12,20 +12,20 @@
 #include <unordered_set>
 #include <iostream>
 
-class UWHTTPServer : public UWAsyncTaskParameter
+class WHTTPServer : public WAsyncTaskParameter
 {
 
 public:
     bool StartSystem(uint16 Port, uint32 TimeoutMs);
     void EndSystem();
 
-    explicit UWHTTPServer(std::function<void(UWHTTPAcceptedClient*)> Callback)
+    explicit WHTTPServer(std::function<void(WHTTPAcceptedClient*)> Callback)
     {
         HTTPListenCallback = std::move(Callback);
     }
 
 private:
-    UWHTTPServer() = default;
+    WHTTPServer() = default;
 
     bool bSystemStarted = false;
 
@@ -45,7 +45,7 @@ private:
     void ListenSocket();
     uint32 ListenerStopped();
 
-    std::function<void(UWHTTPAcceptedClient*)> HTTPListenCallback;
+    std::function<void(WHTTPAcceptedClient*)> HTTPListenCallback;
 
     WThread* HTTPSystemThread{};
 };

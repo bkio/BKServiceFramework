@@ -5,13 +5,13 @@
 #include "WHTTPServer.h"
 #include "WMath.h"
 
-bool UWHTTPServer::InitializeSocket(uint16 Port)
+bool WHTTPServer::InitializeSocket(uint16 Port)
 {
 #if PLATFORM_WINDOWS
     WSADATA WSAData{};
     if (WSAStartup(0x202, &WSAData) != 0)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPServer: WSAStartup() failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        WUtilities::Print(EWLogType::Error, FString("WHTTPServer: WSAStartup() failed with error: ") + WUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
@@ -21,14 +21,14 @@ bool UWHTTPServer::InitializeSocket(uint16 Port)
 #if PLATFORM_WINDOWS
     if (HTTPSocket == INVALID_SOCKET)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPServer: Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        WUtilities::Print(EWLogType::Error, FString("WHTTPServer: Socket initialization failed with error: ") + WUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
 #else
     if (HTTPSocket == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPServer: Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        WUtilities::Print(EWLogType::Error, FString("WHTTPServer: Socket initialization failed with error: ") + WUtilities::WGetSafeErrorMessage());
         return false;
     }
 #endif
@@ -46,7 +46,7 @@ bool UWHTTPServer::InitializeSocket(uint16 Port)
     int32 ret = bind(HTTPSocket, (struct sockaddr*)&HTTPServer, sizeof(HTTPServer));
     if (ret == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWHTTPServer: Socket binding failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        WUtilities::Print(EWLogType::Error, FString("WHTTPServer: Socket binding failed with error: ") + WUtilities::WGetSafeErrorMessage());
 #if PLATFORM_WINDOWS
         WSACleanup();
 #endif
@@ -55,7 +55,7 @@ bool UWHTTPServer::InitializeSocket(uint16 Port)
 
     return true;
 }
-void UWHTTPServer::CloseSocket()
+void WHTTPServer::CloseSocket()
 {
 #if PLATFORM_WINDOWS
     closesocket(HTTPSocket);
@@ -66,7 +66,7 @@ void UWHTTPServer::CloseSocket()
 #endif
 }
 
-void UWHTTPServer::ListenSocket()
+void WHTTPServer::ListenSocket()
 {
     while (bSystemStarted)
     {
@@ -103,16 +103,16 @@ void UWHTTPServer::ListenSocket()
             continue;
         }
 
-        TArray<UWAsyncTaskParameter*> PassParameters;
+        TArray<WAsyncTaskParameter*> PassParameters;
         PassParameters.Add(this);
-        PassParameters.Add(new UWHTTPAcceptedClient(ClientSocket, Client, TimeoutInMs));
+        PassParameters.Add(new WHTTPAcceptedClient(ClientSocket, Client, TimeoutInMs));
 
-        WFutureAsyncTask TaskLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+        WFutureAsyncTask TaskLambda = [](TArray<WAsyncTaskParameter*> TaskParameters)
         {
             if (TaskParameters.Num() >= 2 && TaskParameters[0] && TaskParameters[1])
             {
-                auto ServerInstance = reinterpret_cast<UWHTTPServer*>(TaskParameters[0]);
-                auto Parameter = reinterpret_cast<UWHTTPAcceptedClient*>(TaskParameters[1]);
+                auto ServerInstance = reinterpret_cast<WHTTPServer*>(TaskParameters[0]);
+                auto Parameter = reinterpret_cast<WHTTPAcceptedClient*>(TaskParameters[1]);
                 if (!ServerInstance || !ServerInstance->bSystemStarted || !ServerInstance->HTTPListenCallback)
                 {
                     if (Parameter)
@@ -129,18 +129,18 @@ void UWHTTPServer::ListenSocket()
                 }
             }
         };
-        UWAsyncTaskManager::NewAsyncTask(TaskLambda, PassParameters, true);
+        WAsyncTaskManager::NewAsyncTask(TaskLambda, PassParameters, true);
     }
 }
-uint32 UWHTTPServer::ListenerStopped()
+uint32 WHTTPServer::ListenerStopped()
 {
     if (!bSystemStarted) return 0;
     if (HTTPSystemThread) delete (HTTPSystemThread);
-    HTTPSystemThread = new WThread(std::bind(&UWHTTPServer::ListenSocket, this), std::bind(&UWHTTPServer::ListenerStopped, this));
+    HTTPSystemThread = new WThread(std::bind(&WHTTPServer::ListenSocket, this), std::bind(&WHTTPServer::ListenerStopped, this));
     return 0;
 }
 
-bool UWHTTPServer::StartSystem(uint16 Port, uint32 TimeoutMs)
+bool WHTTPServer::StartSystem(uint16 Port, uint32 TimeoutMs)
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
@@ -148,13 +148,13 @@ bool UWHTTPServer::StartSystem(uint16 Port, uint32 TimeoutMs)
     TimeoutInMs = TimeoutMs == 0 ? 2500 : TimeoutMs;
     if (InitializeSocket(Port))
     {
-        HTTPSystemThread = new WThread(std::bind(&UWHTTPServer::ListenSocket, this), std::bind(&UWHTTPServer::ListenerStopped, this));
+        HTTPSystemThread = new WThread(std::bind(&WHTTPServer::ListenSocket, this), std::bind(&WHTTPServer::ListenerStopped, this));
         return true;
     }
     return false;
 }
 
-void UWHTTPServer::EndSystem()
+void WHTTPServer::EndSystem()
 {
     if (!bSystemStarted) return;
     bSystemStarted = false;

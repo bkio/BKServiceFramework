@@ -31,6 +31,8 @@ set(SOURCE_FILES ${Public_Files} ${Private_Files})
 
 add_library(WUDPModule SHARED ${SOURCE_FILES})
 
+set_target_properties(WUDPModule PROPERTIES LINKER_LANGUAGE CXX)
+
 if(WIN32)
     target_link_libraries(WUDPModule ws2_32.lib)
     MESSAGE(STATUS "Platform: Windows")

@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
-project(WHTTPModule)
+project(WServiceDiscoveryModule)
 
 #Dependencies Start
-set(WDepModsOf_WHTTPModule WUtilitiesModule)
+set(WDepModsOf_WServiceDiscoveryModule WUtilitiesModule;WUDPModule)
 #Dependencies End
 
 if(WIN32)
@@ -21,26 +21,23 @@ include_directories(Private)
 file(GLOB Public_Files
         "Public/*.h"
         "Public/*.cpp"
+        "Public/*/*.h"
+        "Public/*/*.cpp"
         )
 file(GLOB Private_Files
         "Private/*.h"
         "Private/*.cpp"
+        "Private/*/*.h"
+        "Private/*/*.cpp"
         )
 
 set(SOURCE_FILES ${Public_Files} ${Private_Files})
 
-add_library(WHTTPModule SHARED ${SOURCE_FILES})
+add_library(WServiceDiscoveryModule SHARED ${SOURCE_FILES})
 
-set_target_properties(WHTTPModule PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(WServiceDiscoveryModule PROPERTIES LINKER_LANGUAGE CXX)
 
-if(WIN32)
-    target_link_libraries(WHTTPModule ws2_32.lib)
-    MESSAGE(STATUS "Platform: Windows")
-else()
-    MESSAGE(STATUS "Platform: Non-Windows")
-endif()
-
-foreach(WModule ${WDepModsOf_WHTTPModule})
+foreach(WModule ${WDepModsOf_WServiceDiscoveryModule})
     include_directories(${WModule}/Public)
-    target_link_libraries(WHTTPModule ${WModule})
+    target_link_libraries(WServiceDiscoveryModule ${WModule})
 endforeach()

@@ -12,22 +12,22 @@
     #include <sys/socket.h>
 #endif
 #include "../Private/WUDPHelper.h"
-#include "../Private/WUDPHandler.h"
+#include "WUDPHandler.h"
 
-class UWUDPServer : public UWAsyncTaskParameter
+class WUDPServer : public WAsyncTaskParameter
 {
 
 public:
     bool StartSystem(uint16 Port);
     void EndSystem();
 
-    explicit UWUDPServer(std::function<void(UWUDPHandler* HandlerInstance, UWUDPTaskParameter*)> Callback)
+    explicit WUDPServer(std::function<void(WUDPHandler* HandlerInstance, WUDPTaskParameter*)> Callback)
     {
         UDPListenCallback = std::move(Callback);
     }
 
 private:
-    UWUDPServer() = default;
+    WUDPServer() = default;
 
     bool bSystemStarted = false;
 
@@ -39,14 +39,14 @@ private:
     int32 UDPSocket{};
 #endif
 
-    UWUDPHandler* UDPHandler = nullptr;
+    WUDPHandler* UDPHandler = nullptr;
 
     bool InitializeSocket(uint16 Port);
     void CloseSocket();
     void ListenSocket();
     uint32 ListenerStopped();
 
-    std::function<void(UWUDPHandler* HandlerInstance, UWUDPTaskParameter*)> UDPListenCallback = nullptr;
+    std::function<void(WUDPHandler* HandlerInstance, WUDPTaskParameter*)> UDPListenCallback = nullptr;
 
     WThread* UDPSystemThread = nullptr;
 };

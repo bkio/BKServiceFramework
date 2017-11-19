@@ -6,18 +6,19 @@
 #include "WScheduledTaskManager.h"
 #include "WUDPServer.h"
 #include "WUDPClient.h"
+#include "WUDPHandler.h"
 #include "WHTTPServer.h"
 #include "WHTTPClient.h"
 
-UWHTTPServer* HTTPServerInstance = nullptr;
-UWUDPServer* UDPServerInstance = nullptr;
+WHTTPServer* HTTPServerInstance = nullptr;
+WUDPServer* UDPServerInstance = nullptr;
 
 void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
 {
-    UWAsyncTaskManager::StartSystem(5);
-    UWScheduledAsyncTaskManager::StartSystem(20);
+    WAsyncTaskManager::StartSystem(5);
+    WScheduledAsyncTaskManager::StartSystem(20);
 
-    UDPServerInstance = new UWUDPServer([](UWUDPHandler* HandlerInstance, UWUDPTaskParameter* Parameter)
+    UDPServerInstance = new WUDPServer([](WUDPHandler* HandlerInstance, WUDPTaskParameter* Parameter)
     {
         if (HandlerInstance && Parameter && Parameter->OtherParty)
         {
@@ -38,7 +39,7 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
     });
     UDPServerInstance->StartSystem(UDPServerPort);
 
-    HTTPServerInstance = new UWHTTPServer([](UWHTTPAcceptedClient* Parameter)
+    HTTPServerInstance = new WHTTPServer([](WHTTPAcceptedClient* Parameter)
     {
         if (Parameter && Parameter->Initialize())
         {
@@ -54,11 +55,11 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
     });
     HTTPServerInstance->StartSystem(HTTPServerPort, 2500);
 
-    UWSystemManager::StartSystem();
+    WSystemManager::StartSystem();
 }
 void Stop()
 {
-    UWSystemManager::EndSystem();
+    WSystemManager::EndSystem();
 
     if (HTTPServerInstance)
     {
@@ -72,8 +73,8 @@ void Stop()
         delete (UDPServerInstance);
     }
 
-    UWScheduledAsyncTaskManager::EndSystem();
-    UWAsyncTaskManager::EndSystem();
+    WScheduledAsyncTaskManager::EndSystem();
+    WAsyncTaskManager::EndSystem();
 }
 void Quit()
 {
@@ -82,43 +83,43 @@ void Quit()
 
 void SendPingToGoogle()
 {
-    WFutureAsyncTask RequestLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+    WFutureAsyncTask RequestLambda = [](TArray<WAsyncTaskParameter*> TaskParameters)
     {
         if (TaskParameters.Num() > 0 && TaskParameters[0])
         {
-            if (auto Request = reinterpret_cast<UWHTTPClient*>(TaskParameters[0]))
+            if (auto Request = reinterpret_cast<WHTTPClient*>(TaskParameters[0]))
             {
                 if (Request->ProcessRequest())
                 {
                     FString Response = FString(Request->GetResponsePayload());
-                    UWUtilities::Print(EWLogType::Log, FString(L"Response length from Google: ") + FString::FromInt(Response.Len()));
+                    WUtilities::Print(EWLogType::Log, FString("Response length from Google: ") + FString::FromInt(Response.Len()));
                 }
                 else
                 {
-                    UWUtilities::Print(EWLogType::Error, FString(L"Ping send request to Google has failed."));
+                    WUtilities::Print(EWLogType::Error, FString("Ping send request to Google has failed."));
                 }
 
                 if (Request->DestroyApproval()) delete (Request);
             }
         }
     };
-    WFutureAsyncTask TimeoutLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+    WFutureAsyncTask TimeoutLambda = [](TArray<WAsyncTaskParameter*> TaskParameters)
     {
         if (TaskParameters.Num() > 0 && TaskParameters[0])
         {
-            if (auto Request = reinterpret_cast<UWHTTPClient*>(TaskParameters[0]))
+            if (auto Request = reinterpret_cast<WHTTPClient*>(TaskParameters[0]))
             {
                 Request->CancelRequest();
                 if (Request->DestroyApproval()) delete (Request);
             }
         }
     };
-    UWHTTPClient::NewHTTPRequest("google.com", 80, L"Ping...", "GET", "", DEFAULT_HTTP_REQUEST_HEADERS, DEFAULT_TIMEOUT_MS, RequestLambda, TimeoutLambda);
+    WHTTPClient::NewHTTPRequest("google.com", 80, L"Ping...", "GET", "", DEFAULT_HTTP_REQUEST_HEADERS, DEFAULT_TIMEOUT_MS, RequestLambda, TimeoutLambda);
 }
 
 void SendUDPPacketToServer()
 {
-    WUDPClient_DataReceived DataReceivedLambda = [](UWUDPClient* UDPClient, WJson::Node Parameter)
+    WUDPClient_DataReceived DataReceivedLambda = [](WUDPClient* UDPClient, WJson::Node Parameter)
     {
         if (UDPClient && UDPClient->GetUDPHandler())
         {
@@ -129,7 +130,7 @@ void SendUDPPacketToServer()
             WrappedData.DeallocateValue();
         }
     };
-    UWUDPClient* UDPClient = UWUDPClient::NewUDPClient("127.0.0.1", 45000, DataReceivedLambda);
+    WUDPClient* UDPClient = WUDPClient::NewUDPClient("127.0.0.1", 45000, DataReceivedLambda);
     if (UDPClient && UDPClient->GetUDPHandler())
     {
         WJson::Node DataToSend = WJson::Node(WJson::Node::T_OBJECT);
@@ -147,17 +148,17 @@ int main(int argc, char* argv[])
 {
     setlocale(LC_CTYPE, "");
 
-    UWUtilities::Print(EWLogType::Log, FString(L"Application has started."));
+    WUtilities::Print(EWLogType::Log, FString("Application has started."));
 
-    UWUtilities::Print(EWLogType::Log, FString(L"Commands:"));
-    UWUtilities::Print(EWLogType::Log, FString(L"__________________"));
-    UWUtilities::Print(EWLogType::Log, FString(L"0: Exit"));
-    UWUtilities::Print(EWLogType::Log, FString(L"1: Start"));
-    UWUtilities::Print(EWLogType::Log, FString(L"2: Stop"));
-    UWUtilities::Print(EWLogType::Log, FString(L"3: Restart"));
-    UWUtilities::Print(EWLogType::Log, FString(L"4: Send ping to Google"));
-    UWUtilities::Print(EWLogType::Log, FString(L"5: Send reliable packet to UDP Server"));
-    UWUtilities::Print(EWLogType::Log, FString(L"__________________"));
+    WUtilities::Print(EWLogType::Log, FString("Commands:"));
+    WUtilities::Print(EWLogType::Log, FString("__________________"));
+    WUtilities::Print(EWLogType::Log, FString("0: Exit"));
+    WUtilities::Print(EWLogType::Log, FString("1: Start"));
+    WUtilities::Print(EWLogType::Log, FString("2: Stop"));
+    WUtilities::Print(EWLogType::Log, FString("3: Restart"));
+    WUtilities::Print(EWLogType::Log, FString("4: Send ping to Google"));
+    WUtilities::Print(EWLogType::Log, FString("5: Send reliable packet to UDP Server"));
+    WUtilities::Print(EWLogType::Log, FString("__________________"));
 
     uint16 HTTP_Port = 8000;
     if (const ANSICHAR* HTTP_Port_String = std::getenv("W_HTTP_SERVER_PORT"))
@@ -170,7 +171,7 @@ int main(int argc, char* argv[])
         UDP_Port = FString::ConvertToInteger<uint16>(UDP_Port_String);
     }
 
-    UWUtilities::Print(EWLogType::Log, FString(L"Auto-start. HTTP Port: ") + FString::FromInt(HTTP_Port) + FString(L", UDP Port: ") + FString::FromInt(UDP_Port));
+    WUtilities::Print(EWLogType::Log, FString("Auto-start. HTTP Port: ") + FString::FromInt(HTTP_Port) + FString(", UDP Port: ") + FString::FromInt(UDP_Port));
     Start(HTTP_Port, UDP_Port);
 
     int32 Signal;
@@ -185,18 +186,18 @@ int main(int argc, char* argv[])
         else if (Signal == 1)
         {
             Start(HTTP_Port, UDP_Port);
-            UWUtilities::Print(EWLogType::Log, FString(L"System started."));
+            WUtilities::Print(EWLogType::Log, FString("System started."));
         }
         else if (Signal == 2)
         {
             Stop();
-            UWUtilities::Print(EWLogType::Log, FString(L"System stopped."));
+            WUtilities::Print(EWLogType::Log, FString("System stopped."));
         }
         else if (Signal == 3)
         {
             Stop();
             Start(HTTP_Port, UDP_Port);
-            UWUtilities::Print(EWLogType::Log, FString(L"System restarted."));
+            WUtilities::Print(EWLogType::Log, FString("System restarted."));
         }
         else if (Signal == 4)
         {

@@ -2,14 +2,15 @@
 
 #include "WAsyncTaskManager.h"
 #include "WUDPServer.h"
+#include "WUDPHandler.h"
 
-bool UWUDPServer::InitializeSocket(uint16 Port)
+bool WUDPServer::InitializeSocket(uint16 Port)
 {
 #if PLATFORM_WINDOWS
     WSADATA WSAData{};
     if (WSAStartup(0x202, &WSAData) != 0)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPServer: WSAStartup() failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        WUtilities::Print(EWLogType::Error, FString("WUDPServer: WSAStartup() failed with error: ") + WUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
@@ -19,14 +20,14 @@ bool UWUDPServer::InitializeSocket(uint16 Port)
 #if PLATFORM_WINDOWS
     if (UDPSocket == INVALID_SOCKET)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPServer: Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        WUtilities::Print(EWLogType::Error, FString("WUDPServer: Socket initialization failed with error: ") + WUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
 #else
     if (UDPSocket == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPServer: Socket initialization failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        WUtilities::Print(EWLogType::Error, FString("WUDPServer: Socket initialization failed with error: ") + WUtilities::WGetSafeErrorMessage());
         return false;
     }
 #endif
@@ -47,7 +48,7 @@ bool UWUDPServer::InitializeSocket(uint16 Port)
     int32 ret = bind(UDPSocket, (struct sockaddr*)&UDPServer, sizeof(UDPServer));
     if (ret == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPServer: Socket binding failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        WUtilities::Print(EWLogType::Error, FString("WUDPServer: Socket binding failed with error: ") + WUtilities::WGetSafeErrorMessage());
 #if PLATFORM_WINDOWS
         WSACleanup();
 #endif
@@ -56,7 +57,7 @@ bool UWUDPServer::InitializeSocket(uint16 Port)
 
     return true;
 }
-void UWUDPServer::CloseSocket()
+void WUDPServer::CloseSocket()
 {
 #if PLATFORM_WINDOWS
     closesocket(UDPSocket);
@@ -67,7 +68,7 @@ void UWUDPServer::CloseSocket()
 #endif
 }
 
-void UWUDPServer::ListenSocket()
+void WUDPServer::ListenSocket()
 {
     while (bSystemStarted)
     {
@@ -89,16 +90,16 @@ void UWUDPServer::ListenSocket()
         }
         if (RetrievedSize == 0) continue;
 
-        TArray<UWAsyncTaskParameter*> PassParameters;
+        TArray<WAsyncTaskParameter*> PassParameters;
         PassParameters.Add(this);
-        PassParameters.Add(new UWUDPTaskParameter(RetrievedSize, Buffer, Client, true));
+        PassParameters.Add(new WUDPTaskParameter(RetrievedSize, Buffer, Client, true));
 
-        WFutureAsyncTask Lambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+        WFutureAsyncTask Lambda = [](TArray<WAsyncTaskParameter*> TaskParameters)
         {
             if (TaskParameters.Num() >= 2 && TaskParameters[0] && TaskParameters[1])
             {
-                auto ServerInstance = reinterpret_cast<UWUDPServer*>(TaskParameters[0]);
-                auto Parameter = reinterpret_cast<UWUDPTaskParameter*>(TaskParameters[1]);
+                auto ServerInstance = reinterpret_cast<WUDPServer*>(TaskParameters[0]);
+                auto Parameter = reinterpret_cast<WUDPTaskParameter*>(TaskParameters[1]);
 
                 if (!ServerInstance || !ServerInstance->bSystemStarted || !ServerInstance->UDPListenCallback)
                 {
@@ -116,37 +117,37 @@ void UWUDPServer::ListenSocket()
                 }
             }
         };
-        UWAsyncTaskManager::NewAsyncTask(Lambda, PassParameters, true);
+        WAsyncTaskManager::NewAsyncTask(Lambda, PassParameters, true);
     }
 }
-uint32 UWUDPServer::ListenerStopped()
+uint32 WUDPServer::ListenerStopped()
 {
     if (!bSystemStarted) return 0;
     if (UDPSystemThread) delete (UDPSystemThread);
-    UDPSystemThread = new WThread(std::bind(&UWUDPServer::ListenSocket, this), std::bind(&UWUDPServer::ListenerStopped, this));
+    UDPSystemThread = new WThread(std::bind(&WUDPServer::ListenSocket, this), std::bind(&WUDPServer::ListenerStopped, this));
     return 0;
 }
 
-bool UWUDPServer::StartSystem(uint16 Port)
+bool WUDPServer::StartSystem(uint16 Port)
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
 
     if (InitializeSocket(Port))
     {
-        UDPSystemThread = new WThread(std::bind(&UWUDPServer::ListenSocket, this), std::bind(&UWUDPServer::ListenerStopped, this));
+        UDPSystemThread = new WThread(std::bind(&WUDPServer::ListenSocket, this), std::bind(&WUDPServer::ListenerStopped, this));
         if (UDPHandler)
         {
             delete (UDPHandler);
         }
-        UDPHandler = new UWUDPHandler(UDPSocket);
+        UDPHandler = new WUDPHandler(UDPSocket);
         UDPHandler->StartSystem();
         return true;
     }
     return false;
 }
 
-void UWUDPServer::EndSystem()
+void WUDPServer::EndSystem()
 {
     if (!bSystemStarted) return;
     bSystemStarted = false;

@@ -40,11 +40,11 @@ public:
     }
 };
 
-class UWUDPTaskParameter : public UWAsyncTaskParameter
+class WUDPTaskParameter : public WAsyncTaskParameter
 {
 
 private:
-    UWUDPTaskParameter() = default;
+    WUDPTaskParameter() = default;
 
     bool AsServer = false;
 
@@ -53,14 +53,14 @@ public:
     ANSICHAR* Buffer = nullptr;
     sockaddr* OtherParty = nullptr;
 
-    UWUDPTaskParameter(int32 BufferSizeParameter, ANSICHAR* BufferParameter, sockaddr* OtherPartyParameter, bool AsServerParameter)
+    WUDPTaskParameter(int32 BufferSizeParameter, ANSICHAR* BufferParameter, sockaddr* OtherPartyParameter, bool AsServerParameter)
     {
         BufferSize = BufferSizeParameter;
         Buffer = BufferParameter;
         OtherParty = OtherPartyParameter;
         AsServer = AsServerParameter;
     }
-    ~UWUDPTaskParameter() override
+    ~WUDPTaskParameter() override
     {
         if (AsServer && OtherParty)
         {

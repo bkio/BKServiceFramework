@@ -2,15 +2,15 @@
 
 #include "WSystemManager.h"
 
-UWSystemManager* UWSystemManager::ManagerInstance = nullptr;
+WSystemManager* WSystemManager::ManagerInstance = nullptr;
 
-bool UWSystemManager::bSystemStarted = false;
-bool UWSystemManager::StartSystem()
+bool WSystemManager::bSystemStarted = false;
+bool WSystemManager::StartSystem()
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
 
-    ManagerInstance = new UWSystemManager();
+    ManagerInstance = new WSystemManager();
     if (!ManagerInstance->StartSystem_Internal())
     {
         EndSystem();
@@ -19,13 +19,13 @@ bool UWSystemManager::StartSystem()
 
     return true;
 }
-bool UWSystemManager::StartSystem_Internal()
+bool WSystemManager::StartSystem_Internal()
 {
-    SystemManagerThread = new WThread(std::bind(&UWSystemManager::SystemThreadsDen, this), std::bind(&UWSystemManager::SystemThreadStopped, this));
+    SystemManagerThread = new WThread(std::bind(&WSystemManager::SystemThreadsDen, this), std::bind(&WSystemManager::SystemThreadStopped, this));
     return true;
 }
 
-void UWSystemManager::EndSystem()
+void WSystemManager::EndSystem()
 {
     if (!bSystemStarted) return;
     bSystemStarted = false;
@@ -37,7 +37,7 @@ void UWSystemManager::EndSystem()
         ManagerInstance = nullptr;
     }
 }
-void UWSystemManager::EndSystem_Internal()
+void WSystemManager::EndSystem_Internal()
 {
     if (SystemManagerThread)
     {
@@ -49,7 +49,7 @@ void UWSystemManager::EndSystem_Internal()
     }
 }
 
-void UWSystemManager::SystemThreadsDen()
+void WSystemManager::SystemThreadsDen()
 {
     int32 Total_CPU_Utilization;
     int32 Process_CPU_Utilization;
@@ -61,23 +61,23 @@ void UWSystemManager::SystemThreadsDen()
         Process_CPU_Utilization = CPUMonitor.GetUsage(&Total_CPU_Utilization);
         Process_Memory_Utilization = MemoryMonitor.GetUsage(&Total_Memory_Utilization);
 
-        /*UWUtilities::Print(EWLogType::Log,
-                           FString(L"Process CPU: ") +
+        /*WUtilities::Print(EWLogType::Log,
+                           FString("Process CPU: ") +
                            FString::FromInt(Process_CPU_Utilization) +
-                           FString(L"\t Total CPU: ") +
+                           FString("\t Total CPU: ") +
                            FString::FromInt(Total_CPU_Utilization) +
-                           FString(L"\t Process Memory: ") +
+                           FString("\t Process Memory: ") +
                            FString::FromInt(Process_Memory_Utilization) +
-                           FString(L"\t Total Memory: ") +
+                           FString("\t Total Memory: ") +
                            FString::FromInt(Total_Memory_Utilization));*/
 
         WThread::SleepThread(200);
     }
 }
-uint32 UWSystemManager::SystemThreadStopped()
+uint32 WSystemManager::SystemThreadStopped()
 {
     if (!bSystemStarted) return 0;
     if (SystemManagerThread) delete (SystemManagerThread);
-    SystemManagerThread = new WThread(std::bind(&UWSystemManager::SystemThreadsDen, this), std::bind(&UWSystemManager::SystemThreadStopped, this));
+    SystemManagerThread = new WThread(std::bind(&WSystemManager::SystemThreadsDen, this), std::bind(&WSystemManager::SystemThreadStopped, this));
     return 0;
 }

@@ -40,22 +40,17 @@ public:
      *
      * @param String	the string the hash
      **/
-    static FString HashAnsiString(const UTFCHAR* String)
+    static FString HashAnsiString(const FString& String)
     {
-        int32 Len = wcslen(String);
-        if (Len == 0) return EMPTY_FSTRING;
+        assert(!String.IsWide());
+
+        if (String.Len() == 0) return EMPTY_FSTRING_ANSI;
 
         uint8 Digest[16];
 
         FMD5 Md5Gen;
-
-        auto AsAnsi = new ANSICHAR[Len];
-        std::wcstombs(AsAnsi, String, static_cast<size_t>(Len));
-
-        Md5Gen.Update((unsigned char*)AsAnsi, Len);
-        Md5Gen.Final( Digest );
-
-        delete[] AsAnsi;
+        Md5Gen.Update((uint8*)String.GetAnsiCharArray(), String.Len());
+        Md5Gen.Final(Digest);
 
         std::stringstream Buf;
         Buf.fill('0');

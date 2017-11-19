@@ -35,6 +35,8 @@ set(SOURCE_FILES ${Public_Files} ${Private_Files})
 
 add_library(WSystemModule SHARED ${SOURCE_FILES})
 
+set_target_properties(WSystemModule PROPERTIES LINKER_LANGUAGE CXX)
+
 foreach(WModule ${WDepModsOf_WSystemModule})
     include_directories(${WModule}/Public)
     target_link_libraries(WSystemModule ${WModule})

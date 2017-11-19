@@ -6,15 +6,15 @@
 #include "WScheduledTaskManager.h"
 
 #if PLATFORM_WINDOWS
-UWUDPHandler::UWUDPHandler(SOCKET _UDPSocket)
+WUDPHandler::WUDPHandler(SOCKET _UDPSocket)
 #else
-UWUDPHandler::UWUDPHandler(int32 _UDPSocket)
+WUDPHandler::WUDPHandler(int32 _UDPSocket)
 #endif
 {
     UDPSocket_Ref = _UDPSocket;
 }
 
-void UWUDPHandler::ClearReliableConnections()
+void WUDPHandler::ClearReliableConnections()
 {
     if (!bSystemStarted) return;
 
@@ -30,7 +30,7 @@ void UWUDPHandler::ClearReliableConnections()
     }
     ReliableConnectionRecords.clear();
 }
-void UWUDPHandler::ClearOtherPartiesRecords()
+void WUDPHandler::ClearOtherPartiesRecords()
 {
     if (!bSystemStarted) return;
 
@@ -46,14 +46,14 @@ void UWUDPHandler::ClearOtherPartiesRecords()
     OtherPartiesRecords.clear();
 }
 
-WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* OtherParty)
+WJson::Node WUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Parameter, sockaddr* OtherParty)
 {
     if (!bSystemStarted || !OtherParty) return WJson::Node(WJson::Node::T_INVALID);
     if (Parameter.GetSize() < 5) return WJson::Node(WJson::Node::T_INVALID);
 
     //Boolean flags operation starts.
     TArray<bool> ResultOfDecompress;
-    if (!UWUtilities::DecompressBitAsBoolArray(ResultOfDecompress, Parameter, 0, 0)) return WJson::Node(WJson::Node::T_INVALID);
+    if (!WUtilities::DecompressBitAsBoolArray(ResultOfDecompress, Parameter, 0, 0)) return WJson::Node(WJson::Node::T_INVALID);
     bool bReliableSYN = ResultOfDecompress[0];
     bool bReliableSYNSuccess = ResultOfDecompress[1];
     bool bReliableSYNFailure = ResultOfDecompress[2];
@@ -117,7 +117,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     }
     const int32 ChecksumStartIx = bReliable ? 5 : 1;
 
-    FWCHARWrapper Hashed = UWUtilities::WBasicRawHash(Parameter, AfterChecksumStartIx, Parameter.GetSize() - AfterChecksumStartIx);
+    FWCHARWrapper Hashed = WUtilities::WBasicRawHash(Parameter, AfterChecksumStartIx, Parameter.GetSize() - AfterChecksumStartIx);
     for (int32 i = 0; i < 4; i++)
     {
         if (Hashed.GetArrayElement(i) != Parameter.GetArrayElement(i + ChecksumStartIx))
@@ -232,7 +232,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
             Wrapper.SetArrayElement(0, VariableContentCount_1);
             auto VariableContentCount_2 = Parameter.GetArrayElement(Parameter.GetSize() - RemainedBytes + 1);
             Wrapper.SetArrayElement(1, VariableContentCount_2);
-            VariableContentCount = static_cast<uint16>(UWUtilities::ConvertByteArrayToInteger(Wrapper, 0, 2));
+            VariableContentCount = static_cast<uint16>(WUtilities::ConvertByteArrayToInteger(Wrapper, 0, 2));
         }
         else
         {
@@ -254,7 +254,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
             if (RemainedBytes < AsByteNo) break;
 
             TArray<bool> BoolArray;
-            if (!UWUtilities::DecompressBitAsBoolArray(BoolArray, Parameter, StartIndex, StartIndex + AsByteNo - 1)) break;
+            if (!WUtilities::DecompressBitAsBoolArray(BoolArray, Parameter, StartIndex, StartIndex + AsByteNo - 1)) break;
 
             RemainedBytes -= AsByteNo;
 
@@ -342,8 +342,8 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
             TArray<float> FloatArray;
             for (int32 i = 0; i < AsArraySize; i += UnitSize)
             {
-                if (VariableType == 5)	FloatArray.Add(UWUtilities::ConvertByteArrayToFloat(Parameter, StartIndex + i, UnitSize));
-                else					IntArray.Add(UWUtilities::ConvertByteArrayToInteger(Parameter, StartIndex + i, UnitSize));
+                if (VariableType == 5)	FloatArray.Add(WUtilities::ConvertByteArrayToFloat(Parameter, StartIndex + i, UnitSize));
+                else					IntArray.Add(WUtilities::ConvertByteArrayToInteger(Parameter, StartIndex + i, UnitSize));
             }
 
             RemainedBytes -= AsArraySize;
@@ -384,7 +384,7 @@ WJson::Node UWUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramet
     return ResultMap;
 }
 
-FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
+FWCHARWrapper WUDPHandler::MakeByteArrayForNetworkData(
         sockaddr* OtherParty,
         WJson::Node Parameter,
         bool bDoubleContentCount,
@@ -425,7 +425,7 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
     if (bPendingKill && (bReliableSYN || !bReliable)) return FWCHARWrapper();
 
     FWCHARWrapper CompressedFlags(new ANSICHAR[1], 1, true);
-    if (!UWUtilities::CompressBooleanAsBit(CompressedFlags, Flags)) return FWCHARWrapper();
+    if (!WUtilities::CompressBooleanAsBit(CompressedFlags, Flags)) return FWCHARWrapper();
 
     Result.Add(CompressedFlags.GetArrayElement(0));
     //
@@ -499,7 +499,7 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
                     InfoByte |= Length << 3;
 
                     FWCHARWrapper Wrapper(new ANSICHAR[2], 2, true);
-                    UWUtilities::ConvertIntegerToByteArray(InfoByte, Wrapper, 2);
+                    WUtilities::ConvertIntegerToByteArray(InfoByte, Wrapper, 2);
                     Result.Add(Wrapper.GetArrayElement(0));
                     if (bDoubleContentCount)
                     {
@@ -521,7 +521,7 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
                         {
                             InfoByte = 0;
 
-                            auto ByteSizeOfCompressed = static_cast<uint8>(UWUtilities::GetDestinationLengthBeforeCompressBoolArray(Length));
+                            auto ByteSizeOfCompressed = static_cast<uint8>(WUtilities::GetDestinationLengthBeforeCompressBoolArray(Length));
                             if (ByteSizeOfCompressed <= 0) continue;
 
                             TArray<bool> DecompressedArray;
@@ -538,13 +538,13 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
                             if (DecompressedArray.Num() == 0) continue;
 
                             FWCHARWrapper CompressedArray(new ANSICHAR[ByteSizeOfCompressed], ByteSizeOfCompressed, true);
-                            if (!UWUtilities::CompressBooleanAsBit(CompressedArray, DecompressedArray)) continue;
+                            if (!WUtilities::CompressBooleanAsBit(CompressedArray, DecompressedArray)) continue;
                             if (CompressedArray.GetSize() == 0) continue;
 
                             InfoByte |= Length << 3;
 
                             FWCHARWrapper Wrapper(new ANSICHAR[2], 2, true);
-                            UWUtilities::ConvertIntegerToByteArray(InfoByte, Wrapper, 2);
+                            WUtilities::ConvertIntegerToByteArray(InfoByte, Wrapper, 2);
                             Result.Add(Wrapper.GetArrayElement(0));
                             if (bDoubleContentCount)
                             {
@@ -586,7 +586,7 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
                             InfoByte |= Length << 3;
 
                             FWCHARWrapper Wrapper(new ANSICHAR[2], 2, true);
-                            UWUtilities::ConvertIntegerToByteArray(InfoByte, Wrapper, 2);
+                            WUtilities::ConvertIntegerToByteArray(InfoByte, Wrapper, 2);
                             Result.Add(Wrapper.GetArrayElement(0));
                             if (bDoubleContentCount)
                             {
@@ -634,7 +634,7 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
 
         FWCHARWrapper WCHARWrapper(Result.GetMutableData() + ChecksumInsertIx, ChecksumDestinationSize, false);
 
-        FWCHARWrapper Hashed = UWUtilities::WBasicRawHash(WCHARWrapper, 0, ChecksumDestinationSize);
+        FWCHARWrapper Hashed = WUtilities::WBasicRawHash(WCHARWrapper, 0, ChecksumDestinationSize);
         Result.Insert(Hashed.GetValue(), 4, ChecksumInsertIx);
         Hashed.DeallocateValue();
         //
@@ -652,7 +652,7 @@ FWCHARWrapper UWUDPHandler::MakeByteArrayForNetworkData(
     return ResultWrapper;
 }
 
-WReliableConnectionRecord* UWUDPHandler::Create_AddOrGet_ReliableConnectionRecord(sockaddr* OtherParty, uint32 MessageID, FWCHARWrapper& Buffer, bool bAsSender, uint8 EnsureHandshakingStatusEqualsTo, bool bIgnoreFailure)
+WReliableConnectionRecord* WUDPHandler::Create_AddOrGet_ReliableConnectionRecord(sockaddr* OtherParty, uint32 MessageID, FWCHARWrapper& Buffer, bool bAsSender, uint8 EnsureHandshakingStatusEqualsTo, bool bIgnoreFailure)
 {
     //If EnsureHandshakingStatusEqualsTo = 0: Function can create a new record.
     //Otherwise will only try to get from existing records and if found, will ensure HandshakingStatus = EnsureHandshakingStatusEqualsTo, otherwise returns null.
@@ -705,7 +705,7 @@ WReliableConnectionRecord* UWUDPHandler::Create_AddOrGet_ReliableConnectionRecor
     }
     return ReliableConnection;
 }
-void UWUDPHandler::CloseCase(WReliableConnectionRecord* Record)
+void WUDPHandler::CloseCase(WReliableConnectionRecord* Record)
 {
     if (!Record || Record->bBeingDeleted) return;
     WReferenceCounter SafetyCounter(Record);
@@ -715,12 +715,12 @@ void UWUDPHandler::CloseCase(WReliableConnectionRecord* Record)
 
     AddRecordToPendingDeletePool(Record);
 }
-void UWUDPHandler::AsReceiverReliableSYNSuccess(sockaddr* OtherParty, uint32 MessageID) //Receiver
+void WUDPHandler::AsReceiverReliableSYNSuccess(sockaddr* OtherParty, uint32 MessageID) //Receiver
 {
     if (!bSystemStarted) return;
 
     //Send SYN-ACK
-    //UWUtilities::Print(EWLogType::Log, L"Send SYN-ACK: " + FString::FromInt(MessageID));
+    //WUtilities::Print(EWLogType::Log, "Send SYN-ACK: " + FString::FromInt(MessageID));
 
     FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, true, false, false, false, MessageID);
 
@@ -743,12 +743,12 @@ void UWUDPHandler::AsReceiverReliableSYNSuccess(sockaddr* OtherParty, uint32 Mes
 
     WrappedFinalData.DeallocateValue();
 }
-void UWUDPHandler::AsReceiverReliableSYNFailure(sockaddr* OtherParty, uint32 MessageID) //Receiver
+void WUDPHandler::AsReceiverReliableSYNFailure(sockaddr* OtherParty, uint32 MessageID) //Receiver
 {
     if (!bSystemStarted) return;
 
     //Send SYN-fail
-    //UWUtilities::Print(EWLogType::Log, L"Send SYN-fail: " + FString::FromInt(MessageID));
+    //WUtilities::Print(EWLogType::Log, "Send SYN-fail: " + FString::FromInt(MessageID));
 
     FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, true, false, false, MessageID);
 
@@ -762,13 +762,13 @@ void UWUDPHandler::AsReceiverReliableSYNFailure(sockaddr* OtherParty, uint32 Mes
 
     WrappedFinalData.DeallocateValue();
 }
-void UWUDPHandler::HandleReliableSYNDeparture(sockaddr* OtherParty, FWCHARWrapper& Buffer, uint32 MessageID) //Sender
+void WUDPHandler::HandleReliableSYNDeparture(sockaddr* OtherParty, FWCHARWrapper& Buffer, uint32 MessageID) //Sender
 {
     //This is called by MakeByteArrayForNetworkData
     if (!bSystemStarted) return;
 
     //Set the case
-    //UWUtilities::Print(EWLogType::Log, L"SYNDeparture: " + FString::FromInt(MessageID));
+    //WUtilities::Print(EWLogType::Log, "SYNDeparture: " + FString::FromInt(MessageID));
 
     WReliableConnectionRecord* Record = Create_AddOrGet_ReliableConnectionRecord(OtherParty, MessageID, Buffer, true, 0, true);
     if (Record)
@@ -777,12 +777,12 @@ void UWUDPHandler::HandleReliableSYNDeparture(sockaddr* OtherParty, FWCHARWrappe
         Record->FailureTrialCount = 0; //To reset, just in case.
     }
 }
-void UWUDPHandler::HandleReliableSYNSuccess(sockaddr* OtherParty, uint32 MessageID) //Sender
+void WUDPHandler::HandleReliableSYNSuccess(sockaddr* OtherParty, uint32 MessageID) //Sender
 {
     if (!bSystemStarted) return;
 
     //Send ACK
-    //UWUtilities::Print(EWLogType::Log, L"Send ACK: " + FString::FromInt(MessageID));
+    //WUtilities::Print(EWLogType::Log, "Send ACK: " + FString::FromInt(MessageID));
 
     FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, false, true, false, MessageID);
 
@@ -805,12 +805,12 @@ void UWUDPHandler::HandleReliableSYNSuccess(sockaddr* OtherParty, uint32 Message
 
     WrappedFinalData.DeallocateValue();
 }
-void UWUDPHandler::HandleReliableSYNFailure(sockaddr* OtherParty, uint32 MessageID) //Sender
+void WUDPHandler::HandleReliableSYNFailure(sockaddr* OtherParty, uint32 MessageID) //Sender
 {
     if (!bSystemStarted) return;
 
     //Re-send SYN(Buffer)
-    //UWUtilities::Print(EWLogType::Log, L"Re-send SYN(Buffer): " + FString::FromInt(MessageID));
+    //WUtilities::Print(EWLogType::Log, "Re-send SYN(Buffer): " + FString::FromInt(MessageID));
 
     FWCHARWrapper NullBuffer;
 
@@ -821,12 +821,12 @@ void UWUDPHandler::HandleReliableSYNFailure(sockaddr* OtherParty, uint32 Message
         Record->FailureTrialCount++;
     }
 }
-void UWUDPHandler::HandleReliableSYNACKSuccess(sockaddr* OtherParty, uint32 MessageID) //Receiver
+void WUDPHandler::HandleReliableSYNACKSuccess(sockaddr* OtherParty, uint32 MessageID) //Receiver
 {
     if (!bSystemStarted) return;
 
     //ACK received. Send ACK-ACK, then close the case.
-    //UWUtilities::Print(EWLogType::Log, L"ACK received. Send ACK-ACK, then close the case: " + FString::FromInt(MessageID));
+    //WUtilities::Print(EWLogType::Log, "ACK received. Send ACK-ACK, then close the case: " + FString::FromInt(MessageID));
 
     FWCHARWrapper WrappedFinalData = MakeByteArrayForNetworkData(OtherParty, WJson::Node(WJson::Node::T_VALIDATION), false, false, false, false, false, false, true, MessageID);
 
@@ -854,12 +854,12 @@ void UWUDPHandler::HandleReliableSYNACKSuccess(sockaddr* OtherParty, uint32 Mess
         CloseCase(Record);
     }
 }
-void UWUDPHandler::HandleReliableACKArrival(sockaddr* OtherParty, uint32 MessageID) //Sender
+void WUDPHandler::HandleReliableACKArrival(sockaddr* OtherParty, uint32 MessageID) //Sender
 {
     if (!bSystemStarted) return;
 
     //ACK-ACK received. Close the case.
-    //UWUtilities::Print(EWLogType::Log, L"ACK-ACK received. Close the case: " + FString::FromInt(MessageID));
+    //WUtilities::Print(EWLogType::Log, "ACK-ACK received. Close the case: " + FString::FromInt(MessageID));
 
     FWCHARWrapper NullBuffer;
 
@@ -870,13 +870,13 @@ void UWUDPHandler::HandleReliableACKArrival(sockaddr* OtherParty, uint32 Message
     }
 }
 
-void UWUDPHandler::ClearUDPRecordsForTimeoutCheck()
+void WUDPHandler::ClearUDPRecordsForTimeoutCheck()
 {
     if (!bSystemStarted) return;
     UDPRecordsForTimeoutCheck.Clear();
 }
 
-void UWUDPHandler::ClearPendingDeletePool()
+void WUDPHandler::ClearPendingDeletePool()
 {
     if (!bSystemStarted) return;
 
@@ -891,13 +891,13 @@ void UWUDPHandler::ClearPendingDeletePool()
     UDPRecords_PendingDeletePool.clear();
 }
 
-void UWUDPHandler::AddNewUDPRecord(WUDPRecord* NewRecord)
+void WUDPHandler::AddNewUDPRecord(WUDPRecord* NewRecord)
 {
     if (!bSystemStarted || !NewRecord) return;
     UDPRecordsForTimeoutCheck.Push(NewRecord);
 }
 
-WUDPRecord::WUDPRecord(UWUDPHandler* _ResponsibleHandler) : LastInteraction(UWUtilities::GetTimeStampInMS())
+WUDPRecord::WUDPRecord(WUDPHandler* _ResponsibleHandler) : LastInteraction(WUtilities::GetTimeStampInMS())
 {
     if (_ResponsibleHandler)
     {
@@ -906,22 +906,22 @@ WUDPRecord::WUDPRecord(UWUDPHandler* _ResponsibleHandler) : LastInteraction(UWUt
     }
 }
 
-void UWUDPHandler::StartSystem()
+void WUDPHandler::StartSystem()
 {
     if (bSystemStarted) return;
     bSystemStarted = true;
 
-    TArray<UWAsyncTaskParameter*> SelfAsArray(this);
-    WFutureAsyncTask TimeoutLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+    TArray<WAsyncTaskParameter*> SelfAsArray(this);
+    WFutureAsyncTask TimeoutLambda = [](TArray<WAsyncTaskParameter*> TaskParameters)
     {
-        UWUDPHandler* HandlerInstance = nullptr;
+        WUDPHandler* HandlerInstance = nullptr;
         if (TaskParameters.Num() > 0 && TaskParameters[0])
         {
-            HandlerInstance = reinterpret_cast<UWUDPHandler*>(TaskParameters[0]);
+            HandlerInstance = reinterpret_cast<WUDPHandler*>(TaskParameters[0]);
         }
         if (!HandlerInstance || !HandlerInstance->bSystemStarted) return;
 
-        uint64 CurrentTimestamp = UWUtilities::GetTimeStampInMS();
+        uint64 CurrentTimestamp = WUtilities::GetTimeStampInMS();
 
         WQueue<WUDPRecord*> Tmp_RecordsForTimeoutCheck;
 
@@ -978,18 +978,18 @@ void UWUDPHandler::StartSystem()
 
         HandlerInstance->UDPRecordsForTimeoutCheck.AddAll_NotTSTemporaryQueue(Tmp_RecordsForTimeoutCheck);
     };
-    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(TimeoutLambda, SelfAsArray, TIMEOUT_CHECK_TIME_INTERVAL, true, true);
+    WScheduledAsyncTaskManager::NewScheduledAsyncTask(TimeoutLambda, SelfAsArray, TIMEOUT_CHECK_TIME_INTERVAL, true, true);
 
-    WFutureAsyncTask DeallocatorLambda = [](TArray<UWAsyncTaskParameter*> TaskParameters)
+    WFutureAsyncTask DeallocatorLambda = [](TArray<WAsyncTaskParameter*> TaskParameters)
     {
-        UWUDPHandler* HandlerInstance = nullptr;
+        WUDPHandler* HandlerInstance = nullptr;
         if (TaskParameters.Num() > 0 && TaskParameters[0])
         {
-            HandlerInstance = reinterpret_cast<UWUDPHandler*>(TaskParameters[0]);
+            HandlerInstance = reinterpret_cast<WUDPHandler*>(TaskParameters[0]);
         }
         if (!HandlerInstance || !HandlerInstance->bSystemStarted) return;
 
-        uint64 CurrentTimestamp = UWUtilities::GetTimeStampInMS();
+        uint64 CurrentTimestamp = WUtilities::GetTimeStampInMS();
 
         WUDPRecord* DeleteRecord = nullptr;
         uint64 PooledTimestamp;
@@ -1022,9 +1022,9 @@ void UWUDPHandler::StartSystem()
             }
         }
     };
-    UWScheduledAsyncTaskManager::NewScheduledAsyncTask(DeallocatorLambda, SelfAsArray, PENDING_DELETE_CHECK_TIME_INTERVAL, true, true);
+    WScheduledAsyncTaskManager::NewScheduledAsyncTask(DeallocatorLambda, SelfAsArray, PENDING_DELETE_CHECK_TIME_INTERVAL, true, true);
 }
-void UWUDPHandler::EndSystem()
+void WUDPHandler::EndSystem()
 {
     if (!bSystemStarted) return;
 
@@ -1040,9 +1040,9 @@ void UWUDPHandler::EndSystem()
 }
 
 #if PLATFORM_WINDOWS
-void UWUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
+void WUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
 #else
-void UWUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
+void WUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
 #endif
 {
     if (!bSystemStarted) return;
@@ -1068,17 +1068,17 @@ void UWUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
 #if PLATFORM_WINDOWS
     if (SentLength == SOCKET_ERROR)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPHandler: Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        WUtilities::Print(EWLogType::Error, FString("WUDPHandler: Socket send failed with error: ") + WUtilities::WGetSafeErrorMessage());
     }
 #else
     if (SentLength == -1)
     {
-        UWUtilities::Print(EWLogType::Error, FString(L"UWUDPHandler: Socket send failed with error: ") + UWUtilities::WGetSafeErrorMessage());
+        WUtilities::Print(EWLogType::Error, FString("WUDPHandler: Socket send failed with error: ") + WUtilities::WGetSafeErrorMessage());
     }
 #endif
 }
 
-void UWUDPHandler::RemoveFromReliableConnections(std::__detail::_Node_iterator<std::pair<const std::string, WReliableConnectionRecord *>, false, true> Iterator)
+void WUDPHandler::RemoveFromReliableConnections(std::__detail::_Node_iterator<std::pair<const std::string, WReliableConnectionRecord *>, false, true> Iterator)
 {
     ReliableConnectionRecords.erase(Iterator);
     if (bPendingKill && ReliableConnectionRecords.empty() && ReadyToDieCallback)
@@ -1086,7 +1086,7 @@ void UWUDPHandler::RemoveFromReliableConnections(std::__detail::_Node_iterator<s
         ReadyToDieCallback();
     }
 }
-void UWUDPHandler::RemoveFromReliableConnections(const std::string& Key)
+void WUDPHandler::RemoveFromReliableConnections(const std::string& Key)
 {
     ReliableConnectionRecords.erase(Key);
     if (bPendingKill && ReliableConnectionRecords.empty() && ReadyToDieCallback)
@@ -1095,7 +1095,7 @@ void UWUDPHandler::RemoveFromReliableConnections(const std::string& Key)
     }
 }
 
-void UWUDPHandler::MarkPendingKill(std::function<void()> _ReadyToDieCallback)
+void WUDPHandler::MarkPendingKill(std::function<void()> _ReadyToDieCallback)
 {
     if (bPendingKill) return;
     bPendingKill = true;
@@ -1109,7 +1109,7 @@ void UWUDPHandler::MarkPendingKill(std::function<void()> _ReadyToDieCallback)
     }
 }
 
-void UWUDPHandler::AddRecordToPendingDeletePool(WUDPRecord* PendingDeleteRecord)
+void WUDPHandler::AddRecordToPendingDeletePool(WUDPRecord* PendingDeleteRecord)
 {
     if (!PendingDeleteRecord || PendingDeleteRecord->bBeingDeleted) return;
     PendingDeleteRecord->bBeingDeleted = true;
@@ -1118,7 +1118,7 @@ void UWUDPHandler::AddRecordToPendingDeletePool(WUDPRecord* PendingDeleteRecord)
     auto It = UDPRecords_PendingDeletePool.find(PendingDeleteRecord);
     if (It == UDPRecords_PendingDeletePool.end())
     {
-        UDPRecords_PendingDeletePool.insert(std::pair<WUDPRecord*, uint64>(PendingDeleteRecord, UWUtilities::GetTimeStampInMS()));
+        UDPRecords_PendingDeletePool.insert(std::pair<WUDPRecord*, uint64>(PendingDeleteRecord, WUtilities::GetTimeStampInMS()));
     }
 }
 

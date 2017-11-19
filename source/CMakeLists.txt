@@ -15,7 +15,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMA
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMAKE_BUILD_TYPE})
 
 #Dependencies Start
-set(WModules WUtilitiesModule;WUDPModule;WHTTPModule;WSystemModule)
+set(WModules WUtilitiesModule;WUDPModule;WHTTPModule;WSystemModule;WServiceDiscoveryModule)
 #Dependencies End
 
 set(SOURCE_FILES main.cpp)
@@ -31,6 +31,8 @@ set(SOURCE_FILES ${SOURCE_FILES} ${WEngine_Files})
 include_directories(WEngine)
 
 add_executable(${WProjectName} ${SOURCE_FILES})
+
+set_target_properties(${WProjectName} PROPERTIES LINKER_LANGUAGE CXX)
 
 foreach(WModule ${WModules})
 	add_subdirectory(${WModule})

@@ -16,7 +16,7 @@
 	#include <netdb.h>
 #endif
 
-class UWUDPClient : public UWAsyncTaskParameter
+class WUDPClient : public WAsyncTaskParameter
 {
 
 private:
@@ -24,7 +24,7 @@ private:
     uint16 ServerPort = 0;
 
     WThread* UDPClientThread = nullptr;
-    class UWUDPHandler* UDPHandler = nullptr;
+    class WUDPHandler* UDPHandler = nullptr;
 
     struct sockaddr* SocketAddress = nullptr;
     socklen_t SocketAddressLength = 0;
@@ -35,11 +35,11 @@ private:
     int32 UDPSocket{};
 #endif
 
-    UWUDPClient() = default;
+    WUDPClient() = default;
 
     bool bClientStarted = false;
 
-    std::function<void(class UWUDPClient*, WJson::Node)> UDPListenCallback = nullptr;
+    std::function<void(class WUDPClient*, WJson::Node)> UDPListenCallback = nullptr;
 
     bool InitializeClient();
     void CloseSocket();
@@ -49,7 +49,7 @@ private:
     bool StartUDPClient(std::string& _ServerAddress, uint16 _ServerPort);
 
 public:
-    static UWUDPClient* NewUDPClient(std::string _ServerAddress, uint16 _ServerPort, std::function<void(class UWUDPClient*, WJson::Node)>& _DataReceivedCallback);
+    static WUDPClient* NewUDPClient(std::string _ServerAddress, uint16 _ServerPort, std::function<void(class WUDPClient*, WJson::Node)>& _DataReceivedCallback);
 
     void EndUDPClient();
     void MarkPendingKill();
@@ -60,9 +60,9 @@ public:
         return SocketAddress;
     }
 
-    class UWUDPHandler* GetUDPHandler();
+    class WUDPHandler* GetUDPHandler();
 };
 
-typedef std::function<void(class UWUDPClient*, WJson::Node)> WUDPClient_DataReceived;
+typedef std::function<void(class WUDPClient*, WJson::Node)> WUDPClient_DataReceived;
 
 #endif //Pragma_Once_WUDPClient

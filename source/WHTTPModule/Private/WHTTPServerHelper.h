@@ -93,12 +93,12 @@ public:
         ClientSocket = _Socket;
         Client = _Client;
 
-        static TArray<UWAsyncTaskParameter*> NoParameter;
-        UWScheduledAsyncTaskManager::NewScheduledAsyncTask(std::bind(&WHTTPAcceptedSocket::StopSocketOperation, this), NoParameter, _TimeoutMs, false);
+        static TArray<WAsyncTaskParameter*> NoParameter;
+        WScheduledAsyncTaskManager::NewScheduledAsyncTask(std::bind(&WHTTPAcceptedSocket::StopSocketOperation, this), NoParameter, _TimeoutMs, false);
     }
 };
 
-class UWHTTPAcceptedClient : public UWAsyncTaskParameter
+class WHTTPAcceptedClient : public WAsyncTaskParameter
 {
 
 private:
@@ -214,9 +214,9 @@ private:
 
 public:
 #if PLATFORM_WINDOWS
-    UWHTTPAcceptedClient(SOCKET _ClientSocket, sockaddr* _Client, uint32 _TimeoutInMs)
+    WHTTPAcceptedClient(SOCKET _ClientSocket, sockaddr* _Client, uint32 _TimeoutInMs)
 #else
-    UWHTTPAcceptedClient(int32 _ClientSocket, sockaddr* _Client, uint32 _TimeoutInMs)
+    WHTTPAcceptedClient(int32 _ClientSocket, sockaddr* _Client, uint32 _TimeoutInMs)
 #endif
     {
         ClientSocket = new WHTTPAcceptedSocket(_ClientSocket, _Client, _TimeoutInMs);
