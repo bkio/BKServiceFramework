@@ -10,13 +10,11 @@
 #include <regex>
 #include <codecvt>
 #include <cassert>
+#include <iomanip>
 
 #if PLATFORM_WINDOWS
     #include "windows.h"
 #endif
-
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "ClangTidyInspection"
 
 namespace ESearchCase
 {
@@ -56,6 +54,12 @@ public:
         return bIsWide;
     }
 
+    template <typename A, typename B, typename U = std::less<int>>
+    bool f(A a, B b, U u = U())
+    {
+        return u(a, b);
+    }
+
     const UTFCHAR& AtWide(uint32 Ix) const
     {
         assert(bIsWide);
@@ -93,11 +97,21 @@ public:
         }
         return WStringStream.str();
     }
+    static FString StringToWString(const FString& t_str)
+    {
+        if (t_str.bIsWide) return t_str;
+        return FString(StringToWString(t_str.GetAnsiCharString()));
+    }
     static std::string WStringToString(const std::wstring& _str)
     {
         typedef std::codecvt_utf8<wchar_t> convert_type;
         std::wstring_convert<convert_type, wchar_t> converter;
         return converter.to_bytes(_str);
+    }
+    static FString WStringToString(const FString& _str)
+    {
+        if (!_str.bIsWide) return _str;
+        return FString(WStringToString(_str.GetWideCharString()));
     }
 
     template <typename T>
@@ -291,6 +305,18 @@ public:
             }
         }
     }
+    FString(uint32 InCount, const UTFCHAR InSrc)
+    {
+        bIsWide = true;
+
+        DataWide = std::wstring(InCount, InSrc);
+    }
+    FString(uint32 InCount, const ANSICHAR InSrc)
+    {
+        bIsWide = false;
+
+        DataAnsi = std::string(InCount, InSrc);
+    }
     FString(const UTFCHAR* Other, uint32 Size)
     {
         DataWide.resize(Size);
@@ -337,13 +363,43 @@ public:
         DataAnsi = Other;
         return *this;
     }
-    bool operator==(const FString& Other)
+
+    bool operator<(const FString& Other) const
+    {
+        assert(bIsWide == Other.bIsWide);
+        if (bIsWide) return DataWide.compare(Other.DataWide) > 0;
+        return DataAnsi.compare(Other.DataAnsi) > 0;
+    }
+    bool operator>(const FString& Other) const
+    {
+        assert(bIsWide == Other.bIsWide);
+        if (bIsWide) return DataWide.compare(Other.DataWide) < 0;
+        return DataAnsi.compare(Other.DataAnsi) < 0;
+    }
+    bool operator<=(const FString& Other) const
+    {
+        assert(bIsWide == Other.bIsWide);
+        if (bIsWide) return DataWide.compare(Other.DataWide) >= 0;
+        return DataAnsi.compare(Other.DataAnsi) >= 0;
+    }
+    bool operator>=(const FString& Other) const
+    {
+        assert(bIsWide == Other.bIsWide);
+        if (bIsWide) return DataWide.compare(Other.DataWide) <= 0;
+        return DataAnsi.compare(Other.DataAnsi) <= 0;
+    }
+    bool operator==(const FString& Other) const
     {
         assert(bIsWide == Other.bIsWide);
         if (bIsWide) return DataWide.compare(Other.DataWide) == 0;
         return DataAnsi.compare(Other.DataAnsi) == 0;
     }
-    bool operator!=(const FString& Other)
+    bool operator!=(const FString& Other) const
+    {
+        if (bIsWide) return DataWide.compare(Other.DataWide) != 0;
+        return DataAnsi.compare(Other.DataAnsi) != 0;
+    }
+    bool Equals(const FString& Other) const
     {
         if (bIsWide) return DataWide.compare(Other.DataWide) != 0;
         return DataAnsi.compare(Other.DataAnsi) != 0;
@@ -437,7 +493,7 @@ public:
         assert(bIsWide);
         return DataWide;
     }
-    const std::string GetCharString() const
+    const std::string GetAnsiCharString() const
     {
         assert(!bIsWide);
         return DataAnsi;
@@ -1003,6 +1059,19 @@ public:
         Replace_Define(DataAnsi, string);
     }
 
+    void SetElement(uint32 Index, UTFCHAR Character)
+    {
+        assert(bIsWide);
+        assert(Index >= 0 && Index < DataWide.size());
+        DataWide[Index] = Character;
+    }
+    void SetElement(uint32 Index, ANSICHAR Character)
+    {
+        assert(!bIsWide);
+        assert(Index >= 0 && Index < DataAnsi.size());
+        DataAnsi[Index] = Character;
+    }
+
     void Reserve(uint32 CharacterCount)
     {
         if (bIsWide)
@@ -1012,6 +1081,17 @@ public:
         else
         {
             DataAnsi.reserve(CharacterCount);
+        }
+    }
+    void Resize(uint32 CharacterCount)
+    {
+        if (bIsWide)
+        {
+            DataWide.resize(CharacterCount);
+        }
+        else
+        {
+            DataAnsi.resize(CharacterCount);
         }
     }
     void Reset()
@@ -1036,7 +1116,7 @@ public:
             std::reverse(DataAnsi.begin(), DataAnsi.end());
         }
     }
-    FString ToLower()
+    FString ToLower() const
     {
         if (bIsWide)
         {
@@ -1048,7 +1128,7 @@ public:
         std::transform(NewData.begin(), NewData.end(), NewData.begin(), ::tolower);
         return FString(NewData);
     }
-    FString ToUpper()
+    FString ToUpper() const
     {
         if (bIsWide)
         {
@@ -1083,6 +1163,48 @@ public:
         return Index != std::string::npos;
     }
 
+    void PopBack()
+    {
+        if (bIsWide)
+        {
+            DataWide.pop_back();
+        }
+        else
+        {
+            DataAnsi.pop_back();
+        }
+    }
+
+    uint32 LeftFind(const UTFCHAR* Chars, uint32 Pos)
+    {
+        assert(bIsWide);
+        return DataWide.find(Chars, Pos);
+    }
+    uint32 LeftFind(const ANSICHAR*  Chars, uint32 Pos)
+    {
+        assert(!bIsWide);
+        return DataAnsi.find(Chars, Pos);
+    }
+    uint32 RightFind(const UTFCHAR* Chars, uint32 Pos)
+    {
+        assert(bIsWide);
+        return DataWide.rfind(Chars, Pos);
+    }
+    uint32 RightFind(const ANSICHAR* Chars, uint32 Pos)
+    {
+        assert(!bIsWide);
+        return DataAnsi.rfind(Chars, Pos);
+    }
+
+    static FString Hexify(const uint8* Input, uint32 InputSize)
+    {
+        std::stringstream Buf;
+        Buf.fill('0');
+        for (int32 i = 0; i < InputSize; i++)
+            Buf << std::hex << std::setfill('0') << std::setw(2) << (uint16)Input[i];
+        return FString(Buf.str());
+    }
+
 #if PLATFORM_WINDOWS
     static FString GetLastErrorAsString()
     {
@@ -1114,6 +1236,220 @@ inline FString operator+ (const FString& Left, const FString& Right)
     NewString += Right;
     return NewString;
 }
+
+namespace std
+{
+    template <> struct hash<FString>
+    {
+        size_t operator()(const FString & c) const
+        {
+            if (c.IsWide())
+            {
+                return std::hash<std::wstring>()(c.GetWideCharString());
+            }
+            return std::hash<std::string>()(c.GetAnsiCharString());
+        }
+    };
+}
+
+class FStringStream
+{
+
+private:
+    bool bIsWide = false;
+
+    std::stringstream AnsiStringStream;
+    std::wstringstream UTFStringStream;
+
+    FStringStream() = default;
+
+public:
+    explicit FStringStream(bool _bIsWide)
+    {
+        bIsWide = _bIsWide;
+    }
+    explicit FStringStream(const ANSICHAR* Parameter)
+    {
+        bIsWide = false;
+        AnsiStringStream = std::stringstream(Parameter);
+    }
+    explicit FStringStream(const UTFCHAR* Parameter)
+    {
+        bIsWide = true;
+        UTFStringStream = std::wstringstream(Parameter);
+    }
+    explicit FStringStream(const FString& Parameter)
+    {
+        bIsWide = Parameter.IsWide();
+        if (bIsWide)
+        {
+            UTFStringStream << Parameter.GetWideCharArray();
+        }
+        else
+        {
+            AnsiStringStream << Parameter.GetAnsiCharArray();
+        }
+    }
+
+    bool IsWide()
+    {
+        return bIsWide;
+    }
+
+    void operator<<(const FString& Other)
+    {
+        assert(bIsWide == Other.IsWide());
+
+        if (bIsWide)
+        {
+            UTFStringStream << Other.GetWideCharArray();
+        }
+        else
+        {
+            AnsiStringStream << Other.GetAnsiCharArray();
+        }
+    }
+    void operator<<(const ANSICHAR* Other)
+    {
+        assert(!bIsWide);
+        AnsiStringStream << Other;
+    }
+    void operator<<(const UTFCHAR* Other)
+    {
+        assert(bIsWide);
+        UTFStringStream << Other;
+    }
+    void operator<<(uint8 Numeric)
+    {
+        if (bIsWide) UTFStringStream << Numeric;
+        else AnsiStringStream << Numeric;
+    }
+    void operator<<(int8 Numeric)
+    {
+        if (bIsWide) UTFStringStream << Numeric;
+        else AnsiStringStream << Numeric;
+    }
+    void operator<<(uint16 Numeric)
+    {
+        if (bIsWide) UTFStringStream << Numeric;
+        else AnsiStringStream << Numeric;
+    }
+    void operator<<(int16 Numeric)
+    {
+        if (bIsWide) UTFStringStream << Numeric;
+        else AnsiStringStream << Numeric;
+    }
+    void operator<<(uint32 Numeric)
+    {
+        if (bIsWide) UTFStringStream << Numeric;
+        else AnsiStringStream << Numeric;
+    }
+    void operator<<(int32 Numeric)
+    {
+        if (bIsWide) UTFStringStream << Numeric;
+        else AnsiStringStream << Numeric;
+    }
+    void operator<<(uint64 Numeric)
+    {
+        if (bIsWide) UTFStringStream << Numeric;
+        else AnsiStringStream << Numeric;
+    }
+    void operator<<(int64 Numeric)
+    {
+        if (bIsWide) UTFStringStream << Numeric;
+        else AnsiStringStream << Numeric;
+    }
+    void operator<<(float Numeric)
+    {
+        if (bIsWide) UTFStringStream << Numeric;
+        else AnsiStringStream << Numeric;
+    }
+    void operator<<(double Numeric)
+    {
+        if (bIsWide) UTFStringStream << Numeric;
+        else AnsiStringStream << Numeric;
+    }
+    void operator<<(ANSICHAR Character)
+    {
+        assert(!bIsWide);
+        AnsiStringStream << Character;
+    }
+    void operator<<(UTFCHAR Character)
+    {
+        assert(bIsWide);
+        UTFStringStream << Character;
+    }
+    void operator>> (bool& val)
+    {
+        if (bIsWide) UTFStringStream >> val;
+        else AnsiStringStream >> val;
+    }
+    void operator>> (uint16& val)
+    {
+        if (bIsWide) UTFStringStream >> val;
+        else AnsiStringStream >> val;
+    }
+    void operator>> (uint32& val)
+    {
+        if (bIsWide) UTFStringStream >> val;
+        else AnsiStringStream >> val;
+    }
+    void operator>> (uint64& val)
+    {
+        if (bIsWide) UTFStringStream >> val;
+        else AnsiStringStream >> val;
+    }
+    void operator>> (int16& val)
+    {
+        if (bIsWide) UTFStringStream >> val;
+        else AnsiStringStream >> val;
+    }
+    void operator>> (int32& val)
+    {
+        if (bIsWide) UTFStringStream >> val;
+        else AnsiStringStream >> val;
+    }
+    void operator>> (int64& val)
+    {
+        if (bIsWide) UTFStringStream >> val;
+        else AnsiStringStream >> val;
+    }
+    void operator>> (float& val)
+    {
+        if (bIsWide) UTFStringStream >> val;
+        else AnsiStringStream >> val;
+    }
+    void operator>> (double& val)
+    {
+        if (bIsWide) UTFStringStream >> val;
+        else AnsiStringStream >> val;
+    }
+    void operator>> (void*& val)
+    {
+        if (bIsWide) UTFStringStream >> val;
+        else AnsiStringStream >> val;
+    }
+
+    void Fill(ANSICHAR Character)
+    {
+        assert(!bIsWide);
+        AnsiStringStream.fill(Character);
+    }
+    void Fill(UTFCHAR Character)
+    {
+        assert(bIsWide);
+        UTFStringStream.fill(Character);
+    }
+
+    FString Str()
+    {
+        if (bIsWide)
+        {
+            return FString(UTFStringStream.str());
+        }
+        return FString(AnsiStringStream.str());
+    }
+};
 
 #define EMPTY_FSTRING_UTF8 FString(L"")
 #define EMPTY_FSTRING_ANSI FString("")

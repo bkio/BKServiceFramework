@@ -54,19 +54,23 @@ void WUtilities::Print(EWLogType LogType, const FString& Format)
 {
     if (Format.IsWide())
     {
-        std::wstringstream Message;
-        Message << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error: ")) << Format.GetWideCharString() << L"\n";
+        FStringStream Message(true);
+        Message << (LogType == EWLogType::Log ? L"Log: " : (LogType == EWLogType::Warning ? L"Warning: " : L"Error: "));
+        Message << Format.GetWideCharArray();
+        Message << L"\n";
 
         WScopeGuard Guard(&PrintMutex);
-        std::wcout << Message.str();
+        std::wcout << Message.Str().GetWideCharString();
     }
     else
     {
-        std::stringstream Message;
-        Message << (LogType == EWLogType::Log ? "Log: " : (LogType == EWLogType::Warning ? "Warning: " : "Error: ")) << Format.GetCharString() << "\n";
+        FStringStream Message(false);
+        Message << (LogType == EWLogType::Log ? "Log: " : (LogType == EWLogType::Warning ? "Warning: " : "Error: "));
+        Message << Format.GetAnsiCharArray();
+        Message << "\n";
 
         WScopeGuard Guard(&PrintMutex);
-        std::cout << Message.str();
+        std::cout << Message.Str().GetAnsiCharString();
     }
 }
 
@@ -116,11 +120,7 @@ FString WUtilities::WGenerateMD5Hash(const TArray<uint8>& RawData)
     Md5Gen.Update(RawData.GetData(), RawData.Num());
     Md5Gen.Final(Digest);
 
-    std::stringstream Buf;
-    Buf.fill('0');
-    for (int32 i = 0; i < 16; i++)
-        Buf << std::hex << std::setfill('0') << std::setw(2) << (unsigned short)Digest[i];
-    return FString(Buf.str());
+    return FString::Hexify(Digest, 16);
 }
 FWCHARWrapper WUtilities::WBasicRawHash(FWCHARWrapper& Source, int32 FromSourceIndex, int32 Size)
 {

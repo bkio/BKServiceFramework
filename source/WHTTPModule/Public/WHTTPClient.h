@@ -9,18 +9,18 @@
 #include "../Private/WHTTPHelper.h"
 #include <map>
 
-#define DEFAULT_HTTP_REQUEST_HEADERS std::map<std::string, std::string>()
+#define DEFAULT_HTTP_REQUEST_HEADERS std::map<FString, FString>()
 #define DEFAULT_TIMEOUT_MS 2500
 
 class WHTTPClient : public WAsyncTaskParameter
 {
 
 private:
-    std::string ServerAddress;
+    FString ServerAddress;
     uint16 ServerPort = 80;
-    std::map<std::string, std::string> Headers{};
-    std::wstring Payload;
-    std::string RequestLine;
+    std::map<FString, FString> Headers{};
+    FString Payload;
+    FString RequestLine;
 
     WHTTPRequestParser Parser;
 
@@ -47,12 +47,12 @@ private:
 
 public:
     static void NewHTTPRequest(
-        std::string _ServerAddress,
+        const FString& _ServerAddress,
         uint16 _ServerPort,
-        std::wstring _Payload,
-        std::string _Verb,
-        std::string _Path,
-        std::map<std::string, std::string> _Headers,
+        const FString& _Payload,
+        const FString& _Verb,
+        const FString& _Path,
+        std::map<FString, FString> _Headers,
         uint32 _TimeoutMs,
         WFutureAsyncTask& _RequestCallback,
         WFutureAsyncTask& _TimeoutCallback);
@@ -60,15 +60,15 @@ public:
     bool ProcessRequest();
     void CancelRequest();
 
-    std::map<std::string, std::string> GetResponseHeaders()
+    std::map<FString, FString> GetResponseHeaders()
     {
-        if (!bRequestInitialized) return std::map<std::string, std::string>();
+        if (!bRequestInitialized) return std::map<FString, FString>();
         return Parser.GetHeaders();
     };
 
-    std::wstring GetResponsePayload()
+    FString GetResponsePayload()
     {
-        if (!bRequestInitialized) return L"";
+        if (!bRequestInitialized) return FString(L"");
         return Parser.GetPayload();
     }
 

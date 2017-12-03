@@ -48,11 +48,11 @@ bool WServiceDiscoveryComponent::RegisterService()
             
         }
     };
-    ServiceDiscovery_UDPClient = WUDPClient::NewUDPClient(DiscoveryServerIP.GetCharString(), DiscoveryServerPort, DataReceivedLambda);
+    ServiceDiscovery_UDPClient = WUDPClient::NewUDPClient(DiscoveryServerIP, DiscoveryServerPort, DataReceivedLambda);
     if (ServiceDiscovery_UDPClient && ServiceDiscovery_UDPClient->GetUDPHandler())
     {
         WJson::Node DataToSend = WJson::Node(WJson::Node::T_OBJECT);
-        DataToSend.Add("CharArray", WJson::Node("Hello pagan world!"));
+        DataToSend.Add(FString("CharArray"), WJson::Node("Hello pagan world!"));
 
         FWCHARWrapper WrappedData = ServiceDiscovery_UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(ServiceDiscovery_UDPClient->GetSocketAddress(), DataToSend, false, false, true);
 

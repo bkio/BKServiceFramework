@@ -140,7 +140,7 @@ WJson::Node WUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramete
     {
         WOtherPartyRecord* OtherPartyRecord = nullptr;
         {
-            std::string OtherPartyKey = WUDPHelper::GetAddressPortFromOtherParty(OtherParty, MessageID, true);
+            FString OtherPartyKey = WUDPHelper::GetAddressPortFromOtherParty(OtherParty, MessageID, true);
 
             WScopeGuard Guard(&OtherPartiesRecords_Mutex);
             auto It = OtherPartiesRecords.find(OtherPartyKey);
@@ -159,7 +159,7 @@ WJson::Node WUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramete
             else
             {
                 OtherPartyRecord = new WOtherPartyRecord(this, OtherPartyKey);
-                OtherPartiesRecords.insert(std::pair<std::string, WOtherPartyRecord*>(OtherPartyKey, OtherPartyRecord));
+                OtherPartiesRecords.insert(std::pair<FString, WOtherPartyRecord*>(OtherPartyKey, OtherPartyRecord));
             }
         }
 
@@ -260,18 +260,20 @@ WJson::Node WUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramete
 
             BoolArray.SetNum(VariableContentCount);
 
-            WJson::Node Exists = ResultMap.Get("BooleanArray");
+            static const FString BooleanArrayString("BooleanArray");
+
+            WJson::Node Exists = ResultMap.Get(BooleanArrayString);
             if (Exists.GetType() == WJson::Node::Type::T_ARRAY)
             {
                 for (int32 i = 0; i < VariableContentCount; i++) Exists.Add(WJson::Node(BoolArray[i]));
-                ResultMap.Remove("BooleanArray");
-                ResultMap.Add("BooleanArray", Exists);
+                ResultMap.Remove(BooleanArrayString);
+                ResultMap.Add(BooleanArrayString, Exists);
             }
             else
             {
                 WJson::Node NewList = WJson::Node(WJson::Node::T_ARRAY);
                 for (int32 i = 0; i < VariableContentCount; i++) NewList.Add(WJson::Node(BoolArray[i]));
-                ResultMap.Add("BooleanArray", NewList);
+                ResultMap.Add(BooleanArrayString, NewList);
             }
         }
             //Byte Array
@@ -286,18 +288,20 @@ WJson::Node WUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramete
 
             RemainedBytes -= VariableContentCount;
 
-            WJson::Node Exists = ResultMap.Get("ByteArray");
+            static const FString ByteArrayString("ByteArray");
+
+            WJson::Node Exists = ResultMap.Get(ByteArrayString);
             if (Exists.GetType() == WJson::Node::Type::T_ARRAY)
             {
                 for (int32 i = 0; i < VariableContentCount; i++) Exists.Add(WJson::Node(ByteArray[i]));
-                ResultMap.Remove("ByteArray");
-                ResultMap.Add("ByteArray", Exists);
+                ResultMap.Remove(ByteArrayString);
+                ResultMap.Add(ByteArrayString, Exists);
             }
             else
             {
                 WJson::Node NewList = WJson::Node(WJson::Node::T_ARRAY);
                 for (int32 i = 0; i < VariableContentCount; i++) NewList.Add(WJson::Node(ByteArray[i]));
-                ResultMap.Add("ByteArray", NewList);
+                ResultMap.Add(ByteArrayString, NewList);
             }
         }
             //Char Array
@@ -317,14 +321,15 @@ WJson::Node WUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramete
 
             RemainedBytes -= VariableContentCount;
 
-            WJson::Node Exists = ResultMap.Get("CharArray");
+            static const FString CharArrayString("CharArray");
+
+            WJson::Node Exists = ResultMap.Get(CharArrayString);
             if (Exists.GetType() == WJson::Node::Type::T_STRING)
             {
-                CharArray = FString(Exists.ToString("")) + CharArray;
-                ResultMap.Remove("CharArray");
+                CharArray = FString(Exists.ToString(EMPTY_FSTRING_ANSI)) + CharArray;
+                ResultMap.Remove(CharArrayString);
             }
-            std::string AsString = CharArray.GetAnsiCharArray();
-            ResultMap.Add("CharArray", WJson::Node(AsString));
+            ResultMap.Add(CharArrayString, WJson::Node(CharArray));
         }
             //Short, Integer, Float Array
         else if (VariableType == 3 || VariableType == 4 || VariableType == 5)
@@ -348,7 +353,11 @@ WJson::Node WUDPHandler::AnalyzeNetworkDataWithByteArray(FWCHARWrapper& Paramete
 
             RemainedBytes -= AsArraySize;
 
-            std::string Key = VariableType == 3 ? "ShortArray" : (VariableType == 4 ? "IntegerArray" : "FloatArray");
+            static const FString ShortArrayString("ShortArray");
+            static const FString IntegerArrayString("IntegerArray");
+            static const FString FloatArrayString("FloatArray");
+
+            FString Key = VariableType == 3 ? ShortArrayString : (VariableType == 4 ? IntegerArrayString : FloatArrayString);
             WJson::Node Exists = ResultMap.Get(Key);
             if (Exists.GetType() == WJson::Node::Type::T_ARRAY)
             {
@@ -488,11 +497,13 @@ FWCHARWrapper WUDPHandler::MakeByteArrayForNetworkData(
         {
             uint16 InfoByte;
 
-            std::string KeyString = NamedNode.first;
-            if (KeyString == "CharArray")
+            static const FString CharArrayString("CharArray");
+
+            FString KeyString = NamedNode.first;
+            if (KeyString == CharArrayString)
             {
-                std::string ValueString = NamedNode.second.ToString("");
-                int32 Length = ValueString.length();
+                FString ValueString = NamedNode.second.ToString(EMPTY_FSTRING_ANSI);
+                int32 Length = ValueString.Len();
                 if (Length > 0 && Length < MaxValue)
                 {
                     InfoByte = 2;
@@ -506,7 +517,7 @@ FWCHARWrapper WUDPHandler::MakeByteArrayForNetworkData(
                         Result.Add(Wrapper.GetArrayElement(1));
                     }
 
-                    for (int32 i = 0; i < Length; i++) Result.Add(ValueString[i]);
+                    for (uint32 i = 0; i < Length; i++) Result.Add(ValueString.AtAnsi(i));
                 }
             }
             else
@@ -517,7 +528,9 @@ FWCHARWrapper WUDPHandler::MakeByteArrayForNetworkData(
                     auto Length = (ANSICHAR)ValueList.GetSize();
                     if (Length > 0 && Length < MaxValue)
                     {
-                        if (KeyString == "BooleanArray")
+                        static const FString BooleanArrayString("BooleanArray");
+
+                        if (KeyString == BooleanArrayString)
                         {
                             InfoByte = 0;
 
@@ -555,27 +568,32 @@ FWCHARWrapper WUDPHandler::MakeByteArrayForNetworkData(
                         }
                         else
                         {
+                            static const FString ByteArrayString("ByteArray");
+                            static const FString ShortArrayString("ShortArray");
+                            static const FString IntegerArrayString("IntegerArray");
+                            static const FString FloatArrayString("FloatArray");
+
                             uint8 UnitSize;
                             uint8 BasicType = 0;
-                            if (KeyString == "ByteArray")
+                            if (KeyString == ByteArrayString)
                             {
                                 InfoByte = 1;
                                 UnitSize = 1;
                                 BasicType = 0;
                             }
-                            else if (KeyString == "ShortArray")
+                            else if (KeyString == ShortArrayString)
                             {
                                 InfoByte = 3;
                                 UnitSize = 2;
                                 BasicType = 1;
                             }
-                            else if (KeyString == "IntegerArray")
+                            else if (KeyString == IntegerArrayString)
                             {
                                 InfoByte = 4;
                                 UnitSize = 4;
                                 BasicType = 2;
                             }
-                            else if (KeyString == "FloatArray")
+                            else if (KeyString == FloatArrayString)
                             {
                                 InfoByte = 5;
                                 UnitSize = 4;
@@ -658,7 +676,7 @@ WReliableConnectionRecord* WUDPHandler::Create_AddOrGet_ReliableConnectionRecord
     //Otherwise will only try to get from existing records and if found, will ensure HandshakingStatus = EnsureHandshakingStatusEqualsTo, otherwise returns null.
     //HandshakingStatus_Mutex may be locked after. Do not forget to try unlocking it.
 
-    std::string OtherPartyKey = WUDPHelper::GetAddressPortFromOtherParty(OtherParty, MessageID);
+    FString OtherPartyKey = WUDPHelper::GetAddressPortFromOtherParty(OtherParty, MessageID);
 
     uint8 ExistingHandshakeStatus = RELIABLE_CONNECTION_NOT_FOUND;
     WReliableConnectionRecord* ReliableConnection = nullptr;
@@ -700,7 +718,7 @@ WReliableConnectionRecord* WUDPHandler::Create_AddOrGet_ReliableConnectionRecord
         if (EnsureHandshakingStatusEqualsTo == 0 && ExistingHandshakeStatus == RELIABLE_CONNECTION_NOT_FOUND && !ReliableConnection)
         {
             ReliableConnection = new WReliableConnectionRecord(this, MessageID, *OtherParty, OtherPartyKey, Buffer, bAsSender);
-            ReliableConnectionRecords.insert(std::pair<std::string, WReliableConnectionRecord*>(OtherPartyKey, ReliableConnection));
+            ReliableConnectionRecords.insert(std::pair<FString, WReliableConnectionRecord*>(OtherPartyKey, ReliableConnection));
         }
     }
     return ReliableConnection;
@@ -1078,7 +1096,7 @@ void WUDPHandler::Send(sockaddr* OtherParty, const FWCHARWrapper& SendBuffer)
 #endif
 }
 
-void WUDPHandler::RemoveFromReliableConnections(std::__detail::_Node_iterator<std::pair<const std::string, WReliableConnectionRecord *>, false, true> Iterator)
+void WUDPHandler::RemoveFromReliableConnections(std::__detail::_Node_iterator<std::pair<const FString, WReliableConnectionRecord *>, false, true> Iterator)
 {
     ReliableConnectionRecords.erase(Iterator);
     if (bPendingKill && ReliableConnectionRecords.empty() && ReadyToDieCallback)
@@ -1086,7 +1104,7 @@ void WUDPHandler::RemoveFromReliableConnections(std::__detail::_Node_iterator<st
         ReadyToDieCallback();
     }
 }
-void WUDPHandler::RemoveFromReliableConnections(const std::string& Key)
+void WUDPHandler::RemoveFromReliableConnections(const FString& Key)
 {
     ReliableConnectionRecords.erase(Key);
     if (bPendingKill && ReliableConnectionRecords.empty() && ReadyToDieCallback)

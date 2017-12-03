@@ -52,11 +52,7 @@ public:
         Md5Gen.Update((uint8*)String.GetAnsiCharArray(), String.Len());
         Md5Gen.Final(Digest);
 
-        std::stringstream Buf;
-        Buf.fill('0');
-        for (int32 i = 0; i < 16; i++)
-            Buf << std::hex << std::setfill('0') << std::setw(2) << (unsigned short)Digest[i];
-        return FString(Buf.str());
+        return FString::Hexify(Digest, 16);
     }
 private:
     struct FContext

@@ -1,6 +1,7 @@
 // Copyright Pagansoft.com, All rights reserved.
 
 #include "WJson.h"
+#include "WString.h"
 #include <fstream>
 #include <stack>
 #include <algorithm>
@@ -66,8 +67,8 @@ namespace WJson
             data->addRef();
         }
     }
-    Node::Node(Type type, const std::string &value) : data(new Data(T_NULL)) { Set(type, value); }
-    Node::Node(const std::string &value) : data(new Data(T_STRING)) { Set(value); }
+    Node::Node(Type type, const FString &value) : data(new Data(T_NULL)) { Set(type, value); }
+    Node::Node(const FString &value) : data(new Data(T_STRING)) { Set(value); }
     Node::Node(const ANSICHAR *value) : data(new Data(T_STRING)) { Set(value); }
     Node::Node(int32 value) : data(new Data(T_NUMBER)) { Set(value); }
     Node::Node(uint32 value) : data(new Data(T_NUMBER)) { Set(value); }
@@ -98,17 +99,17 @@ namespace WJson
         }
     }
 
-    std::string Node::ToString(const std::string &def) const
+    FString Node::ToString(const FString &def) const
     {
         if (IsValue())
         {
             if (IsNull())
             {
-                return std::string("null");
+                return FString("null");
             }
             else if (IsValidation())
             {
-                return std::string("validation");
+                return FString("validation");
             }
             else
             {
@@ -123,7 +124,7 @@ namespace WJson
 #define GET_NUMBER(T) \
 	if (IsNumber())\
 	{\
-		std::stringstream sstr(data->valueStr);\
+		FStringStream sstr(data->valueStr);\
 		T val;\
 		sstr >> val;\
 		return val;\
@@ -140,7 +141,7 @@ namespace WJson
     {
         if (IsBoolean())
         {
-            return (data->valueStr == "true");
+            return (data->valueStr == FString("true"));
         }
         else
         {
@@ -154,10 +155,10 @@ namespace WJson
         {
             Detach();
             data->type = T_NULL;
-            data->valueStr.clear();
+            data->valueStr.Empty();
         }
     }
-    void Node::Set(Type type, const std::string &value)
+    void Node::Set(Type type, const FString &value)
     {
         if (IsValue() && (type == T_NULL || type == T_STRING || type == T_NUMBER || type == T_BOOL))
         {
@@ -173,7 +174,7 @@ namespace WJson
             }
         }
     }
-    void Node::Set(const std::string &value)
+    void Node::Set(const FString &value)
     {
         if (IsValue())
         {
@@ -188,7 +189,7 @@ namespace WJson
         {
             Detach();
             data->type = T_STRING;
-            data->valueStr = UnescapeString(std::string(value));
+            data->valueStr = UnescapeString(FString(value));
         }
     }
 #define SET_NUMBER \
@@ -196,9 +197,9 @@ namespace WJson
 	{\
 		Detach();\
 		data->type = T_NUMBER;\
-		std::stringstream sstr;\
+		FStringStream sstr(false);\
 		sstr << value;\
-		data->valueStr = sstr.str();\
+		data->valueStr = sstr.Str();\
 	}
     void Node::Set(int32 value) { SET_NUMBER }
     void Node::Set(uint32 value) { SET_NUMBER }
@@ -233,7 +234,7 @@ namespace WJson
         }
         return *this;
     }
-    Node &Node::operator=(const std::string &rhs) { Set(rhs); return *this; }
+    Node &Node::operator=(const FString &rhs) { Set(rhs); return *this; }
     Node &Node::operator=(const ANSICHAR *rhs) { Set(rhs); return *this; }
     Node &Node::operator=(int32 rhs) { Set(rhs); return *this; }
     Node &Node::operator=(uint32 rhs) { Set(rhs); return *this; }
@@ -248,10 +249,10 @@ namespace WJson
         if (IsArray())
         {
             Detach();
-            data->children.emplace_back(std::string(), node);
+            data->children.emplace_back(FString(""), node);
         }
     }
-    void Node::Add(const std::string &name, const Node &node)
+    void Node::Add(const FString &name, const Node &node)
     {
         if (IsObject())
         {
@@ -276,7 +277,7 @@ namespace WJson
             data->children.erase(it);
         }
     }
-    void Node::Remove(const std::string &name)
+    void Node::Remove(const FString &name)
     {
         if (IsObject())
         {
@@ -301,14 +302,14 @@ namespace WJson
         }
     }
 
-    bool Node::Has(const std::string &name) const
+    bool Node::Has(const FString &name) const
     {
         if (IsObject())
         {
             NamedNodeList &children = data->children;
             for (NamedNodeList::const_iterator it = children.begin(); it != children.end(); ++it)
             {
-                if ((*it).first == name)
+                if (name.Equals(it->first))
                 {
                     return true;
                 }
@@ -320,7 +321,7 @@ namespace WJson
     {
         if (IsObject())
         {
-            std::vector<std::string> Checked;
+            std::vector<FString> Checked;
 
             NamedNodeList &children = data->children;
             for (NamedNodeList::const_iterator it = children.begin(); it != children.end(); ++it)
@@ -338,16 +339,16 @@ namespace WJson
         }
         return 0;
     }
-    Node Node::Get(const std::string &name) const
+    Node Node::Get(const FString &name) const
     {
         if (IsObject())
         {
             NamedNodeList &children = data->children;
             for (NamedNodeList::const_iterator it = children.begin(); it != children.end(); ++it)
             {
-                if ((*it).first == name)
+                if (name.Equals(it->first))
                 {
-                    return (*it).second;
+                    return it->second;
                 }
             }
         }
@@ -421,13 +422,16 @@ namespace WJson
         return (--refCount == 0);
     }
 
-    std::string EscapeString(const std::string &value)
+    FString EscapeString(const FString &value)
     {
-        std::string escaped;
-        escaped.reserve(value.length());
+        FString escaped;
+        escaped.Reserve(static_cast<uint32>(value.Len()));
 
-        for (ANSICHAR c : value)
+        ANSICHAR c;
+        for (uint32 i = 0; i < value.Len(); i++)
         {
+            c = value.AtAnsi(i);
+
             const ANSICHAR *a = getEscaped(c);
             if (a[0] != '\0')
             {
@@ -442,30 +446,34 @@ namespace WJson
 
         return escaped;
     }
-    std::string UnescapeString(const std::string &value)
+    FString UnescapeString(const FString &value)
     {
-        std::string unescaped;
+        FString unescaped;
 
-        for (std::string::const_iterator it = value.begin(); it != value.end(); ++it)
+        ANSICHAR c1, c2;
+        for (uint32 i = 0; i < value.Len(); i++)
         {
-            const ANSICHAR c = (*it);
-            ANSICHAR c2 = '\0';
-            if (it+1 != value.end())
-                c2 = *(it+1);
-
-            const ANSICHAR a = getUnescaped(c, c2);
-            if (a != '\0')
+            c1 = value.AtAnsi(i);
+            if ((i + 1) != value.Len())
             {
-                unescaped += a;
-                if (it+1 != value.end())
-                    ++it;
+                c2 = value.AtAnsi(i + 1);
+                i++;
             }
             else
             {
-                unescaped += c;
+                c2 = '\0';
+            }
+
+            const ANSICHAR a = getUnescaped(c1, c2);
+            if (a != '\0')
+            {
+                unescaped += a;
+            }
+            else
+            {
+                unescaped += c1;
             }
         }
-
         return unescaped;
     }
 
@@ -487,15 +495,15 @@ namespace WJson
     {
         WriteNode(node, 0, stream);
     }
-    void Writer::WriteString(const Node &node, std::string &json) const
+    void Writer::WriteString(const Node &node, FString &json) const
     {
-        std::ostringstream stream(json);
+        std::ostringstream stream(json.GetAnsiCharString());
         WriteStream(node, stream);
         json = stream.str();
     }
-    void Writer::WriteFile(const Node &node, const std::string &filename) const
+    void Writer::WriteFile(const Node &node, const FString &filename) const
     {
-        std::ofstream stream(filename.c_str(), std::ios::out | std::ios::trunc);
+        std::ofstream stream(filename.GetAnsiCharString(), std::ios::out | std::ios::trunc);
         WriteStream(node, stream);
     }
 
@@ -522,16 +530,16 @@ namespace WJson
 
         for (Node::const_iterator it = node.begin(); it != node.end(); ++it)
         {
-            const std::string &name = (*it).first;
+            const FString &name = (*it).first;
             const Node &value = (*it).second;
 
             if (it != node.begin())
                 stream << "," << newline;
-            stream << GetIndentation(level + 1) << "\""<<name<<"\"" << ":" << spacing;
+            stream << GetIndentation(level + 1).GetAnsiCharString() << "\""<<name.GetAnsiCharString()<<"\"" << ":" << spacing;
             WriteNode(value, level + 1, stream);
         }
 
-        stream << newline << GetIndentation(level) << "}";
+        stream << newline << GetIndentation(level).GetAnsiCharString() << "}";
     }
     void Writer::WriteArray(const Node &node, uint32 level, std::ostream &stream) const
     {
@@ -543,33 +551,33 @@ namespace WJson
 
             if (it != node.begin())
                 stream << "," << newline;
-            stream << GetIndentation(level + 1);
+            stream << GetIndentation(level + 1).GetAnsiCharString();
             WriteNode(value, level + 1, stream);
         }
 
-        stream << newline << GetIndentation(level) << "]";
+        stream << newline << GetIndentation(level).GetAnsiCharString() << "]";
     }
     void Writer::WriteValue(const Node &node, std::ostream &stream) const
     {
         if (node.IsString())
         {
-            stream << "\""<< EscapeString(node.ToString())<<"\"";
+            stream << "\""<< EscapeString(node.ToString()).GetAnsiCharString()<<"\"";
         }
         else
         {
-            stream << node.ToString();
+            stream << node.ToString().GetAnsiCharString();
         }
     }
 
-    std::string Writer::GetIndentation(uint32 level) const
+    FString Writer::GetIndentation(uint32 level) const
     {
         if (!format.newline)
         {
-            return "";
+            return FString("");
         }
         else
         {
-            return std::string(format.indentSize * level, indentationChar);
+            return FString(format.indentSize * level, indentationChar);
         }
     }
 
@@ -586,18 +594,18 @@ namespace WJson
 
         return node;
     }
-    Node JsonParser::ParseString(const std::string &json)
+    Node JsonParser::ParseString(const FString &json)
     {
-        std::istringstream stream(json);
+        std::istringstream stream(json.GetAnsiCharString());
         return ParseStream(stream);
     }
-    Node JsonParser::ParseFile(const std::string &filename)
+    Node JsonParser::ParseFile(const FString &filename)
     {
-        std::ifstream stream(filename.c_str(), std::ios::in);
+        std::ifstream stream(filename.GetAnsiCharString(), std::ios::in);
         return ParseStream(stream);
     }
 
-    const std::string &JsonParser::GetError() const
+    const FString &JsonParser::GetError() const
     {
         return error;
     }
@@ -605,7 +613,7 @@ namespace WJson
     void JsonParser::Tokenize(std::istream &stream, TokenQueue &tokens, DataQueue &data)
     {
         Token token = T_UNKNOWN;
-        std::string valueBuffer;
+        FString valueBuffer;
         bool saveBuffer;
 
         ANSICHAR c = '\0';
@@ -681,7 +689,7 @@ namespace WJson
                 }
             }
 
-            if ((saveBuffer || stream.peek() == std::char_traits<ANSICHAR>::eof()) && (!valueBuffer.empty())) // Always save buffer on the last character
+            if ((saveBuffer || stream.peek() == std::char_traits<ANSICHAR>::eof()) && (!valueBuffer.IsEmpty())) // Always save buffer on the last character
             {
                 if (InterpretValue(valueBuffer, data))
                 {
@@ -694,7 +702,7 @@ namespace WJson
                     tokens.push(T_UNKNOWN);
                 }
 
-                valueBuffer.clear();
+                valueBuffer.Empty();
             }
 
             // Push the token last so that any data
@@ -713,7 +721,7 @@ namespace WJson
         std::stack<NamedNode> nodeStack;
         Node root(Node::T_INVALID);
 
-        std::string nextName;
+        FString nextName;
 
         Token token;
         while (!tokens.empty())
@@ -725,21 +733,21 @@ namespace WJson
             {
                 case T_UNKNOWN:
                 {
-                    const std::string &unknownToken = data.front().second;
-                    error = "Unknown token: "+unknownToken;
+                    const FString &unknownToken = data.front().second;
+                    error = FString("Unknown token: ") + unknownToken;
                     data.pop();
                     return Node(Node::T_INVALID);
                 }
                 case T_OBJ_BEGIN:
                 {
                     nodeStack.push(std::make_pair(nextName, Node(Node::T_OBJECT)));
-                    nextName.clear();
+                    nextName.Empty();
                     break;
                 }
                 case T_ARRAY_BEGIN:
                 {
                     nodeStack.push(std::make_pair(nextName, Node(Node::T_ARRAY)));
-                    nextName.clear();
+                    nextName.Empty();
                     break;
                 }
                 case T_OBJ_END:
@@ -761,7 +769,7 @@ namespace WJson
                         return Node(Node::T_INVALID);
                     }
 
-                    std::string nodeName = nodeStack.top().first;
+                    FString nodeName = nodeStack.top().first;
                     Node node = nodeStack.top().second;
                     nodeStack.pop();
 
@@ -796,7 +804,7 @@ namespace WJson
                         return Node(Node::T_INVALID);
                     }
 
-                    const std::pair<Node::Type, std::string> &dataPair = data.front();
+                    const std::pair<Node::Type, FString> &dataPair = data.front();
                     if (!tokens.empty() && tokens.front() == T_SEPARATOR_NAME)
                     {
                         tokens.pop();
@@ -824,7 +832,7 @@ namespace WJson
                             else if (stackTop.IsArray())
                                 stackTop.Add(node);
 
-                            nextName.clear();
+                            nextName.Empty();
                         }
                         else
                         {
@@ -872,7 +880,7 @@ namespace WJson
 
     void JsonParser::ReadString(std::istream &stream, DataQueue &data)
     {
-        std::string str;
+        FString str;
 
         ANSICHAR c1 = '\0', c2 = '\0';
         while (stream.peek() != std::char_traits<ANSICHAR>::eof())
@@ -891,23 +899,22 @@ namespace WJson
 
         data.push(std::make_pair(Node::T_STRING, str));
     }
-    bool JsonParser::InterpretValue(const std::string &value, DataQueue &data)
+    bool JsonParser::InterpretValue(const FString &value, DataQueue &data)
     {
-        std::string upperValue(value.size(), '\0');
+        ANSICHAR NullCharacter = '\0';
+        FString upperValue = value.ToUpper();
 
-        std::transform(value.begin(), value.end(), upperValue.begin(), toupper);
-
-        if (upperValue == "nullptr")
+        if (upperValue == FString("nullptr"))
         {
-            data.push(std::make_pair(Node::T_NULL, std::string()));
+            data.push(std::make_pair(Node::T_NULL, FString("")));
         }
-        else if (upperValue == "TRUE")
+        else if (upperValue == FString("TRUE"))
         {
-            data.push(std::make_pair(Node::T_BOOL, std::string("true")));
+            data.push(std::make_pair(Node::T_BOOL, FString("true")));
         }
-        else if (upperValue == "FALSE")
+        else if (upperValue == FString("FALSE"))
         {
-            data.push(std::make_pair(Node::T_BOOL, std::string("false")));
+            data.push(std::make_pair(Node::T_BOOL, FString("false")));
         }
         else
         {
@@ -917,9 +924,9 @@ namespace WJson
             bool scientific = false;
             bool scientificSign = false;
             bool scientificNumber = false;
-            for (std::string::const_iterator it = upperValue.begin(); number && it != upperValue.end(); ++it)
+            for (int32 b = 0; b < upperValue.Len(); b++)
             {
-                ANSICHAR c = (*it);
+                ANSICHAR c = upperValue.AtAnsi(b);
                 switch (c)
                 {
                     case '-':
@@ -992,7 +999,6 @@ namespace WJson
                 return false;
             }
         }
-
         return true;
     }
 }

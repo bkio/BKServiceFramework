@@ -73,14 +73,14 @@ public:
         TryDeinitializing(this);
     }
 
-    void Send(std::string& Response)
+    void Send(FString& Response)
     {
         WScopeGuard SendData_Guard(&HTTPSocket_Mutex);
         if (!bSocketOperational) return;
 #if PLATFORM_WINDOWS
-        send(ClientSocket, Response.c_str(), strlen(Response.c_str()), 0);
+        send(ClientSocket, Response.GetAnsiCharArray(), strlen(Response.GetAnsiCharArray()), 0);
 #else
-        send(ClientSocket, Response.c_str(), strlen(Response.c_str()), MSG_NOSIGNAL);
+        send(ClientSocket, Response.GetAnsiCharArray(), strlen(Response.GetAnsiCharArray()), MSG_NOSIGNAL);
 #endif
     }
 
@@ -106,7 +106,7 @@ private:
 
     sockaddr* Client = nullptr;
 
-    std::string ClientIP;
+    FString ClientIP;
 
     WHTTPRequestParser Parser{};
 
@@ -135,9 +135,9 @@ private:
         }
     }
 
-    void SendData_Internal(const std::wstring& Body, const std::string& Header, bool bCancelAfter)
+    void SendData_Internal(const FString& Body, const FString& Header, bool bCancelAfter)
     {
-        std::string Response = Header + FString::WStringToString(Body);
+        FString Response = Header + FString::WStringToString(Body);
         ClientSocket->Send(Response);
         if (bCancelAfter)
         {
@@ -146,10 +146,10 @@ private:
     }
     void Corrupted_Internal()
     {
-        static std::wstring ResponseBody = L"<html>Corrupted</html>";
-        static std::string ResponseHeaders = "HTTP/1.1 400 Bad Request\r\n"
+        static FString ResponseBody(L"<html>Corrupted</html>");
+        static FString ResponseHeaders("HTTP/1.1 400 Bad Request\r\n"
                                               "Content-Type: text/html; charset=UTF-8\r\n"
-                                              "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
+                                              "Content-Length: " + std::to_string(ResponseBody.Len()) + "\r\n\r\n");
         SendData_Internal(ResponseBody, ResponseHeaders, true);
     }
     void SocketError_Internal()
@@ -183,7 +183,7 @@ private:
             }
         }
 
-        if (Parser.GetMethod().rfind("HEAD", 0) == 0 || Parser.GetMethod().rfind("GET", 0) == 0) return true;
+        if (Parser.GetMethod().RightFind("HEAD", 0) == 0 || Parser.GetMethod().RightFind("GET", 0) == 0) return true;
 
         while (!BodyReady)
         {
@@ -252,7 +252,7 @@ public:
         return GetData_Internal();
     }
 
-    void SendData(const std::wstring& Body, const std::string& Header)
+    void SendData(const FString& Body, const FString& Header)
     {
         if (!bInitialized) return;
         SendData_Internal(Body, Header, false);
@@ -263,39 +263,39 @@ public:
         Cancel();
     }
 
-    std::string GetClientIP()
+    FString GetClientIP()
     {
-        if (!bInitialized) return "";
+        if (!bInitialized) return EMPTY_FSTRING_ANSI;
         return ClientIP;
     }
 
-    std::string GetMethod()
+    FString GetMethod()
     {
-        if (!bInitialized) return "";
+        if (!bInitialized) return EMPTY_FSTRING_ANSI;
         return Parser.GetMethod();
     }
 
-    std::string GetPath()
+    FString GetPath()
     {
-        if (!bInitialized) return "";
+        if (!bInitialized) return EMPTY_FSTRING_ANSI;
         return Parser.GetPath();
     }
 
-    std::string GetProtocol()
+    FString GetProtocol()
     {
-        if (!bInitialized) return "";
+        if (!bInitialized) return EMPTY_FSTRING_ANSI;
         return Parser.GetProtocol();
     }
 
-    std::map<std::string, std::string> GetHeaders()
+    std::map<FString, FString> GetHeaders()
     {
-        if (!bInitialized) return std::map<std::string, std::string>();
+        if (!bInitialized) return std::map<FString, FString>();
         return Parser.GetHeaders();
     };
 
-    std::wstring GetPayload()
+    FString GetPayload()
     {
-        if (!bInitialized) return L"";
+        if (!bInitialized) return EMPTY_FSTRING_UTF8;
         return Parser.GetPayload();
     }
 };

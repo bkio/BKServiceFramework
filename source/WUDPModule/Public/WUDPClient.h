@@ -20,7 +20,7 @@ class WUDPClient : public WAsyncTaskParameter
 {
 
 private:
-    std::string ServerAddress;
+    FString ServerAddress;
     uint16 ServerPort = 0;
 
     WThread* UDPClientThread = nullptr;
@@ -46,10 +46,10 @@ private:
     void ListenServer();
     uint32 ServerListenerStopped();
 
-    bool StartUDPClient(std::string& _ServerAddress, uint16 _ServerPort);
+    bool StartUDPClient(FString& _ServerAddress, uint16 _ServerPort);
 
 public:
-    static WUDPClient* NewUDPClient(std::string _ServerAddress, uint16 _ServerPort, std::function<void(class WUDPClient*, WJson::Node)>& _DataReceivedCallback);
+    static WUDPClient* NewUDPClient(FString _ServerAddress, uint16 _ServerPort, std::function<void(class WUDPClient*, WJson::Node)>& _DataReceivedCallback);
 
     void EndUDPClient();
     void MarkPendingKill();

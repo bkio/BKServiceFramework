@@ -16,17 +16,17 @@ private:
     bool FirstLine{};
     bool Beginning{};
 
-    std::string Method;
-    std::string Path;
-    std::string ProtocolVersion;
+    FString Method{};
+    FString Path{};
+    FString ProtocolVersion{};
 
-    std::string TempHeaderName;
-    std::string TempHeaderValue;
+    FString TempHeaderName{};
+    FString TempHeaderValue{};
 
     ANSICHAR PreviousChar{};
 
-    std::map<std::string, std::string> Headers;
-    std::string Payload;
+    std::map<FString, FString> Headers{};
+    FString Payload{};
     bool bHeadersAvailable = false;
     bool bBodyAvailable = false;
     bool bErrorOccuredInBodyParsing = false;
@@ -41,12 +41,12 @@ public:
         FirstLine = true;
         Beginning = true;
 
-        Method = "";
-        Path = "";
-        ProtocolVersion = "";
+        Method = EMPTY_FSTRING_ANSI;
+        Path = EMPTY_FSTRING_ANSI;
+        ProtocolVersion = EMPTY_FSTRING_ANSI;
 
-        TempHeaderName = "";
-        TempHeaderValue = "";
+        TempHeaderName = EMPTY_FSTRING_ANSI;
+        TempHeaderValue = EMPTY_FSTRING_ANSI;
 
         PreviousChar = '\0';
 
@@ -156,7 +156,7 @@ public:
                     case 0:
                         if(c == ' ' && PreviousChar == ':')
                         {
-                            TempHeaderName.pop_back();
+                            TempHeaderName.PopBack();
                             Field++;
                         }
                         else
@@ -182,12 +182,12 @@ public:
         if (bBodyAvailable) return;
 
         int32 ContentLength = 0;
-        auto ContentLengthIterator = Headers.find("Content-Length");
+        auto ContentLengthIterator = Headers.find(FString("Content-Length"));
         if (ContentLengthIterator != Headers.end())
         {
             try
             {
-                ContentLength = std::stoi(ContentLengthIterator->second);
+                ContentLength = FString::ConvertToInteger<int32>(ContentLengthIterator->second.GetAnsiCharArray());
             }
             catch (const std::invalid_argument &ia)
             {
@@ -199,7 +199,7 @@ public:
                 bErrorOccuredInBodyParsing = true;
                 return;
             }
-            if ((Size + Payload.size()) >= ContentLength) bBodyAvailable = true;
+            if ((Size + Payload.Len()) >= ContentLength) bBodyAvailable = true;
             ContentLength = ContentLength < Size ? ContentLength : Size;
         }
         else
@@ -208,13 +208,13 @@ public:
             bBodyAvailable = true;
         }
 
-        std::string ChunkString;
-        ChunkString.resize(static_cast<uint32>(ContentLength));
+        FString ChunkString;
+        ChunkString.Resize(static_cast<uint32>(ContentLength));
         for (int32 x = 0; x < ContentLength; x++)
         {
-            ChunkString[x] = Buffer[x];
+            ChunkString.SetElement(x, Buffer[x]);
         }
-        Payload.append(ChunkString);
+        Payload.Append(ChunkString);
     }
 
     //@return Information if all data was already extracted from headers and can be safely accessed
@@ -234,31 +234,31 @@ public:
     }
 
     //@return Headers in form of std::map (name -> value)
-    std::map<std::string, std::string> GetHeaders()
+    std::map<FString, FString> GetHeaders()
     {
         return Headers;
     };
 
     //@return String representing the HTTP method used in request
-    std::string GetMethod()
+    FString GetMethod()
     {
         return Method;
     }
 
     //@return String representing the requested path
-    std::string GetPath()
+    FString GetPath()
     {
         return Path;
     }
 
     //@return String representing the protocol (and version) used to perform the request
-    std::string GetProtocol()
+    FString GetProtocol()
     {
         return ProtocolVersion;
     }
 
     //@return String contains payload
-    std::wstring GetPayload()
+    FString GetPayload()
     {
         return FString::StringToWString(Payload);
     }

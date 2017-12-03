@@ -8,6 +8,14 @@
 
 #ifdef _WIN32
     #define PLATFORM_WINDOWS 1
+    #ifdef WINVER
+        #undef WINVER
+    #endif
+    #ifdef _WIN32_WINNT
+        #undef _WIN32_WINNT
+    #endif
+    #define WINVER 0x0A00
+    #define _WIN32_WINNT 0x0A00
 #elif __APPLE__
     #define PLATFORM_APPLE 1
     #define PLATFORM_MAC 1

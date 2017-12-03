@@ -5,7 +5,7 @@
 #include "WUDPHelper.h"
 #include "WAsyncTaskManager.h"
 
-WUDPClient* WUDPClient::NewUDPClient(std::string _ServerAddress, uint16 _ServerPort, std::function<void(class WUDPClient*, WJson::Node)>& _DataReceivedCallback)
+WUDPClient* WUDPClient::NewUDPClient(FString _ServerAddress, uint16 _ServerPort, std::function<void(class WUDPClient*, WJson::Node)>& _DataReceivedCallback)
 {
     auto NewClient = new WUDPClient();
 
@@ -25,7 +25,7 @@ WUDPHandler* WUDPClient::GetUDPHandler()
     return UDPHandler;
 }
 
-bool WUDPClient::StartUDPClient(std::string& _ServerAddress, uint16 _ServerPort)
+bool WUDPClient::StartUDPClient(FString& _ServerAddress, uint16 _ServerPort)
 {
     if (bClientStarted) return false;
     bClientStarted = true;
@@ -128,7 +128,7 @@ bool WUDPClient::InitializeClient()
     struct addrinfo* Result;
 
 #if PLATFORM_WINDOWS
-    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray(), &Hint, &Result));
+    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.GetAnsiCharArray(), PortString.GetAnsiCharArray(), &Hint, &Result));
 #else
     AddrInfo = getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray(), &Hint, &Result);
 #endif

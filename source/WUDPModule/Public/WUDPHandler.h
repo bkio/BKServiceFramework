@@ -77,7 +77,7 @@ private:
     WMutex TimedOutCount_Mutex{};
     uint32 TimedOutCount = 0;
 
-    std::string OtherPartyKey;
+    FString OtherPartyKey;
 
     bool ResetterFunction() override
     {
@@ -109,12 +109,12 @@ public:
         }
     }
 
-    std::string GetOtherPartyKey()
+    FString GetOtherPartyKey()
     {
         return OtherPartyKey;
     }
 
-    explicit WOtherPartyRecord(class WUDPHandler* ResponsibleHandler, std::string& _OtherPartyKey) : WUDPRecord(ResponsibleHandler)
+    explicit WOtherPartyRecord(class WUDPHandler* ResponsibleHandler, FString& _OtherPartyKey) : WUDPRecord(ResponsibleHandler)
     {
         Type = EWReliableRecordType::OtherPartyRecord;
         OtherPartyKey = _OtherPartyKey;
@@ -140,7 +140,7 @@ private:
         Type = EWReliableRecordType::ReliableConnectionRecord;
     }
 
-    std::string OtherPartyKey;
+    FString OtherPartyKey;
 
     bool bAsSender = false;
     bool bAsSender_PrevFrameSkipped = false;
@@ -153,7 +153,7 @@ private:
     WMutex HandshakingStatus_Mutex{};
 
 public:
-    explicit WReliableConnectionRecord(class WUDPHandler* ResponsibleHandler, uint32 MessageID, sockaddr& OtherPartyRef, std::string& _OtherPartyKey, FWCHARWrapper& BufferRef, bool bAsSenderParameter) : WUDPRecord(ResponsibleHandler)
+    explicit WReliableConnectionRecord(class WUDPHandler* ResponsibleHandler, uint32 MessageID, sockaddr& OtherPartyRef, FString& _OtherPartyKey, FWCHARWrapper& BufferRef, bool bAsSenderParameter) : WUDPRecord(ResponsibleHandler)
     {
         Type = EWReliableRecordType::ReliableConnectionRecord;
 
@@ -198,7 +198,7 @@ public:
     {
         return &OtherParty;
     }
-    std::string GetOtherPartyKey()
+    FString GetOtherPartyKey()
     {
         return OtherPartyKey;
     }
@@ -226,9 +226,9 @@ class WUDPHandler : public WAsyncTaskParameter
 
 private:
     WMutex ReliableConnectionRecords_Mutex{};
-    std::unordered_map<std::string, WReliableConnectionRecord*> ReliableConnectionRecords{};
-    void RemoveFromReliableConnections(std::__detail::_Node_iterator<std::pair<const std::string, WReliableConnectionRecord *>, false, true> Iterator);
-    void RemoveFromReliableConnections(const std::string& Key);
+    std::unordered_map<FString, WReliableConnectionRecord*> ReliableConnectionRecords;
+    void RemoveFromReliableConnections(std::__detail::_Node_iterator<std::pair<const FString, WReliableConnectionRecord *>, false, true> Iterator);
+    void RemoveFromReliableConnections(const FString& Key);
 
     WMutex LastThissideGeneratedTimestamp_Mutex{};
     uint16 LastThissideGeneratedTimestamp = 0;
@@ -237,7 +237,7 @@ private:
     uint32 LastThissideMessageID = 1;
 
     WMutex OtherPartiesRecords_Mutex{};
-    std::unordered_map<std::string, WOtherPartyRecord*> OtherPartiesRecords{};
+    std::unordered_map<FString, WOtherPartyRecord*> OtherPartiesRecords{};
 
     WSafeQueue<WUDPRecord*> UDPRecordsForTimeoutCheck;
 

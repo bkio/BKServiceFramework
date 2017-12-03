@@ -45,10 +45,10 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
         {
             if (!Parameter->GetData()) return;
 
-            std::wstring ResponseBody = L"<html>Hello pagan world!</html>";
-            std::string ResponseHeaders = "HTTP/1.1 200 OK\r\n"
+            FString ResponseBody = FString(L"<html>Hello pagan world!</html>");
+            FString ResponseHeaders = FString("HTTP/1.1 200 OK\r\n"
                                                 "Content-Type: text/html; charset=UTF-8\r\n"
-                                                "Content-Length: " + std::to_string(ResponseBody.length()) + "\r\n\r\n";
+                                                "Content-Length: " + std::to_string(ResponseBody.Len()) + "\r\n\r\n");
             Parameter->SendData(ResponseBody, ResponseHeaders);
             Parameter->Finalize();
         }
@@ -114,7 +114,7 @@ void SendPingToGoogle()
             }
         }
     };
-    WHTTPClient::NewHTTPRequest("google.com", 80, L"Ping...", "GET", "", DEFAULT_HTTP_REQUEST_HEADERS, DEFAULT_TIMEOUT_MS, RequestLambda, TimeoutLambda);
+    WHTTPClient::NewHTTPRequest(FString("google.com"), 80, FString(L"Ping..."), FString("GET"), FString(""), DEFAULT_HTTP_REQUEST_HEADERS, DEFAULT_TIMEOUT_MS, RequestLambda, TimeoutLambda);
 }
 
 void SendUDPPacketToServer()
@@ -130,11 +130,11 @@ void SendUDPPacketToServer()
             WrappedData.DeallocateValue();
         }
     };
-    WUDPClient* UDPClient = WUDPClient::NewUDPClient("127.0.0.1", 45000, DataReceivedLambda);
+    WUDPClient* UDPClient = WUDPClient::NewUDPClient(FString("127.0.0.1"), 45000, DataReceivedLambda);
     if (UDPClient && UDPClient->GetUDPHandler())
     {
         WJson::Node DataToSend = WJson::Node(WJson::Node::T_OBJECT);
-        DataToSend.Add("CharArray", WJson::Node("Hello pagan world!"));
+        DataToSend.Add(FString("CharArray"), WJson::Node("Hello pagan world!"));
 
         FWCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), DataToSend, false, false, true);
 

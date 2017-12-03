@@ -4,7 +4,7 @@
 #define Pragma_Once_WJson
 
 #include "WEngine.h"
-
+#include "WString.h"
 #include <string>
 #include <vector>
 #include <queue>
@@ -13,12 +13,12 @@
 #include <ostream>
 #include <memory>
 
-#define JSON_FIELD_NOT_FOUND std::string("Not Found")
+#define JSON_FIELD_NOT_FOUND FString("Not Found")
 
 namespace WJson
 {
     class Node;
-    typedef std::pair<std::string, Node> NamedNode;
+    typedef std::pair<FString, Node> NamedNode;
 
     class Node
     {
@@ -77,8 +77,8 @@ namespace WJson
         Node();
         explicit Node(Type type);
         Node(const Node &other);
-        Node(Type type, const std::string &value);
-        explicit Node(const std::string &value);
+        Node(Type type, const FString &value);
+        explicit Node(const FString &value);
         explicit Node(const ANSICHAR *value);
         explicit Node(int32 value);
         explicit Node(uint32 value);
@@ -105,15 +105,15 @@ namespace WJson
         inline bool IsContainer() const { return (IsObject() || IsArray()); }
         inline bool IsValue() const { return (IsNull() || IsString() || IsNumber() || IsBoolean()); }
 
-        std::string ToString(const std::string &def = std::string()) const;
+        FString ToString(const FString &def = FString("")) const;
         int32 ToInteger(int32 def = 0) const;
         float ToFloat(float def = 0.f) const;
         double ToDouble(double def = 0.0) const;
         bool ToBoolean(bool def = false) const;
 
         void SetNull();
-        void Set(Type type, const std::string &value);
-        void Set(const std::string &value);
+        void Set(Type type, const FString &value);
+        void Set(const FString &value);
         void Set(const ANSICHAR *value);
         void Set(int32 value);
         void Set(uint32 value);
@@ -124,7 +124,7 @@ namespace WJson
         void Set(bool value);
 
         Node &operator=(const Node &rhs);
-        Node &operator=(const std::string &rhs);
+        Node &operator=(const FString &rhs);
         Node &operator=(const ANSICHAR *rhs);
         Node &operator=(int32 rhs);
         Node &operator=(uint32 rhs);
@@ -135,15 +135,15 @@ namespace WJson
         Node &operator=(bool rhs);
 
         void Add(const Node &node);
-        void Add(const std::string &name, const Node &node);
+        void Add(const FString &name, const Node &node);
         void Append(const Node &node);
         void Remove(size_t index);
-        void Remove(const std::string &name);
+        void Remove(const FString &name);
         void Clear();
 
-        bool Has(const std::string &name) const;
+        bool Has(const FString &name) const;
         size_t GetSize() const;
-        Node Get(const std::string &name) const;
+        Node Get(const FString &name) const;
         Node Get(size_t index) const;
 
         iterator begin();
@@ -167,13 +167,13 @@ namespace WJson
             int32 refCount;
 
             Type type;
-            std::string valueStr;
+            FString valueStr;
             NamedNodeList children;
         } *data;
     };
 
-    std::string EscapeString(const std::string &value);
-    std::string UnescapeString(const std::string &value);
+    FString EscapeString(const FString &value);
+    FString UnescapeString(const FString &value);
 
     struct JsonFormatter
     {
@@ -194,8 +194,8 @@ namespace WJson
         void SetFormat(const JsonFormatter &format);
 
         void WriteStream(const Node &node, std::ostream &stream) const;
-        void WriteString(const Node &node, std::string &json) const;
-        void WriteFile(const Node &node, const std::string &filename) const;
+        void WriteString(const Node &node, FString &json) const;
+        void WriteFile(const Node &node, const FString &filename) const;
 
     private:
         void WriteNode(const Node &node, uint32 level, std::ostream &stream) const;
@@ -203,7 +203,7 @@ namespace WJson
         void WriteArray(const Node &node, uint32 level, std::ostream &stream) const;
         void WriteValue(const Node &node, std::ostream &stream) const;
 
-        std::string GetIndentation(uint32 level) const;
+        FString GetIndentation(uint32 level) const;
 
         JsonFormatter format;
         ANSICHAR indentationChar;
@@ -218,10 +218,10 @@ namespace WJson
         ~JsonParser();
 
         Node ParseStream(std::istream &stream);
-        Node ParseString(const std::string &json);
-        Node ParseFile(const std::string &filename);
+        Node ParseString(const FString &json);
+        Node ParseFile(const FString &filename);
 
-        const std::string &GetError() const;
+        const FString &GetError() const;
 
     private:
         enum Token
@@ -236,7 +236,7 @@ namespace WJson
             T_VALUE
         };
         typedef std::queue<Token> TokenQueue;
-        typedef std::queue<std::pair<Node::Type, std::string> > DataQueue;
+        typedef std::queue<std::pair<Node::Type, FString> > DataQueue;
 
         void Tokenize(std::istream &stream, TokenQueue &tokens, DataQueue &data);
         Node Assemble(TokenQueue &tokens, DataQueue &data);
@@ -245,9 +245,9 @@ namespace WJson
         void JumpToCommentEnd(std::istream &stream);
 
         void ReadString(std::istream &stream, DataQueue &data);
-        bool InterpretValue(const std::string &value, DataQueue &data);
+        bool InterpretValue(const FString &value, DataQueue &data);
 
-        std::string error;
+        FString error;
     };
 }
 

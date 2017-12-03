@@ -6,22 +6,22 @@
 #include "WHTTPClient.h"
 
 void WHTTPClient::NewHTTPRequest(
-        std::string _ServerAddress,
+        const FString& _ServerAddress,
         uint16 _ServerPort,
-        std::wstring _Payload,
-        std::string _Verb,
-        std::string _Path,
-        std::map<std::string, std::string> _Headers,
+        const FString& _Payload,
+        const FString& _Verb,
+        const FString& _Path,
+        std::map<FString, FString> _Headers,
         uint32 _TimeoutMs,
         WFutureAsyncTask& _RequestCallback,
         WFutureAsyncTask& _TimeoutCallback)
 {
     auto NewClient = new WHTTPClient();
-    NewClient->ServerAddress = std::move(_ServerAddress);
+    NewClient->ServerAddress = _ServerAddress;
     NewClient->ServerPort = _ServerPort;
     NewClient->Headers = std::move(_Headers);
-    NewClient->Payload = std::move(_Payload);
-    NewClient->RequestLine = _Verb + " " + _Path + " HTTP/1.1";
+    NewClient->Payload = _Payload;
+    NewClient->RequestLine = _Verb + FString(" ") + _Path + FString(" HTTP/1.1");
 
     TArray<WAsyncTaskParameter*> AsArray(NewClient);
     WAsyncTaskManager::NewAsyncTask(_RequestCallback, AsArray, true);
@@ -89,7 +89,7 @@ bool WHTTPClient::InitializeSocket()
     struct addrinfo* Result;
 
 #if PLATFORM_WINDOWS
-    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray(), &Hint, &Result));
+    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.GetAnsiCharArray(), PortString.GetAnsiCharArray(), &Hint, &Result));
 #else
     AddrInfo = getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray(), &Hint, &Result);
 #endif
@@ -180,17 +180,21 @@ void WHTTPClient::SendData()
 {
     if (!bRequestInitialized) return;
 
-    std::stringstream HeaderBuilder;
-    HeaderBuilder << RequestLine.c_str() << "\r\n";
+    FStringStream HeaderBuilder(false);
+    HeaderBuilder << RequestLine.GetAnsiCharArray();
+    HeaderBuilder << "\r\n";
     for (auto& Header : Headers)
     {
-        HeaderBuilder << Header.first.c_str() << ':' << Header.second.c_str() << "\r\n";
+        HeaderBuilder << Header.first.GetAnsiCharArray();
+        HeaderBuilder << ':';
+        HeaderBuilder << Header.second.GetAnsiCharArray();
+        HeaderBuilder << "\r\n";
     }
 
-    std::string Response = HeaderBuilder.str() + FString::WStringToString(Payload);
+    FString Response = HeaderBuilder.Str() + FString::WStringToString(Payload);
 
 #if PLATFORM_WINDOWS
-    send(HTTPSocket, Response.c_str(), strlen(Response.c_str()), 0);
+    send(HTTPSocket, Response.GetAnsiCharArray(), strlen(Response.GetAnsiCharArray()), 0);
 #else
     send(HTTPSocket, Response.c_str(), strlen(Response.c_str()), MSG_NOSIGNAL);
 #endif
