@@ -6,9 +6,6 @@
 #include "WEngine.h"
 #include "WString.h"
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "ClangTidyInspection"
-
 /**
  * Class for encoding/decoding Base64 data (RFC 4648)
  */
@@ -349,4 +346,3 @@ bool FBase64::Decode(const ANSICHAR* Source, uint32 Length, uint8* Dest, uint32&
 }
 
 #endif //Pragma_Once_WBase64
-#pragma clang diagnostic pop

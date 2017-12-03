@@ -54,12 +54,6 @@ public:
         return bIsWide;
     }
 
-    template <typename A, typename B, typename U = std::less<int>>
-    bool f(A a, B b, U u = U())
-    {
-        return u(a, b);
-    }
-
     const UTFCHAR& AtWide(uint32 Ix) const
     {
         assert(bIsWide);
@@ -90,7 +84,7 @@ public:
     {
         std::wstringstream WStringStream;
 
-        uint32 Length = t_str.size();
+        auto Length = static_cast<uint32>(t_str.size());
         for (uint32 i = 0; i < Length; i++)
         {
             WStringStream << t_str.at(i);
@@ -122,7 +116,7 @@ public:
             std::string AsString;
             std::stringstream StringBuilder;
 
-            int32 Length = strlen(Data);
+            auto Length = static_cast<int32>(strlen(Data));
             for (int32 i = 0; i < Length; i++)
             {
                 if (isdigit(Data[i]) || Data[i] == '-')
@@ -131,7 +125,7 @@ public:
                 }
             }
             AsString = StringBuilder.str();
-            if (AsString.size() == 0)
+            if (AsString.empty())
             {
                 return T();
             }
@@ -212,8 +206,8 @@ public:
 
     int32 Len() const
     {
-        if (bIsWide) return DataWide.length();
-        return DataAnsi.length();
+        if (bIsWide) return static_cast<int32>(DataWide.length());
+        return static_cast<int32>(DataAnsi.length());
     }
 
     int32 AddUninitialized(int32 Count = 1)
@@ -221,12 +215,12 @@ public:
         int32 OldNum;
         if (bIsWide)
         {
-            OldNum = DataWide.length();
+            OldNum = static_cast<int32>(DataWide.length());
             DataWide.resize(DataWide.length() + Count);
         }
         else
         {
-            OldNum = DataAnsi.length();
+            OldNum = static_cast<int32>(DataAnsi.length());
             DataAnsi.resize(DataAnsi.length() + Count);
         }
         return OldNum;
@@ -541,7 +535,7 @@ public:
         assert(bIsWide);
 
         if (Count <= 0) return;
-        int32 OldSize = DataWide.size();
+        auto OldSize = static_cast<int32>(DataWide.size());
         DataWide.reserve(OldSize + Count);
         for (int32 i = 0; i < Count; i++)
         {
@@ -553,7 +547,7 @@ public:
         assert(!bIsWide);
 
         if (Count <= 0) return;
-        int32 OldSize = DataAnsi.size();
+        auto OldSize = static_cast<int32>(DataAnsi.size());
         DataAnsi.reserve(OldSize + Count);
         for (int32 i = 0; i < Count; i++)
         {
@@ -593,9 +587,9 @@ public:
         assert(bIsWide == SubStr.bIsWide);
         if (bIsWide)
         {
-            return Contains(SubStr.DataWide.data(), SubStr.DataWide.length(), SearchCase, SearchDir);
+            return Contains(SubStr.DataWide.data(), static_cast<int32>(SubStr.DataWide.length()), SearchCase, SearchDir);
         }
-        return Contains(SubStr.DataAnsi.data(), SubStr.DataAnsi.length(), SearchCase, SearchDir);
+        return Contains(SubStr.DataAnsi.data(), static_cast<int32>(SubStr.DataAnsi.length()), SearchCase, SearchDir);
     }
     void Empty(uint32 Slack = 0)
     {
@@ -665,9 +659,9 @@ public:
         assert(bIsWide == InSuffix.bIsWide);
         if (bIsWide)
         {
-            return EndsWith(InSuffix.DataWide.data(), InSuffix.DataWide.length(), SearchCase);
+            return EndsWith(InSuffix.DataWide.data(), static_cast<uint32>(InSuffix.DataWide.length()), SearchCase);
         }
-        return EndsWith(InSuffix.DataAnsi.data(), InSuffix.DataAnsi.length(), SearchCase);
+        return EndsWith(InSuffix.DataAnsi.data(), static_cast<uint32>(InSuffix.DataAnsi.length()), SearchCase);
     }
 
     #define StartsWith_Define( DataVariable, std_str ) \
@@ -718,9 +712,9 @@ public:
         assert(bIsWide == InSuffix.bIsWide);
         if (bIsWide)
         {
-            return StartsWith(InSuffix.DataWide.data(), InSuffix.DataWide.length(), SearchCase);
+            return StartsWith(InSuffix.DataWide.data(), static_cast<int32>(InSuffix.DataWide.length()), SearchCase);
         }
-        return StartsWith(InSuffix.DataAnsi.data(), InSuffix.DataAnsi.length(), SearchCase);
+        return StartsWith(InSuffix.DataAnsi.data(), static_cast<int32>(InSuffix.DataAnsi.length()), SearchCase);
     }
 
     void InsertAt(uint32 Index, UTFCHAR Character)
@@ -1153,13 +1147,13 @@ public:
     bool FindLastChar(UTFCHAR InChar, int32& Index) const
     {
         assert(bIsWide);
-        Index = DataWide.find_last_of(InChar);
+        Index = static_cast<int32>(DataWide.find_last_of(InChar));
         return Index != std::wstring::npos;
     }
     bool FindLastChar(ANSICHAR InChar, int32& Index) const
     {
         assert(!bIsWide);
-        Index = DataAnsi.find_last_of(InChar);
+        Index = static_cast<int32>(DataAnsi.find_last_of(InChar));
         return Index != std::string::npos;
     }
 
@@ -1178,22 +1172,22 @@ public:
     uint32 LeftFind(const UTFCHAR* Chars, uint32 Pos)
     {
         assert(bIsWide);
-        return DataWide.find(Chars, Pos);
+        return static_cast<uint32>(DataWide.find(Chars, Pos));
     }
     uint32 LeftFind(const ANSICHAR*  Chars, uint32 Pos)
     {
         assert(!bIsWide);
-        return DataAnsi.find(Chars, Pos);
+        return static_cast<uint32>(DataAnsi.find(Chars, Pos));
     }
     uint32 RightFind(const UTFCHAR* Chars, uint32 Pos)
     {
         assert(bIsWide);
-        return DataWide.rfind(Chars, Pos);
+        return static_cast<uint32>(DataWide.rfind(Chars, Pos));
     }
     uint32 RightFind(const ANSICHAR* Chars, uint32 Pos)
     {
         assert(!bIsWide);
-        return DataAnsi.rfind(Chars, Pos);
+        return static_cast<uint32>(DataAnsi.rfind(Chars, Pos));
     }
 
     static FString Hexify(const uint8* Input, uint32 InputSize)

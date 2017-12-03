@@ -14,9 +14,7 @@ public:
     {
     }
 
-    virtual ~WQueue()
-    {
-    }
+    virtual ~WQueue() = default;
 
     // Add an element to the queue.
     virtual void Push(T t)
@@ -38,7 +36,7 @@ public:
 
     virtual int32 Size()
     {
-        return q.size();
+        return static_cast<int32>(q.size());
     }
 
     virtual void Clear()

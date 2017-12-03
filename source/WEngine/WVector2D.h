@@ -6,9 +6,6 @@
 #include "WEngine.h"
 #include "WMath.h"
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "ClangTidyInspection"
-
 /**
  * A vector in 2-D space composed of components (X, Y) with floating point precision.
  */
@@ -672,9 +669,9 @@ FVector2D FVector2D::GetSafeNormal(float Tolerance) const
     if(SquareSum > Tolerance)
     {
         const float Scale = FMath::InvSqrt(SquareSum);
-        return FVector2D(X*Scale, Y*Scale);
+        return {X*Scale, Y*Scale};
     }
-    return FVector2D(0.f, 0.f);
+    return {0.f, 0.f};
 }
 
 
@@ -775,4 +772,3 @@ float FVector2D::GetMappedRangeValueUnclamped(const FVector2D& InputRange, const
 }
 
 #endif //Pragma_Once_WVector2D
-#pragma clang diagnostic pop

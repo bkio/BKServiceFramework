@@ -17,9 +17,7 @@ public:
     {
     }
 
-    ~WSafeQueue() override
-    {
-    }
+    ~WSafeQueue() override = default;
 
     // Add an element to the queue.
     void Push(T t) override

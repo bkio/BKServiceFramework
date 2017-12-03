@@ -130,7 +130,7 @@ bool WUDPClient::InitializeClient()
 #if PLATFORM_WINDOWS
     AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.GetAnsiCharArray(), PortString.GetAnsiCharArray(), &Hint, &Result));
 #else
-    AddrInfo = getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray(), &Hint, &Result);
+    AddrInfo = getaddrinfo(ServerAddress.GetAnsiCharArray(), PortString.GetAnsiCharArray(), &Hint, &Result);
 #endif
     if (AddrInfo != 0)
     {

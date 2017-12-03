@@ -17,7 +17,7 @@ public:
 #else
         memset(&m_cond, 0, sizeof(pthread_cond_t));
 
-        pthread_cond_init(&m_cond, NULL);
+        pthread_cond_init(&m_cond, nullptr);
 #endif
     }
 
@@ -47,7 +47,7 @@ private:
 #if PLATFORM_WINDOWS
     CONDITION_VARIABLE m_cond{};
 #else
-    pthread_cond_t m_cond;
+    pthread_cond_t m_cond{};
 #endif
 };
 

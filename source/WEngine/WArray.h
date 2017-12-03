@@ -7,9 +7,6 @@
 #include <vector>
 #include <algorithm>
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "ClangTidyInspection"
-
 template <class T>
 class TArray
 {
@@ -18,7 +15,7 @@ private:
     std::vector<T> Array;
 
 public:
-    TArray() {}
+    TArray() = default;
     TArray( const TArray<T>& Other)
     {
         Array = Other.Array;
@@ -126,7 +123,7 @@ public:
     }
     int32 FindLast(const T& Item)
     {
-        int32 Ix = Array.size() - 1;
+        auto Ix = static_cast<int32>(Array.size() - 1);
         for (auto ExIt = Array.end(); ExIt != Array.begin() ; --ExIt)
         {
             if (Item == *ExIt)
@@ -140,7 +137,7 @@ public:
     bool FindLast(const T& Item, int32& Index)
     {
         Index = INDEX_NONE;
-        int32 Ix = Array.size() - 1;
+        auto Ix = static_cast<int32>(Array.size() - 1);
         for (auto ExIt = Array.end(); ExIt != Array.begin() ; --ExIt)
         {
             if (Item == *ExIt)
@@ -192,7 +189,7 @@ public:
     }
     const int32 Num() const
     {
-        return Array.size();
+        return static_cast<const int32>(Array.size());
     }
     const T& Pop()
     {
@@ -249,7 +246,7 @@ public:
     }
     void SetNumZeroed(int32 NewNum)
     {
-        int32 OldSize = Array.size();
+        auto OldSize = static_cast<int32>(Array.size());
         Array.resize(NewNum);
         for (int32 i = OldSize; i < NewNum; i++)
         {
@@ -263,13 +260,13 @@ public:
     }
     int32 AddUninitialized(int32 Count = 1)
     {
-        const int32 OldNum = Array.size();
+        auto OldNum = static_cast<const int32>(Array.size());
         Array.resize(Array.size() + Count);
         return OldNum;
     }
     void InsertUninitialized(int32 Index, int32 Count = 1)
     {
-        const int32 OldNum = Array.size();
+        auto OldNum = static_cast<const int32>(Array.size());
         Array.resize(Array.size() + Count);
     }
     int32 AddZeroed(int32 Count = 1)

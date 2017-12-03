@@ -8,9 +8,6 @@
 #include "WString.h"
 #include "WMath.h"
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "ClangTidyInspection"
-
 // Generic axis enum (mirrored for property use in Object.h)
 namespace EAxis
 {
@@ -589,13 +586,6 @@ public:
      */
     float CosineAngle2D(FVector B) const;
 
-    /**
-     * Gets a copy of this vector projected onto the input vector.
-     *
-     * @param A	Vector to project onto, does not assume it is normalized.
-     * @return Projected vector.
-     */
-    FVector ProjectOnTo(const FVector& A) const ;
 
     /**
      * Gets a copy of this vector projected onto the input vector, which is assumed to be unit length.
@@ -850,33 +840,6 @@ FVector::FVector(const FVector2D V, float InZ)
         {
                 DiagnosticCheckNaN();
         }
-
-
-inline FVector FVector::RotateAngleAxis(const float AngleDeg, const FVector& Axis) const
-{
-    float S, C;
-    FMath::SinCos(&S, &C, FMath::DegreesToRadians(AngleDeg));
-
-    const float XX	= Axis.X * Axis.X;
-    const float YY	= Axis.Y * Axis.Y;
-    const float ZZ	= Axis.Z * Axis.Z;
-
-    const float XY	= Axis.X * Axis.Y;
-    const float YZ	= Axis.Y * Axis.Z;
-    const float ZX	= Axis.Z * Axis.X;
-
-    const float XS	= Axis.X * S;
-    const float YS	= Axis.Y * S;
-    const float ZS	= Axis.Z * S;
-
-    const float OMC	= 1.f - C;
-
-    return {
-            (OMC * XX + C) * X + (OMC * XY - ZS) * Y + (OMC * ZX + YS) * Z,
-            (OMC * XY + ZS) * X + (OMC * YY + C) * Y + (OMC * YZ - XS) * Z,
-            (OMC * ZX - YS) * X + (OMC * YZ + XS) * Y + (OMC * ZZ + C) * Z
-    };
-}
 
 inline bool FVector::PointsAreSame(const FVector &P, const FVector &Q)
 {
@@ -1478,7 +1441,7 @@ FVector FVector::GetSafeNormal2D(float Tolerance) const
         {
             return *this;
         }
-        return FVector(X, Y, 0.f);
+        return {X, Y, 0.f};
     }
     else if(SquareSum < Tolerance)
     {
@@ -1486,7 +1449,7 @@ FVector FVector::GetSafeNormal2D(float Tolerance) const
     }
 
     const float Scale = FMath::InvSqrt(SquareSum);
-    return FVector(X*Scale, Y*Scale, 0.f);
+    return {X*Scale, Y*Scale, 0.f};
 }
 
 float FVector::CosineAngle2D(FVector B) const
@@ -1497,11 +1460,6 @@ float FVector::CosineAngle2D(FVector B) const
     A.Normalize();
     B.Normalize();
     return A | B;
-}
-
-FVector FVector::ProjectOnTo(const FVector& A) const
-{
-    return (A * ((*this | A) / (A | A)));
 }
 
 FVector FVector::ProjectOnToNormal(const FVector& Normal) const
@@ -1516,7 +1474,7 @@ bool FVector::IsUnit(float LengthSquaredTolerance) const
 
 FString FVector::ToString() const
 {
-    return FString::Printf("X=%3.3f Y=%3.3f Z=%3.3f", X, Y, Z);
+    return FString::FromFloat(X) + FString(", ") + FString::FromFloat(Y) + FString(", ") + FString::FromFloat(Z);
 }
 
 float FVector::HeadingAngle() const

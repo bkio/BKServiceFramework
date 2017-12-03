@@ -8,9 +8,6 @@
 #include "WString.h"
 #include "WVector.h"
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "ClangTidyInspection"
-
 /**
  * Implements a container for rotation information.
  *
@@ -523,7 +520,7 @@ void FRotator::SetComponentForAxis(EAxis::Type Axis, float Component)
 
 FString FRotator::ToString() const
 {
-    return FString::Printf("P=%f Y=%f R=%f", Pitch, Yaw, Roll );
+    return FString::FromFloat(Pitch) + FString(", ") + FString::FromFloat(Yaw) + FString(", ") + FString::FromFloat(Roll);
 }
 
 template<> struct TIsPODType<FRotator> { enum { Value = true }; };

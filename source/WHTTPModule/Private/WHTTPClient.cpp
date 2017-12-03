@@ -62,12 +62,11 @@ bool WHTTPClient::InitializeSocket()
     HTTPSocket = -1;
 #endif
 
-    int32 RetVal;
 #if PLATFORM_WINDOWS
     WSADATA WSAData{};
     DWORD AddrInfo;
 
-    RetVal = WSAStartup(0x202, &WSAData);
+    int32 RetVal = WSAStartup(0x202, &WSAData);
     if (RetVal != 0)
     {
         WUtilities::Print(EWLogType::Error, FString("WSAStartup() failed with error: ") + FString::FromInt(WSAGetLastError()));
@@ -91,7 +90,7 @@ bool WHTTPClient::InitializeSocket()
 #if PLATFORM_WINDOWS
     AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.GetAnsiCharArray(), PortString.GetAnsiCharArray(), &Hint, &Result));
 #else
-    AddrInfo = getaddrinfo(ServerAddress.c_str(), PortString.GetAnsiCharArray(), &Hint, &Result);
+    AddrInfo = getaddrinfo(ServerAddress.GetAnsiCharArray(), PortString.GetAnsiCharArray(), &Hint, &Result);
 #endif
     if (AddrInfo != 0)
     {
@@ -196,7 +195,7 @@ void WHTTPClient::SendData()
 #if PLATFORM_WINDOWS
     send(HTTPSocket, Response.GetAnsiCharArray(), strlen(Response.GetAnsiCharArray()), 0);
 #else
-    send(HTTPSocket, Response.c_str(), strlen(Response.c_str()), MSG_NOSIGNAL);
+    send(HTTPSocket, Response.GetAnsiCharArray(), strlen(Response.GetAnsiCharArray()), MSG_NOSIGNAL);
 #endif
 }
 
@@ -209,7 +208,7 @@ bool WHTTPClient::ReceiveData()
 
     while (!HeadersReady)
     {
-        BytesReceived = static_cast<int32>(recv(HTTPSocket, RecvBuffer, RecvBufferLen, 0));
+        BytesReceived = static_cast<int32>(recv(HTTPSocket, RecvBuffer, static_cast<size_t>(RecvBufferLen), 0));
 
         if (!bRequestInitialized) return false;
 
@@ -225,7 +224,7 @@ bool WHTTPClient::ReceiveData()
 
     while (!BodyReady)
     {
-        BytesReceived = recv(HTTPSocket, RecvBuffer, RecvBufferLen, 0);
+        BytesReceived = static_cast<int32>(recv(HTTPSocket, RecvBuffer, static_cast<size_t>(RecvBufferLen), 0));
 
         if (!bRequestInitialized) return false;
 

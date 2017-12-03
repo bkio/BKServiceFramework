@@ -7,15 +7,12 @@
 #include "WString.h"
 #include "WMemory.h"
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "ClangTidyInspection"
-
 class FMD5
 {
 
 public:
     FMD5();
-    ~FMD5();
+    ~FMD5() = default;
 
     /**
      * MD5 block update operation.  Continues an MD5 message-digest operation,
@@ -137,10 +134,10 @@ static uint8 PADDING[64] = {
 //
 // Basic MD5 transformations.
 //
-#define MD5_F(x, y, z) (((x) & (y)) | ((~x) & (z)))
-#define MD5_G(x, y, z) (((x) & (z)) | ((y) & (~z)))
+#define MD5_F(x, y, z) (((x) & (y)) | ((~(x)) & (z)))
+#define MD5_G(x, y, z) (((x) & (z)) | ((y) & (~(z))))
 #define MD5_H(x, y, z) ((x) ^ (y) ^ (z))
-#define MD5_I(x, y, z) ((y) ^ ((x) | (~z)))
+#define MD5_I(x, y, z) ((y) ^ ((x) | (~(z))))
 
 //
 // Rotates X left N bits.
@@ -183,11 +180,6 @@ FMD5::FMD5()
     Context.state[1] = 0xefcdab89;
     Context.state[2] = 0x98badcfe;
     Context.state[3] = 0x10325476;
-}
-
-FMD5::~FMD5()
-{
-
 }
 
 void FMD5::Update( const uint8* input, int32 inputLen )

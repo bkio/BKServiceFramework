@@ -151,7 +151,8 @@ FString WUtilities::Base64EncodeExceptExtension(const FString& FileName)
     int32 LastDotIndex = INDEX_NONE;
     if (FileName.FindLastChar('.', LastDotIndex) && LastDotIndex > 0 && LastDotIndex != FileName.Len() - 1)
     {
-        return FBase64::Encode(FileName.Mid(0, LastDotIndex)) + FString(".") + FileName.Mid(LastDotIndex + 1, FileName.Len() - LastDotIndex - 1);
+        return FBase64::Encode(FileName.Mid(0, static_cast<uint32>(LastDotIndex))) + FString(".") + FileName.Mid(
+                static_cast<uint32>(LastDotIndex + 1), static_cast<uint32>(FileName.Len() - LastDotIndex - 1));
     }
     return FBase64::Encode(FileName);
 }
@@ -160,9 +161,10 @@ bool WUtilities::Base64DecodeExceptExtension(const FString& FileName, FString& D
     int32 LastDotIndex = INDEX_NONE;
     if (FileName.FindLastChar('.', LastDotIndex) && LastDotIndex > 0 && LastDotIndex != FileName.Len() - 1)
     {
-        if (FBase64::Decode(FileName.Mid(0, LastDotIndex), Destination))
+        if (FBase64::Decode(FileName.Mid(0, static_cast<uint32>(LastDotIndex)), Destination))
         {
-            Destination.Append(FString(".") + FileName.Mid(LastDotIndex + 1, FileName.Len() - LastDotIndex - 1));
+            Destination.Append(FString(".") + FileName.Mid(static_cast<uint32>(LastDotIndex + 1),
+                                                           static_cast<uint32>(FileName.Len() - LastDotIndex - 1)));
             return true;
         }
         return false;

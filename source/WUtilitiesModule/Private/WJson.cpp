@@ -1,12 +1,8 @@
 // Copyright Pagansoft.com, All rights reserved.
 
 #include "WJson.h"
-#include "WString.h"
 #include <fstream>
-#include <stack>
-#include <algorithm>
 #include <cassert>
-#include <sstream>
 
 namespace WJson
 {
@@ -901,7 +897,6 @@ namespace WJson
     }
     bool JsonParser::InterpretValue(const FString &value, DataQueue &data)
     {
-        ANSICHAR NullCharacter = '\0';
         FString upperValue = value.ToUpper();
 
         if (upperValue == FString("nullptr"))
@@ -926,7 +921,7 @@ namespace WJson
             bool scientificNumber = false;
             for (int32 b = 0; b < upperValue.Len(); b++)
             {
-                ANSICHAR c = upperValue.AtAnsi(b);
+                ANSICHAR c = upperValue.AtAnsi(static_cast<uint32>(b));
                 switch (c)
                 {
                     case '-':

@@ -3,9 +3,6 @@
 #ifndef Pragma_Once_WUDPHelper
 #define Pragma_Once_WUDPHelper
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "OCDFAInspection"
-
 #include "WEngine.h"
 #include "WTaskDefines.h"
 
@@ -26,7 +23,7 @@ public:
     {
         if (!OtherParty) return EMPTY_FSTRING_ANSI;
 
-        auto OtherPartyAsBroad = (struct sockaddr_in*)OtherParty;
+        auto OtherPartyAsBroad = reinterpret_cast<struct sockaddr_in*>(OtherParty);
 
         FStringStream Stream(false);
         Stream << inet_ntoa(OtherPartyAsBroad->sin_addr);
@@ -71,7 +68,5 @@ public:
         delete[] Buffer;
     }
 };
-
-#pragma clang diagnostic pop
 
 #endif //Pragma_Once_WUDPHelper
