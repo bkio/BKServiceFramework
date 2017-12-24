@@ -5,12 +5,14 @@
 WSystemManager* WSystemManager::ManagerInstance = nullptr;
 
 bool WSystemManager::bSystemStarted = false;
-bool WSystemManager::StartSystem()
+bool WSystemManager::StartSystem(WSystemInfoCallback _Callback)
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
 
     ManagerInstance = new WSystemManager();
+    ManagerInstance->Callback = std::move(_Callback);
+
     if (!ManagerInstance->StartSystem_Internal())
     {
         EndSystem();
@@ -52,24 +54,25 @@ void WSystemManager::EndSystem_Internal()
 void WSystemManager::SystemThreadsDen()
 {
     int32 Total_CPU_Utilization;
-    int32 Process_CPU_Utilization;
 
     int64 Total_Memory_Utilization;
-    int64 Process_Memory_Utilization;
+
     while (bSystemStarted)
     {
-        Process_CPU_Utilization = CPUMonitor.GetUsage(&Total_CPU_Utilization);
-        Process_Memory_Utilization = MemoryMonitor.GetUsage(&Total_Memory_Utilization);
+        Total_CPU_Utilization = CPUMonitor.GetUsage();
+        Total_Memory_Utilization = MemoryMonitor.GetUsage();
 
-        WUtilities::Print(EWLogType::Log,
-                           FString("Process CPU: ") +
-                           FString::FromInt(Process_CPU_Utilization) +
-                           FString("\t Total CPU: ") +
-                           FString::FromInt(Total_CPU_Utilization) +
-                           FString("\t Process Memory: ") +
-                           FString::FromInt(Process_Memory_Utilization) +
-                           FString("\t Total Memory: ") +
-                           FString::FromInt(Total_Memory_Utilization));
+        if (LastSystemInfo)
+        {
+            delete (LastSystemInfo);
+        }
+        LastSystemInfo = new WSystemInfo(Total_CPU_Utilization, Total_Memory_Utilization);
+
+        if (Callback)
+        {
+            Callback(LastSystemInfo);
+        }
+
 
         WThread::SleepThread(1000);
     }

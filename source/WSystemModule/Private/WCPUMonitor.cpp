@@ -49,23 +49,18 @@ WCPUMonitor::~WCPUMonitor()
 }
 #endif
 
-int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
+int32 WCPUMonitor::GetUsage()
 {
 #if PLATFORM_WINDOWS
-    *pSystemUsage = 0;
-
     int64 sTime;
     int32 sLastCpu;
-    int32 sLastCpuProcess;
     WTKTime sLastUpTime;
 
-    // lock
     {
         WScopeGuard Guard(&m_lock);
 
         sTime           = s_time;
         sLastCpu        = s_lastCpu;
-        sLastCpuProcess = s_lastCpuProcess;
         sLastUpTime     = s_lastUpTime;
     }
 
@@ -74,11 +69,9 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
         if (bFirstTime)
         {
             bFirstTime = false;
-            *pSystemUsage = 0;
             return 0;
         }
-        *pSystemUsage = sLastCpu;
-        return sLastCpuProcess;
+        return sLastCpu;
     }
 
     int64 time;
@@ -93,10 +86,9 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
 
     if( sTime == 0 )
     {
-        // for the system
         if( s_pfnGetSystemTimes )
         {
-            /*BOOL res = */s_pfnGetSystemTimes( (LPFILETIME)&idleTime, (LPFILETIME)&kernelTime, (LPFILETIME)&userTime );
+            s_pfnGetSystemTimes( (LPFILETIME)&idleTime, (LPFILETIME)&kernelTime, (LPFILETIME)&userTime );
         }
         else
         {
@@ -105,7 +97,6 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
             userTime    = 0;
         }
 
-        // for this process
         {
             FILETIME createTime{};
             FILETIME exitTime{};
@@ -114,7 +105,6 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
                              (LPFILETIME)&userTimeProcess );
         }
 
-        // LOCK
         {
             WScopeGuard Guard(&m_lock);
 
@@ -124,39 +114,27 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
             s_kernelTime        = kernelTime;
             s_userTime          = userTime;
 
-            s_kernelTimeProcess = kernelTimeProcess;
-            s_userTimeProcess   = userTimeProcess;
-
             s_lastCpu           = 0;
-            s_lastCpuProcess    = 0;
 
             s_lastUpTime        = kernelTime + userTime;
 
             sLastCpu        = s_lastCpu;
-            sLastCpuProcess = s_lastCpuProcess;
             sLastUpTime     = s_lastUpTime;
         }
-
-        *pSystemUsage = sLastCpu;
 
         s_delay.Mark();
 
         if (bFirstTime)
         {
             bFirstTime = false;
-            *pSystemUsage = 0;
             return 0;
         }
-        return sLastCpuProcess;
+        return sLastCpu;
     }
-    // sTime != 0
 
-    int64 div = ( time - sTime );
-
-    // for the system
     if( s_pfnGetSystemTimes )
     {
-        /*BOOL res = */s_pfnGetSystemTimes( (LPFILETIME)&idleTime, (LPFILETIME)&kernelTime, (LPFILETIME)&userTime );
+        s_pfnGetSystemTimes( (LPFILETIME)&idleTime, (LPFILETIME)&kernelTime, (LPFILETIME)&userTime );
     }
     else
     {
@@ -165,7 +143,6 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
         userTime    = 0;
     }
 
-    // for this process
     {
         FILETIME createTime{};
         FILETIME exitTime{};
@@ -175,8 +152,6 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
     }
 
     int32 cpu;
-    int32 cpuProcess;
-    // LOCK
     {
         WScopeGuard Guard(&m_lock);
 
@@ -189,9 +164,7 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
         if( sys == 0 )
             cpu = 0;
         else
-            cpu = int32( (sys - idl) *100 / sys ); // System Idle take 100 % of cpu :-((
-
-        cpuProcess = int32( ( ( ( userTimeProcess - s_userTimeProcess ) + ( kernelTimeProcess - s_kernelTimeProcess ) ) *100 ) / div );
+            cpu = int32( (sys - idl) *100 / sys );
 
         s_time              = time;
 
@@ -199,11 +172,7 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
         s_kernelTime        = kernelTime;
         s_userTime          = userTime;
 
-        s_kernelTimeProcess = kernelTimeProcess;
-        s_userTimeProcess   = userTimeProcess;
-
         s_cpu[(s_index++) %5] = cpu;
-        s_cpuProcess[(s_index++) %5] = cpuProcess;
         s_count ++;
         if( s_count > 5 )
             s_count = 5;
@@ -213,34 +182,24 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
         for( i = 0; i < s_count; i++ )
             cpu += s_cpu[i];
 
-        cpuProcess = 0;
-        for( i = 0; i < s_count; i++ )
-            cpuProcess += s_cpuProcess[i];
-
         cpu         /= s_count;
-        cpuProcess  /= s_count;
 
         s_lastCpu        = cpu;
-        s_lastCpuProcess = cpuProcess;
 
         s_lastUpTime     = kernelTime + userTime;
 
         sLastCpu        = s_lastCpu;
-        sLastCpuProcess = s_lastCpuProcess;
         sLastUpTime     = s_lastUpTime;
     }
-
-    *pSystemUsage = sLastCpu;
 
     s_delay.Mark();
 
     if (bFirstTime)
     {
         bFirstTime = false;
-        *pSystemUsage = 0;
         return 0;
     }
-    return sLastCpuProcess;
+    return sLastCpu;
 #else
     WScopeGuard Guard(&m_lock);
 
@@ -271,36 +230,7 @@ int32 WCPUMonitor::GetUsage( int32* pSystemUsage)
     lastTotalSys = totalSys;
     lastTotalIdle = totalIdle;
 
-    *pSystemUsage = static_cast<int32>(SystemPercent);
-
-    struct tms timeSample{};
-    clock_t now;
-    double ProcessPercent;
-
-    now = times(&timeSample);
-    if (now <= lastCPU || timeSample.tms_stime < lastSysCPU || timeSample.tms_utime < lastUserCPU)
-    {
-        //Overflow detection. Just skip this value.
-        ProcessPercent = 0.0f;
-    }
-    else
-    {
-        ProcessPercent = (timeSample.tms_stime - lastSysCPU) + (timeSample.tms_utime - lastUserCPU);
-        ProcessPercent /= (now - lastCPU);
-        ProcessPercent /= numProcessors;
-        ProcessPercent *= 100;
-    }
-    lastCPU = now;
-    lastSysCPU = timeSample.tms_stime;
-    lastUserCPU = timeSample.tms_utime;
-
-    if (bFirstTime)
-    {
-        bFirstTime = false;
-        *pSystemUsage = 0;
-        return 0;
-    }
-    return static_cast<int32>(ProcessPercent);
+    return static_cast<int32>(SystemPercent);
 #endif
 }
 
@@ -310,7 +240,7 @@ inline WTKTime::WTKTime()
     m_time = 0;
 }
 
-inline WTKTime::WTKTime( LPCTSTR /*GetSystemTime*/ )
+inline WTKTime::WTKTime( LPCTSTR )
 {
     FILETIME ft{};
     ::GetSystemTimeAsFileTime( &ft );
@@ -461,11 +391,6 @@ int64 WCPUMonitor::s_kernelTime;
 int64 WCPUMonitor::s_userTime;
 int32 WCPUMonitor::s_lastCpu = 0;
 int32 WCPUMonitor::s_cpu[];
-
-int64 WCPUMonitor::s_kernelTimeProcess;
-int64 WCPUMonitor::s_userTimeProcess;
-int32 WCPUMonitor::s_lastCpuProcess;
-int32 WCPUMonitor::s_cpuProcess[];
 
 int64 WCPUMonitor::s_lastUpTime = 0;
 

@@ -2,12 +2,11 @@
 
 #include "WMemoryMonitor.h"
 #if PLATFORM_WINDOWS
-    #include <psapi.h>
 #else
     #include "sys/sysinfo.h"
 #endif
 
-int64 WMemoryMonitor::GetUsage(int64* pSystemUsage)
+int64 WMemoryMonitor::GetUsage()
 {
 #if PLATFORM_WINDOWS
     WScopeGuard Guard(&m_lock);
@@ -17,15 +16,7 @@ int64 WMemoryMonitor::GetUsage(int64* pSystemUsage)
     Status.dwLength = sizeof (Status);
 
     GlobalMemoryStatusEx (&Status);
-    *pSystemUsage = Status.dwMemoryLoad;
-
-    PROCESS_MEMORY_COUNTERS MemoryCounter{};
-    if (GetProcessMemoryInfo(GetCurrentProcess(), &MemoryCounter, sizeof(MemoryCounter)))
-    {
-        double UsedRamByProcess = ((double)(MemoryCounter.WorkingSetSize)) / Status.ullTotalPhys;
-        return static_cast<int64>(UsedRamByProcess * 100);
-    }
-    return *pSystemUsage;
+    return Status.dwMemoryLoad;
 #else
     WScopeGuard Guard(&m_lock);
 
@@ -39,27 +30,8 @@ int64 WMemoryMonitor::GetUsage(int64* pSystemUsage)
         TotalPhysMem *= MemInfo.mem_unit;
 
         double SystemPercent = ((double)PhysMemUsed) / TotalPhysMem;
-        *pSystemUsage = static_cast<int64>(SystemPercent * 100);
-
-        FILE* StatusFile = fopen("/proc/self/status", "r");
-        int32 WorkingSetSize = 0;
-        ANSICHAR Line[128];
-
-        while (fgets(Line, 128, StatusFile))
-        {
-            if (strncmp(Line, "VmRSS:", 6) == 0)
-            {
-                WorkingSetSize = ParseLine(Line);
-                break;
-            }
-        }
-        fclose(StatusFile);
-
-        double UsedRamByProcess = ((double)(WorkingSetSize * 1024)) / TotalPhysMem;
-        return static_cast<int64>(UsedRamByProcess * 100);
+        return static_cast<int64>(SystemPercent * 100);
     }
-
-    *pSystemUsage = 0;
     return 0;
 #endif
 }

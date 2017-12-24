@@ -26,7 +26,7 @@ private:
 #endif
 
 public:
-    int64 GetUsage(int64* pSystemUsage);
+    int64 GetUsage();
 };
 
 #endif //Pragma_Once_WMemoryMonitor

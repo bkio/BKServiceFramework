@@ -55,7 +55,14 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
     });
     HTTPServerInstance->StartSystem(HTTPServerPort, 2500);
 
-    WSystemManager::StartSystem();
+    WSystemManager::StartSystem([](WSystemInfo* CurrentSystemInfo)
+    {
+        WUtilities::Print(EWLogType::Log,
+                          FString("Total CPU: ") +
+                          FString::FromInt(CurrentSystemInfo->GetTotalCPUUtilization()) +
+                          FString("\t Total Memory: ") +
+                          FString::FromInt(CurrentSystemInfo->GetTotalMemoryUtilization()));
+    });
 }
 void Stop()
 {
@@ -165,7 +172,7 @@ int main(int argc, char* argv[])
     {
         HTTP_Port = FString::ConvertToInteger<uint16>(HTTP_Port_String);
     }
-    uint16 UDP_Port = 50000;
+    uint16 UDP_Port = 45000;
     if (const ANSICHAR* UDP_Port_String = std::getenv("W_UDP_SERVER_PORT"))
     {
         UDP_Port = FString::ConvertToInteger<uint16>(UDP_Port_String);

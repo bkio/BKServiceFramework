@@ -20,8 +20,6 @@ typedef BOOL ( __stdcall * pfnGetSystemTimes)( LPFILETIME lpIdleTime, LPFILETIME
 struct WTKTimeStruct
 {
     int32     m_hour;
-    int32     m_minute;
-    int32     m_second;
 };
 
 class WTKTime
@@ -52,8 +50,6 @@ public:
 
         WTKTimeStruct tkTime{};
         tkTime.m_hour           = int32(time / 3600000);
-        tkTime.m_minute         = int32((time - (int64(tkTime.m_hour)*3600000)) / 60000);
-        tkTime.m_second         = int32((time - (int64(tkTime.m_hour)*3600000) - (int64(tkTime.m_minute)*60000)) / 1000);
 
         return tkTime;
     }
@@ -91,7 +87,7 @@ public:
     ~WCPUMonitor() = default;
 #endif
 
-    int32 GetUsage(int32* pSystemUsage);
+    int32 GetUsage();
 
 private:
 
@@ -109,11 +105,6 @@ private:
     static int64 s_userTime;
     static int32 s_lastCpu;
     static int32 s_cpu[5];
-
-    static int64 s_kernelTimeProcess;
-    static int64 s_userTimeProcess;
-    static int32 s_lastCpuProcess;
-    static int32 s_cpuProcess[5];
 
     static int32 s_count;
     static int32 s_index;
