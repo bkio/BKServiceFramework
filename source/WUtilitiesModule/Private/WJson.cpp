@@ -491,17 +491,6 @@ namespace WJson
     {
         WriteNode(node, 0, stream);
     }
-    void Writer::WriteString(const Node &node, FString &json) const
-    {
-        std::ostringstream stream(json.GetAnsiCharString());
-        WriteStream(node, stream);
-        json = stream.str();
-    }
-    void Writer::WriteFile(const Node &node, const FString &filename) const
-    {
-        std::ofstream stream(filename.GetAnsiCharString(), std::ios::out | std::ios::trunc);
-        WriteStream(node, stream);
-    }
 
     void Writer::WriteNode(const Node &node, uint32 level, std::ostream &stream) const
     {
@@ -589,16 +578,6 @@ namespace WJson
         Node node = Assemble(tokens, data);
 
         return node;
-    }
-    Node JsonParser::ParseString(const FString &json)
-    {
-        std::istringstream stream(json.GetAnsiCharString());
-        return ParseStream(stream);
-    }
-    Node JsonParser::ParseFile(const FString &filename)
-    {
-        std::ifstream stream(filename.GetAnsiCharString(), std::ios::in);
-        return ParseStream(stream);
     }
 
     const FString &JsonParser::GetError() const

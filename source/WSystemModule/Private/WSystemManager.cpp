@@ -61,7 +61,7 @@ void WSystemManager::SystemThreadsDen()
         Process_CPU_Utilization = CPUMonitor.GetUsage(&Total_CPU_Utilization);
         Process_Memory_Utilization = MemoryMonitor.GetUsage(&Total_Memory_Utilization);
 
-        /*WUtilities::Print(EWLogType::Log,
+        WUtilities::Print(EWLogType::Log,
                            FString("Process CPU: ") +
                            FString::FromInt(Process_CPU_Utilization) +
                            FString("\t Total CPU: ") +
@@ -69,9 +69,9 @@ void WSystemManager::SystemThreadsDen()
                            FString("\t Process Memory: ") +
                            FString::FromInt(Process_Memory_Utilization) +
                            FString("\t Total Memory: ") +
-                           FString::FromInt(Total_Memory_Utilization));*/
+                           FString::FromInt(Total_Memory_Utilization));
 
-        WThread::SleepThread(200);
+        WThread::SleepThread(1000);
     }
 }
 uint32 WSystemManager::SystemThreadStopped()
