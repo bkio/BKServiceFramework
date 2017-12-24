@@ -54,7 +54,6 @@ void WSystemManager::EndSystem_Internal()
 void WSystemManager::SystemThreadsDen()
 {
     int32 Total_CPU_Utilization;
-
     int64 Total_Memory_Utilization;
 
     while (bSystemStarted)
@@ -72,7 +71,6 @@ void WSystemManager::SystemThreadsDen()
         {
             Callback(LastSystemInfo);
         }
-
 
         WThread::SleepThread(1000);
     }

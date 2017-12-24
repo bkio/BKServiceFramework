@@ -225,6 +225,11 @@ int32 WCPUMonitor::GetUsage()
     lastTotalSys = totalSys;
     lastTotalIdle = totalIdle;
 
+    if (bFirstTime)
+    {
+        bFirstTime = false;
+        return 0;
+    }
     return static_cast<int32>(SystemPercent);
 #endif
 }
