@@ -116,7 +116,6 @@ private:
 #else
     uint64 lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle;
 
-    clock_t lastCPU, lastSysCPU, lastUserCPU;
     int32 numProcessors;
 #endif
 };

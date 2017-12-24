@@ -23,12 +23,7 @@ WCPUMonitor::WCPUMonitor()
     fscanf(StatFile, "cpu %llu %llu %llu %llu", &lastTotalUser, &lastTotalUserLow, &lastTotalSys, &lastTotalIdle);
     fclose(StatFile);
 
-    struct tms timeSample{};
     ANSICHAR line[128];
-
-    lastCPU = times(&timeSample);
-    lastSysCPU = timeSample.tms_stime;
-    lastUserCPU = timeSample.tms_utime;
 
     FILE* CpuFile = fopen("/proc/cpuinfo", "r");
     numProcessors = 0;
