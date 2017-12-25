@@ -6,7 +6,7 @@
     #include "sys/sysinfo.h"
 #endif
 
-int64 WMemoryMonitor::GetUsage()
+int32 WMemoryMonitor::GetUsage()
 {
 #if PLATFORM_WINDOWS
     WScopeGuard Guard(&m_lock);
@@ -16,7 +16,7 @@ int64 WMemoryMonitor::GetUsage()
     Status.dwLength = sizeof (Status);
 
     GlobalMemoryStatusEx (&Status);
-    return Status.dwMemoryLoad;
+    return (int32)Status.dwMemoryLoad;
 #else
     WScopeGuard Guard(&m_lock);
 
@@ -30,7 +30,7 @@ int64 WMemoryMonitor::GetUsage()
         TotalPhysMem *= MemInfo.mem_unit;
 
         double SystemPercent = ((double)PhysMemUsed) / TotalPhysMem;
-        return static_cast<int64>(SystemPercent * 100);
+        return static_cast<int32>(SystemPercent * 100);
     }
     return 0;
 #endif

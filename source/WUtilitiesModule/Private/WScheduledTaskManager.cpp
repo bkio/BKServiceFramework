@@ -68,17 +68,32 @@ void WScheduledAsyncTaskManager::EndSystem_Internal()
     }
 }
 
-void WScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<WAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters)
+uint32 WScheduledAsyncTaskManager::NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<WAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters)
 {
-    if (!bSystemStarted || !ManagerInstance) return;
+    if (!bSystemStarted || !ManagerInstance) return 0;
+
+    uint32 TaskUniqueIx;
+    {
+        WScopeGuard LocalGuard(&ManagerInstance->CurrentTaskIx_Mutex);
+        TaskUniqueIx = ManagerInstance->CurrentTaskIx++;
+        if (TaskUniqueIx >= 16383) TaskUniqueIx = 1;
+    }
     if (WaitFor == 0)
     {
         WAsyncTaskManager::NewAsyncTask(NewTask, TaskParameters, bDoNotDeallocateParameters);
-        return;
+        return TaskUniqueIx;
     }
 
-    auto AsTask = new FWAwaitingTask(NewTask, TaskParameters, WaitFor, bLoop, bDoNotDeallocateParameters);
+    auto AsTask = new FWAwaitingTask(TaskUniqueIx, NewTask, TaskParameters, WaitFor, bLoop, bDoNotDeallocateParameters);
     ManagerInstance->AwaitingScheduledTasks.Push(AsTask);
+    return TaskUniqueIx;
+}
+void WScheduledAsyncTaskManager::CancelScheduledAsyncTask(uint32 TaskUniqueIx)
+{
+    if (!bSystemStarted || !ManagerInstance) return;
+
+    WScopeGuard LocalGuard(&ManagerInstance->Ticker_Mutex);
+    ManagerInstance->CancelledScheduledTasks.AddUnique(TaskUniqueIx);
 }
 
 void WScheduledAsyncTaskManager::TickerRun()
@@ -91,9 +106,12 @@ void WScheduledAsyncTaskManager::TickerRun()
         WSafeQueue<FWAwaitingTask*> NewQueueAfterTick;
 
         FWAwaitingTask* PossibleAwaitingTask = nullptr;
+
+        WScopeGuard LocalGuard(&Ticker_Mutex);
+
         while (AwaitingScheduledTasks.Pop(PossibleAwaitingTask))
         {
-            if (PossibleAwaitingTask)
+            if (PossibleAwaitingTask && !CancelledScheduledTasks.Contains(PossibleAwaitingTask->TaskUniqueIx))
             {
                 PossibleAwaitingTask->PassedTimeMs += SleepMsBetweenCheck;
                 if (PossibleAwaitingTask->PassedTimeMs >= PossibleAwaitingTask->WaitTimeMs)

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.8)
 project(WServiceDiscoveryModule)
 
 #Dependencies Start
-set(WDepModsOf_WServiceDiscoveryModule WUtilitiesModule;WUDPModule)
+set(WDepModsOf_WServiceDiscoveryModule WUtilitiesModule;WUDPModule;WSystemModule)
 #Dependencies End
 
 if(WIN32)

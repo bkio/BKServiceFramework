@@ -16,19 +16,22 @@ public:
 
     static bool IsSystemStarted();
 
-    static void NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<WAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters = false);
+    static uint32 NewScheduledAsyncTask(WFutureAsyncTask NewTask, TArray<WAsyncTaskParameter*>& TaskParameters, uint32 WaitFor, bool bLoop, bool bDoNotDeallocateParameters = false);
+    static void CancelScheduledAsyncTask(uint32 TaskUniqueIx);
 
 private:
     static bool bSystemStarted;
 
     void TickerRun();
     uint32 TickerStop();
+    WMutex Ticker_Mutex;
 
     WThread* TickThread = nullptr;
 
     uint32 SleepMsBetweenCheck = 50;
 
     WSafeQueue<FWAwaitingTask*> AwaitingScheduledTasks;
+    TArray<uint32> CancelledScheduledTasks;
 
     static WScheduledAsyncTaskManager* ManagerInstance;
 
@@ -39,6 +42,9 @@ private:
     {
         return *this;
     }
+
+    uint32 CurrentTaskIx = 1;
+    WMutex CurrentTaskIx_Mutex;
 
     void StartSystem_Internal(uint32 SleepDurationMs);
     void EndSystem_Internal();

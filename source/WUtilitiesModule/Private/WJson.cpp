@@ -491,6 +491,12 @@ namespace WJson
     {
         WriteNode(node, 0, stream);
     }
+    FString Writer::WriteString(const Node &node) const
+    {
+        std::ostringstream outStream;
+        WriteStream(node, outStream);
+        return FString(outStream.str());
+    }
 
     void Writer::WriteNode(const Node &node, uint32 level, std::ostream &stream) const
     {

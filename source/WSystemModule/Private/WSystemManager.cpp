@@ -5,13 +5,24 @@
 WSystemManager* WSystemManager::ManagerInstance = nullptr;
 
 bool WSystemManager::bSystemStarted = false;
-bool WSystemManager::StartSystem(WSystemInfoCallback _Callback)
+bool WSystemManager::StartSystem(uint32& _UniqueCallbackID, WSystemInfoCallback _Callback)
 {
     if (bSystemStarted) return true;
     bSystemStarted = true;
 
     ManagerInstance = new WSystemManager();
-    ManagerInstance->Callback = std::move(_Callback);
+    {
+        WScopeGuard LocalGuard(&ManagerInstance->Callbacks_Mutex);
+        ManagerInstance->Callbacks.Reset();
+
+        _UniqueCallbackID = ManagerInstance->CurrentCallbackUniqueIx++;
+        if (ManagerInstance->CurrentCallbackUniqueIx >= 32767)
+        {
+            ManagerInstance->CurrentCallbackUniqueIx = 1;
+        }
+
+        ManagerInstance->Callbacks.Add(WNonComparable_ElementWrapper<uint32, WSystemInfoCallback>(_UniqueCallbackID, _Callback));
+    }
 
     if (!ManagerInstance->StartSystem_Internal())
     {
@@ -54,7 +65,7 @@ void WSystemManager::EndSystem_Internal()
 void WSystemManager::SystemThreadsDen()
 {
     int32 Total_CPU_Utilization;
-    int64 Total_Memory_Utilization;
+    int32 Total_Memory_Utilization;
 
     while (bSystemStarted)
     {
@@ -67,9 +78,16 @@ void WSystemManager::SystemThreadsDen()
         }
         LastSystemInfo = new WSystemInfo(Total_CPU_Utilization, Total_Memory_Utilization);
 
-        if (Callback)
+        for (int32 i = Callbacks.Num() - 1; i >=0; i--)
         {
-            Callback(LastSystemInfo);
+            if (Callbacks[i].NonComparable)
+            {
+                Callbacks[i].NonComparable(LastSystemInfo);
+            }
+            else
+            {
+                Callbacks.RemoveAt(i);
+            }
         }
 
         WThread::SleepThread(1000);
@@ -81,4 +99,26 @@ uint32 WSystemManager::SystemThreadStopped()
     if (SystemManagerThread) delete (SystemManagerThread);
     SystemManagerThread = new WThread(std::bind(&WSystemManager::SystemThreadsDen, this), std::bind(&WSystemManager::SystemThreadStopped, this));
     return 0;
+}
+
+void WSystemManager::AddCallback(uint32& _UniqueCallbackID, WSystemInfoCallback _Callback)
+{
+    if (!bSystemStarted || !ManagerInstance || !_Callback) return;
+
+    WScopeGuard LocalGuard(&ManagerInstance->Callbacks_Mutex);
+
+    _UniqueCallbackID = ManagerInstance->CurrentCallbackUniqueIx++;
+    if (ManagerInstance->CurrentCallbackUniqueIx >= 32767)
+    {
+        ManagerInstance->CurrentCallbackUniqueIx = 1;
+    }
+
+    ManagerInstance->Callbacks.AddUnique(WNonComparable_ElementWrapper<uint32, WSystemInfoCallback>(_UniqueCallbackID, _Callback));
+}
+void WSystemManager::RemoveCallback(uint32 _UniqueCallbackID, WSystemInfoCallback _Callback)
+{
+    if (!bSystemStarted || !ManagerInstance || !_Callback) return;
+
+    WScopeGuard LocalGuard(&ManagerInstance->Callbacks_Mutex);
+    ManagerInstance->Callbacks.Remove(WNonComparable_ElementWrapper<uint32, WSystemInfoCallback>(_UniqueCallbackID, _Callback));
 }

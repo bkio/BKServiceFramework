@@ -30,6 +30,8 @@ public:
     bool bQueued = false;
     double QueuedTimestamp = 0;
 
+    uint32 TaskUniqueIx = 0;
+
     WFutureAsyncTask FunctionPtr;
     TArray<WAsyncTaskParameter*> Parameters;
 
@@ -42,8 +44,9 @@ public:
     }
 
     //For scheduled tasks
-    FWAwaitingTask(WFutureAsyncTask& Function, TArray<WAsyncTaskParameter*>& Array, uint32 _WaitTimeMs, bool _bLoop, bool _bDoNotDeallocateParameters = false)
+    FWAwaitingTask(uint32 TaskIx, WFutureAsyncTask& Function, TArray<WAsyncTaskParameter*>& Array, uint32 _WaitTimeMs, bool _bLoop, bool _bDoNotDeallocateParameters = false)
     {
+        TaskUniqueIx = TaskIx;
         FunctionPtr = Function;
         Parameters = Array;
         WaitTimeMs = _WaitTimeMs;

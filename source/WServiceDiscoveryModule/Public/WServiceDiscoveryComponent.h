@@ -17,8 +17,13 @@ private:
     WServiceDiscoveryComponent() = default;
     ~WServiceDiscoveryComponent() = default;
 
-    bool RegisterService();
-    void UnregisterService();
+    void RegisterService(std::function<void(bool)> ResultCallback);
+    void UnregisterService(const FString& Reason);
+
+    FString CompileServiceInformation();
+    FString CompileUnregisterServiceMessage(const FString& Reason);
+
+    void StartHeartbeating();
 
     FString DiscoveryServerIP;
     uint16 DiscoveryServerPort = 0;
@@ -27,11 +32,29 @@ private:
     FString ServiceIP;
     uint16 ServicePort = 0;
 
-    class WUDPClient* ServiceDiscovery_UDPClient = nullptr;
+    WMutex bInitialMessageOperated_Mutex;
+    bool bInitialMessageOperated = false;
+
+    class WUDPClient* ComponentUDPClient = nullptr;
+
+    std::function<void(bool)> StartComponentResultCallback;
+
+    //Number of active clients of this service etc.
+    int32 CurrentUsersNo = 0;
+    WJson::Node CurrentSystemInfo;
+    WMutex CurrentHeartbeatData_Mutex;
+    FString CompileCurrentHeartbeatData();
+
+    uint32 HeartbeatTaskUniqueIx = 0;
+
+    uint32 SystemCallbackUniqueID;
+    WSystemInfoCallback SystemCallback;
 
 public:
-    static bool StartComponent(const FString& _DiscoveryServerIP, uint16 _DiscoveryServerPort, const FString& _ServiceName, const FString& _ServiceIP, uint16 _ServicePort);
-    static void StopComponent();
+    static void StartComponent(std::function<void(bool)> ResultCallback, const FString& _DiscoveryServerIP, uint16 _DiscoveryServerPort, const FString& _ServiceName, const FString& _ServiceIP, uint16 _ServicePort);
+    static void StopComponent(const FString& Reason);
+
+    static void SetCurrentUserNo(int32 _NewUsersNo);
 };
 
 #endif

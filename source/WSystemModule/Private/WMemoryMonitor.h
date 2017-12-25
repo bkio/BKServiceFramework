@@ -13,7 +13,7 @@ private:
     WMutex m_lock;
 
 public:
-    int64 GetUsage();
+    int32 GetUsage();
 };
 
 #endif //Pragma_Once_WMemoryMonitor

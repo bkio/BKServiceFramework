@@ -194,6 +194,7 @@ namespace WJson
         void SetFormat(const JsonFormatter &format);
 
         void WriteStream(const Node &node, std::ostream &stream) const;
+        FString WriteString(const Node &node) const;
 
     private:
         void WriteNode(const Node &node, uint32 level, std::ostream &stream) const;

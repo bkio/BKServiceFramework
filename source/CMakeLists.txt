@@ -15,10 +15,24 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMA
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMAKE_BUILD_TYPE})
 
 #Dependencies Start
-set(WModules WUtilitiesModule;WUDPModule;WHTTPModule;WSystemModule;WServiceDiscoveryModule)
+file(GLOB WDependenciesFile "WDependencies.wdep")
+if(EXISTS ${WDependenciesFile})
+    file(STRINGS "WDependencies.wdep" WDependenciesFile_Content)
+    set(WModules ${WDependenciesFile_Content})
+else()
+    file(STRINGS "WExamples/WDependencies.wdep" Default_WDependenciesFile_Content)
+    set(WModules ${Default_WDependenciesFile_Content})
+endif()
 #Dependencies End
 
-set(SOURCE_FILES main.cpp)
+#Service Main File Check Starts
+file(GLOB WServiceMainFile "main.cpp")
+if(EXISTS ${WServiceMainFile})
+	set(SOURCE_FILES main.cpp)
+else()
+	set(SOURCE_FILES WExamples/main.cpp)
+endif()
+#Service Main File Check Ends
 
 #Standart Source Files Start
 file(GLOB WEngine_Files

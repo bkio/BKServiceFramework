@@ -55,14 +55,16 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
     });
     HTTPServerInstance->StartSystem(HTTPServerPort, 2500);
 
-    WSystemManager::StartSystem([](WSystemInfo* CurrentSystemInfo)
+    WSystemInfoCallback SystemCallback = [](WSystemInfo* CurrentSystemInfo)
     {
         WUtilities::Print(EWLogType::Log,
                           FString("Total CPU: ") +
                           FString::FromInt(CurrentSystemInfo->GetTotalCPUUtilization()) +
                           FString("\t Total Memory: ") +
                           FString::FromInt(CurrentSystemInfo->GetTotalMemoryUtilization()));
-    });
+    };
+    uint32 CallbackID;
+    WSystemManager::StartSystem(CallbackID, SystemCallback);
 }
 void Stop()
 {
