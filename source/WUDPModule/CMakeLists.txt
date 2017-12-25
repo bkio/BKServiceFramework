@@ -35,9 +35,6 @@ set_target_properties(WUDPModule PROPERTIES LINKER_LANGUAGE CXX)
 
 if(WIN32)
     target_link_libraries(WUDPModule ws2_32.lib)
-    MESSAGE(STATUS "Platform: Windows")
-else()
-    MESSAGE(STATUS "Platform: Non-Windows")
 endif()
 
 foreach(WModule ${WDepModsOf_WUDPModule})

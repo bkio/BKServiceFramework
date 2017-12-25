@@ -35,9 +35,6 @@ set_target_properties(WHTTPModule PROPERTIES LINKER_LANGUAGE CXX)
 
 if(WIN32)
     target_link_libraries(WHTTPModule ws2_32.lib)
-    MESSAGE(STATUS "Platform: Windows")
-else()
-    MESSAGE(STATUS "Platform: Non-Windows")
 endif()
 
 foreach(WModule ${WDepModsOf_WHTTPModule})
