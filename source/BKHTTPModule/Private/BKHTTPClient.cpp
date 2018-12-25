@@ -98,7 +98,7 @@ bool BKHTTPClient::InitializeSocket()
         BKUtilities::Print(EBKLogType::Error, FString("Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
         WSACleanup();
 #else
-        WUtilities::Print(EBKLogType::Error, FString("Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
+        BKUtilities::Print(EBKLogType::Error, FString("Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
 #endif
         return false;
     }
@@ -113,7 +113,7 @@ bool BKHTTPClient::InitializeSocket()
             BKUtilities::Print(EBKLogType::Error, FString("Create socket failed with error: ") + FString::FromInt(WSAGetLastError()));
             WSACleanup();
 #else
-            WUtilities::Print(EBKLogType::Error, FString("Create socket failed."));
+            BKUtilities::Print(EBKLogType::Error, FString("Create socket failed."));
 #endif
             return false;
         }
@@ -154,7 +154,7 @@ bool BKHTTPClient::InitializeSocket()
         BKUtilities::Print(EBKLogType::Error, FString("Error has occurred during connecting to server: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
 #else
-        WUtilities::Print(EBKLogType::Error, FString("Error has occurred during connecting to server."));
+        BKUtilities::Print(EBKLogType::Error, FString("Error has occurred during connecting to server."));
 #endif
         return false;
     }

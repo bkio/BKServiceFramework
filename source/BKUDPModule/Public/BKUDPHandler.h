@@ -286,7 +286,7 @@ public:
 #if PLATFORM_WINDOWS
     explicit BKUDPHandler(SOCKET _UDPSocket);
 #else
-    explicit WUDPHandler(int32 _UDPSocket);
+    explicit BKUDPHandler(int32 _UDPSocket);
 #endif
 
     /*

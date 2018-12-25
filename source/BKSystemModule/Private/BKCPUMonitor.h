@@ -84,7 +84,7 @@ public:
 #if PLATFORM_WINDOWS
     ~BKCPUMonitor();
 #else
-    ~WCPUMonitor() = default;
+    ~BKCPUMonitor() = default;
 #endif
 
     int32 GetUsage();

@@ -138,7 +138,7 @@ bool BKUDPClient::InitializeClient()
         BKUtilities::Print(EBKLogType::Error, FString("Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
         WSACleanup();
 #else
-        WUtilities::Print(EBKLogType::Error, FString("Cannot resolve address."));
+        BKUtilities::Print(EBKLogType::Error, FString("Cannot resolve address."));
 #endif
         return false;
     }
@@ -152,7 +152,7 @@ bool BKUDPClient::InitializeClient()
         BKUtilities::Print(EBKLogType::Error, FString("Cannot create socket. Error: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
 #else
-        WUtilities::Print(EBKLogType::Error, FString("Cannot create socket."));
+        BKUtilities::Print(EBKLogType::Error, FString("Cannot create socket."));
 #endif
         return false;
     }
@@ -177,7 +177,7 @@ bool BKUDPClient::InitializeClient()
         BKUtilities::Print(EBKLogType::Error, FString("Error has occurred during opening a socket: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
 #else
-        WUtilities::Print(EBKLogType::Error, FString("Error has occurred during opening a socket."));
+        BKUtilities::Print(EBKLogType::Error, FString("Error has occurred during opening a socket."));
 #endif
         return false;
     }

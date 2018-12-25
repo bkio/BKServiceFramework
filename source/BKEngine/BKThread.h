@@ -117,7 +117,7 @@ public:
 
 		pthread_attr_setstacksize(&hThreadAttribute, 1048576);
 
-        pthread_create(&hThread, &hThreadAttribute, &WThread::Run, this);
+        pthread_create(&hThread, &hThreadAttribute, &BKThread::Run, this);
         pthread_attr_destroy(&hThreadAttribute);
 #endif
     }

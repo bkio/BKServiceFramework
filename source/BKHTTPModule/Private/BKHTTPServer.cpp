@@ -28,7 +28,7 @@ bool BKHTTPServer::InitializeSocket(uint16 Port)
 #else
     if (HTTPSocket == -1)
     {
-        WUtilities::Print(EBKLogType::Error, FString("WHTTPServer: Socket initialization failed with error: ") + WUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString("WHTTPServer: Socket initialization failed with error: ") + BKUtilities::WGetSafeErrorMessage());
         return false;
     }
 #endif

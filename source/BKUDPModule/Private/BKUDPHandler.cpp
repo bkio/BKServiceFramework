@@ -8,7 +8,7 @@
 #if PLATFORM_WINDOWS
 BKUDPHandler::BKUDPHandler(SOCKET _UDPSocket)
 #else
-WUDPHandler::WUDPHandler(int32 _UDPSocket)
+BKUDPHandler::BKUDPHandler(int32 _UDPSocket)
 #endif
 {
     UDPSocket_Ref = _UDPSocket;
@@ -1060,7 +1060,7 @@ void BKUDPHandler::EndSystem()
 #if PLATFORM_WINDOWS
 void BKUDPHandler::Send(sockaddr* OtherParty, const FBKCHARWrapper& SendBuffer)
 #else
-void WUDPHandler::Send(sockaddr* OtherParty, const FBKCHARWrapper& SendBuffer)
+void BKUDPHandler::Send(sockaddr* OtherParty, const FBKCHARWrapper& SendBuffer)
 #endif
 {
     if (!bSystemStarted) return;
@@ -1091,7 +1091,7 @@ void WUDPHandler::Send(sockaddr* OtherParty, const FBKCHARWrapper& SendBuffer)
 #else
     if (SentLength == -1)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("WUDPHandler: Socket send failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString("BKUDPHandler: Socket send failed with error: ") + BKUtilities::WGetSafeErrorMessage());
     }
 #endif
 }

@@ -27,7 +27,7 @@ bool BKUDPServer::InitializeSocket(uint16 Port)
 #else
     if (UDPSocket == -1)
     {
-        WUtilities::Print(EBKLogType::Error, FString("WUDPServer: Socket initialization failed with error: ") + WUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString("WUDPServer: Socket initialization failed with error: ") + BKUtilities::WGetSafeErrorMessage());
         return false;
     }
 #endif
