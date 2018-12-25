@@ -29,7 +29,7 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
                 AnalyzedData.GetType() != BKJson::Node::Type::T_INVALID &&
                 AnalyzedData.GetType() != BKJson::Node::Type::T_NULL)
             {
-                FBKCHARWrapper FinalBuffer = HandlerInstance->MakeByteArrayForNetworkData(Parameter->OtherParty, AnalyzedData, false, false, true);
+                FBKCHARWrapper FinalBuffer = HandlerInstance->MakeByteArrayForNetworkData(Parameter->OtherParty, AnalyzedData);
                 HandlerInstance->Send(Parameter->OtherParty, FinalBuffer);
                 FinalBuffer.DeallocateValue();
             }
@@ -45,7 +45,7 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
         {
             if (!Parameter->GetData()) return;
 
-            FString ResponseBody = FString(L"<html>Hello pagan world!</html>");
+            FString ResponseBody = FString(L"<html>Hello world!</html>");
             FString ResponseHeaders = FString("HTTP/1.1 200 OK\r\n"
                                                 "Content-Type: text/html; charset=UTF-8\r\n"
                                                 "Content-Length: " + std::to_string(ResponseBody.Len()) + "\r\n\r\n");
@@ -132,7 +132,7 @@ void SendUDPPacketToServer()
     {
         if (UDPClient && UDPClient->GetUDPHandler())
         {
-            FBKCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), Parameter, false, false, true);
+            FBKCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), Parameter);
 
             UDPClient->GetUDPHandler()->Send(UDPClient->GetSocketAddress(), WrappedData);
 
@@ -143,9 +143,9 @@ void SendUDPPacketToServer()
     if (UDPClient && UDPClient->GetUDPHandler())
     {
         BKJson::Node DataToSend = BKJson::Node(BKJson::Node::T_OBJECT);
-        DataToSend.Add(FString("CharArray"), BKJson::Node("Hello pagan world!"));
+        DataToSend.Add(FString("CharArray"), BKJson::Node("Hello world!"));
 
-        FBKCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), DataToSend, false, false, true);
+        FBKCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), DataToSend);
 
         UDPClient->GetUDPHandler()->Send(UDPClient->GetSocketAddress(), WrappedData);
 
@@ -170,12 +170,12 @@ int main(int argc, char* argv[])
     BKUtilities::Print(EBKLogType::Log, FString("__________________"));
 
     uint16 HTTP_Port = 8000;
-    if (const ANSICHAR* HTTP_Port_String = std::getenv("W_HTTP_SERVER_PORT"))
+    if (const ANSICHAR* HTTP_Port_String = std::getenv("BK_HTTP_SERVER_PORT"))
     {
         HTTP_Port = FString::ConvertToInteger<uint16>(HTTP_Port_String);
     }
     uint16 UDP_Port = 45000;
-    if (const ANSICHAR* UDP_Port_String = std::getenv("W_UDP_SERVER_PORT"))
+    if (const ANSICHAR* UDP_Port_String = std::getenv("BK_UDP_SERVER_PORT"))
     {
         UDP_Port = FString::ConvertToInteger<uint16>(UDP_Port_String);
     }

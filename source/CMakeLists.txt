@@ -7,7 +7,7 @@ project(${BKProjectName})
 set(CMAKE_CXX_STANDARD 11)
 
 if(WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wl,-allow-multiple-definition -static -static-libgcc -static-libstdc++")
 else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 endif()

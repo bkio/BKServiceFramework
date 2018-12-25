@@ -1269,12 +1269,12 @@ public:
     explicit FStringStream(const ANSICHAR* Parameter)
     {
         bIsWide = false;
-        AnsiStringStream << std::stringstream(Parameter);
+        AnsiStringStream << Parameter;
     }
     explicit FStringStream(const UTFCHAR* Parameter)
     {
         bIsWide = true;
-        UTFStringStream << std::wstringstream(Parameter);
+        UTFStringStream << Parameter;
     }
     explicit FStringStream(const FString& Parameter)
     {

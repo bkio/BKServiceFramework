@@ -341,7 +341,7 @@ public:
             BKJson::Node Parameter,
             bool bDoubleContentCount = false,
             bool bTimeOrderCriticalData = false,
-            bool bReliableSYN = false,
+            bool bReliableSYN = true,
             bool bReliableSYNSuccess = false,
             bool bReliableSYNFailure = false,
             bool bReliableSYNACKSuccess = false,
