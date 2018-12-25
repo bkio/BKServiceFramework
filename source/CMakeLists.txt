@@ -1,6 +1,8 @@
+# Copyright Burak Kara, All rights reserved.
+
 cmake_minimum_required(VERSION 3.8)
-set(WProjectName WServiceApp)
-project(${WProjectName})
+set(BKProjectName BKServiceApp)
+project(${BKProjectName})
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -15,41 +17,41 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMA
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../binaries/${CMAKE_BUILD_TYPE})
 
 #Dependencies Start
-file(GLOB WDependenciesFile "WDependencies.wdep")
-if(EXISTS ${WDependenciesFile})
-    file(STRINGS "WDependencies.wdep" WDependenciesFile_Content)
-    set(WModules ${WDependenciesFile_Content})
+file(GLOB BKDependenciesFile "Dependencies.bkdep")
+if(EXISTS ${BKDependenciesFile})
+    file(STRINGS "Dependencies.bkdep" BKDependenciesFile_Content)
+    set(BKModules ${BKDependenciesFile_Content})
 else()
-    file(STRINGS "WExamples/WDependencies.wdep" Default_WDependenciesFile_Content)
-    set(WModules ${Default_WDependenciesFile_Content})
+    file(STRINGS "BKExamples/Dependencies.bkdep" Default_BKDependenciesFile_Content)
+    set(BKModules ${Default_BKDependenciesFile_Content})
 endif()
 #Dependencies End
 
 #Service Main File Check Starts
-file(GLOB WServiceMainFile "main.cpp")
-if(EXISTS ${WServiceMainFile})
+file(GLOB BKServiceMainFile "main.cpp")
+if(EXISTS ${BKServiceMainFile})
 	set(SOURCE_FILES main.cpp)
 else()
-	set(SOURCE_FILES WExamples/main.cpp)
+	set(SOURCE_FILES BKExamples/main.cpp)
 endif()
 #Service Main File Check Ends
 
 #Standart Source Files Start
-file(GLOB WEngine_Files
-        "WEngine/*.h"
-        "WEngine/*.cpp"
+file(GLOB BKEngine_Files
+        "BKEngine/*.h"
+        "BKEngine/*.cpp"
         )
-set(SOURCE_FILES ${SOURCE_FILES} ${WEngine_Files})
+set(SOURCE_FILES ${SOURCE_FILES} ${BKEngine_Files})
 #Standart Source Files End
 
-include_directories(WEngine)
+include_directories(BKEngine)
 
-add_executable(${WProjectName} ${SOURCE_FILES})
+add_executable(${BKProjectName} ${SOURCE_FILES})
 
-set_target_properties(${WProjectName} PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(${BKProjectName} PROPERTIES LINKER_LANGUAGE CXX)
 
-foreach(WModule ${WModules})
-	add_subdirectory(${WModule})
-	include_directories(${WModule}/Public)
-	target_link_libraries(${WProjectName} ${WModule})
+foreach(BKModule ${BKModules})
+	add_subdirectory(${BKModule})
+	include_directories(${BKModule}/Public)
+	target_link_libraries(${BKProjectName} ${BKModule})
 endforeach()
