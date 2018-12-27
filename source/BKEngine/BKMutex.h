@@ -174,7 +174,7 @@ public:
 #if PLATFORM_WINDOWS
         SleepConditionVariableCS(Condition, RelativeMutex->Handle(), INFINITE);
 #else
-        pthread_cond_wait(Condition, RelativeMutex->handle());
+        pthread_cond_wait(Condition, RelativeMutex->Handle());
 #endif
     }
 };
