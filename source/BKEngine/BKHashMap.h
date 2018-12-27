@@ -3,7 +3,7 @@
 #ifndef Pragma_Once_BKHashMap
 #define Pragma_Once_BKHashMap
 
-#define TABLE_SIZE 20
+#define BK_HASH_MAP_TABLE_SIZE 20
 
 // Hash node class template
 template <typename K, typename V>
@@ -51,7 +51,7 @@ struct BKDefaultKeyHash
 {
     unsigned long operator()(const K& _Key) const
     {
-        return reinterpret_cast<unsigned long>(_Key) % TABLE_SIZE;
+        return reinterpret_cast<unsigned long>(_Key) % BK_HASH_MAP_TABLE_SIZE;
     }
 };
 
@@ -61,9 +61,9 @@ struct BKFStringKeyHash
     {
         if (_Key.IsWide())
         {
-            return std::hash<std::wstring>()(_Key.GetWideCharString()) % TABLE_SIZE;
+            return std::hash<std::wstring>()(_Key.GetWideCharString()) % BK_HASH_MAP_TABLE_SIZE;
         }
-        return std::hash<std::string>()(_Key.GetAnsiCharString()) % TABLE_SIZE;
+        return std::hash<std::string>()(_Key.GetAnsiCharString()) % BK_HASH_MAP_TABLE_SIZE;
     }
 };
 
@@ -75,7 +75,7 @@ public:
     BKHashMap()
     {
         // construct zero initialized hash table of size
-        Table = new BKHashNode<K, V> *[TABLE_SIZE]();
+        Table = new BKHashNode<K, V> *[BK_HASH_MAP_TABLE_SIZE]();
     }
 
     ~BKHashMap()
@@ -89,7 +89,7 @@ public:
     void Clear()
     {
         // destroy all buckets one by one
-        for (int i = 0; i < TABLE_SIZE; ++i)
+        for (int i = 0; i < BK_HASH_MAP_TABLE_SIZE; ++i)
         {
             BKHashNode<K, V> *Entry = Table[i];
             while (Entry)
@@ -105,7 +105,7 @@ public:
 
     void Iterate(std::function<void(class BKHashNode<K, V>*)> _Callback)
     {
-        for (int i = 0; i < TABLE_SIZE; ++i)
+        for (int i = 0; i < BK_HASH_MAP_TABLE_SIZE; ++i)
         {
             BKHashNode<K, V> *Entry = Table[i];
             while (Entry)

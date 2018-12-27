@@ -12,8 +12,6 @@
 #include "BKTaskDefines.h"
 #include "BKSafeQueue.h"
 #include "BKHashMap.h"
-#include <unordered_map>
-#include <unordered_set>
 #if PLATFORM_WINDOWS
     #pragma comment(lib, "ws2_32.lib")
     #include <winsock2.h>
@@ -222,14 +220,6 @@ public:
 #define PENDING_DELETE_CHECK_TIME_INTERVAL 100
 #define RELIABLE_CONNECTION_NOT_FOUND 255
 
-struct BKUDPRecordKeyHash
-{
-    unsigned long operator()(const BKUDPRecord* _Key) const
-    {
-        return (size_t)_Key % TABLE_SIZE;
-    }
-};
-
 class BKUDPHandler : public BKAsyncTaskParameter
 {
 
@@ -250,6 +240,14 @@ private:
     BKSafeQueue<BKUDPRecord*> UDPRecordsForTimeoutCheck;
 
     BKMutex UDPRecords_PendingDeletePool_Mutex;
+
+    struct BKUDPRecordKeyHash
+    {
+        unsigned long operator()(const BKUDPRecord* _Key) const
+        {
+            return (size_t)_Key % BK_HASH_MAP_TABLE_SIZE;
+        }
+    };
     BKHashMap<BKUDPRecord*, uint64, BKUDPRecordKeyHash> UDPRecords_PendingDeletePool;
     void AddRecordToPendingDeletePool(BKUDPRecord* PendingDeleteRecord);
 

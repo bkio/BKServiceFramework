@@ -4,8 +4,8 @@
 #define Pragma_Once_BKHTTPRequestParser
 
 #include "BKEngine.h"
+#include "BKHashMap.h"
 #include <string>
-#include <map>
 
 class BKHTTPRequestParser
 {
@@ -25,7 +25,7 @@ private:
 
     ANSICHAR PreviousChar{};
 
-    std::map<FString, FString> Headers{};
+    BKHashMap<FString, FString, BKFStringKeyHash> Headers{};
     FString Payload{};
     bool bHeadersAvailable = false;
     bool bBodyAvailable = false;
@@ -50,7 +50,7 @@ public:
 
         PreviousChar = '\0';
 
-        Headers.clear();
+        Headers.Clear();
         Payload = "";
         bHeadersAvailable = false;
         bBodyAvailable = false;
@@ -100,7 +100,7 @@ public:
                 {
                     if(!FirstLine)
                     {
-                        Headers[TempHeaderName] = TempHeaderValue;
+                        Headers.Put(TempHeaderName, TempHeaderValue);
                         TempHeaderName = "";
                         TempHeaderValue = "";
                     }
@@ -182,12 +182,12 @@ public:
         if (bBodyAvailable) return;
 
         int32 ContentLength = 0;
-        auto ContentLengthIterator = Headers.find(FString("Content-Length"));
-        if (ContentLengthIterator != Headers.end())
+        FString FoundValue;
+        if (Headers.Get(FString("Content-Length"), FoundValue))
         {
             try
             {
-                ContentLength = FString::ConvertToInteger<int32>(ContentLengthIterator->second.GetAnsiCharArray());
+                ContentLength = FString::ConvertToInteger<int32>(FoundValue.GetAnsiCharArray());
             }
             catch (const std::invalid_argument &ia)
             {
@@ -233,8 +233,8 @@ public:
         return bErrorOccuredInBodyParsing;
     }
 
-    //@return Headers in form of std::map (name -> value)
-    std::map<FString, FString> GetHeaders()
+    //@return Headers in form of BKHashMap<FString, FString, BKFStringKeyHash> (name -> value)
+    BKHashMap<FString, FString, BKFStringKeyHash> GetHeaders()
     {
         return Headers;
     };

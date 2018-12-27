@@ -287,9 +287,9 @@ public:
         return Parser.GetProtocol();
     }
 
-    std::map<FString, FString> GetHeaders()
+    BKHashMap<FString, FString, BKFStringKeyHash> GetHeaders()
     {
-        if (!bInitialized) return std::map<FString, FString>();
+        if (!bInitialized) return BKHashMap<FString, FString, BKFStringKeyHash>();
         return Parser.GetHeaders();
     };
 

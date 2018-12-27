@@ -11,7 +11,7 @@ void BKHTTPClient::NewHTTPRequest(
         const FString& _Payload,
         const FString& _Verb,
         const FString& _Path,
-        std::map<FString, FString> _Headers,
+        BKHashMap<FString, FString, BKFStringKeyHash> _Headers,
         uint32 _TimeoutMs,
         BKFutureAsyncTask& _RequestCallback,
         BKFutureAsyncTask& _TimeoutCallback)
@@ -182,13 +182,13 @@ void BKHTTPClient::SendData()
     FStringStream HeaderBuilder(false);
     HeaderBuilder << RequestLine.GetAnsiCharArray();
     HeaderBuilder << "\r\n";
-    for (auto& Header : Headers)
+    Headers.Iterate([&HeaderBuilder](BKHashNode<FString, FString>* Node)
     {
-        HeaderBuilder << Header.first.GetAnsiCharArray();
+        HeaderBuilder << Node->GetKey().GetAnsiCharArray();
         HeaderBuilder << ':';
-        HeaderBuilder << Header.second.GetAnsiCharArray();
+        HeaderBuilder << Node->GetValue().GetAnsiCharArray();
         HeaderBuilder << "\r\n";
-    }
+    });
 
     FString Response = HeaderBuilder.Str() + FString::WStringToString(Payload);
 

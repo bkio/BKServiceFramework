@@ -5,11 +5,11 @@
 
 #include "BKEngine.h"
 #include "BKTaskDefines.h"
+#include "BKHashMap.h"
 #include "../Private/BKHTTPRequestParser.h"
 #include "../Private/BKHTTPHelper.h"
-#include <map>
 
-#define DEFAULT_HTTP_REQUEST_HEADERS std::map<FString, FString>()
+#define DEFAULT_HTTP_REQUEST_HEADERS BKHashMap<FString, FString, BKFStringKeyHash>()
 #define DEFAULT_TIMEOUT_MS 2500
 
 class BKHTTPClient : public BKAsyncTaskParameter
@@ -18,7 +18,7 @@ class BKHTTPClient : public BKAsyncTaskParameter
 private:
     FString ServerAddress;
     uint16 ServerPort = 80;
-    std::map<FString, FString> Headers{};
+    BKHashMap<FString, FString, BKFStringKeyHash> Headers{};
     FString Payload;
     FString RequestLine;
 
@@ -52,7 +52,7 @@ public:
         const FString& _Payload,
         const FString& _Verb,
         const FString& _Path,
-        std::map<FString, FString> _Headers,
+        BKHashMap<FString, FString, BKFStringKeyHash> _Headers,
         uint32 _TimeoutMs,
         BKFutureAsyncTask& _RequestCallback,
         BKFutureAsyncTask& _TimeoutCallback);
@@ -60,9 +60,9 @@ public:
     bool ProcessRequest();
     void CancelRequest();
 
-    std::map<FString, FString> GetResponseHeaders()
+    BKHashMap<FString, FString, BKFStringKeyHash> GetResponseHeaders()
     {
-        if (!bRequestInitialized) return std::map<FString, FString>();
+        if (!bRequestInitialized) return BKHashMap<FString, FString, BKFStringKeyHash>();
         return Parser.GetHeaders();
     };
 
