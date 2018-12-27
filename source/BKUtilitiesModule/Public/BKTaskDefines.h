@@ -83,11 +83,11 @@ public:
 
     void LockValue()
     {
-        Mutex.lock();
+        Mutex.Lock();
     }
     void UnlockValue()
     {
-        Mutex.unlock();
+        Mutex.Unlock();
     }
 };
 

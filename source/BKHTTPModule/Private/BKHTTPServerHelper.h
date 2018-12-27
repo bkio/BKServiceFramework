@@ -48,12 +48,12 @@ private:
             {
                 delete (_Socket->Client);
             }
-            _Socket->HTTPSocket_Mutex.unlock();
+            _Socket->HTTPSocket_Mutex.Unlock();
             delete (_Socket);
         }
         else
         {
-            _Socket->HTTPSocket_Mutex.unlock();
+            _Socket->HTTPSocket_Mutex.Unlock();
         }
     }
 
@@ -68,7 +68,7 @@ public:
 
     void StopSocketOperation()
     {
-        HTTPSocket_Mutex.lock(); //Will be unlocked in private static functions.
+        HTTPSocket_Mutex.Lock(); //Will be unlocked in private static functions.
         CloseSocket(this);
         TryDeinitializing(this);
     }

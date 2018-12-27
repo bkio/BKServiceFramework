@@ -83,7 +83,7 @@ public:
     }
     bool Contains(const T& Item)
     {
-        return std::find(Array.begin(), Array.end(), Item) == Array.end();
+        return std::find(Array.begin(), Array.end(), Item) != Array.end();
     }
     void Empty(int32 Slack = 0)
     {

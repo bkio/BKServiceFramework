@@ -19,31 +19,31 @@ void BKUDPHandler::ClearReliableConnections()
     if (!bSystemStarted) return;
 
     BKScopeGuard Guard(&ReliableConnectionRecords_Mutex);
-    for (auto& It : ReliableConnectionRecords)
+    ReliableConnectionRecords.Iterate([this](BKHashNode<FString, BKReliableConnectionRecord*>* Node)
     {
-        BKReliableConnectionRecord* Record = It.second;
+        BKReliableConnectionRecord* Record = Node->GetValue();
         if (Record && !Record->bBeingDeleted)
         {
             BKReferenceCounter SafetyCounter(Record);
             AddRecordToPendingDeletePool(Record);
         }
-    }
-    ReliableConnectionRecords.clear();
+    });
+    ReliableConnectionRecords.Clear();
 }
 void BKUDPHandler::ClearOtherPartiesRecords()
 {
     if (!bSystemStarted) return;
 
     BKScopeGuard Guard(&OtherPartiesRecords_Mutex);
-    for (auto& It : OtherPartiesRecords)
+    OtherPartiesRecords.Iterate([this](BKHashNode<FString, BKOtherPartyRecord*>* Node)
     {
-        if (It.second && !It.second->bBeingDeleted)
+        if (Node->GetValue() && !Node->GetValue()->bBeingDeleted)
         {
-            BKReferenceCounter SafetyCounter(It.second);
-            AddRecordToPendingDeletePool(It.second);
+            BKReferenceCounter SafetyCounter(Node->GetValue());
+            AddRecordToPendingDeletePool(Node->GetValue());
         }
-    }
-    OtherPartiesRecords.clear();
+    });
+    OtherPartiesRecords.Clear();
 }
 
 BKJson::Node BKUDPHandler::AnalyzeNetworkDataWithByteArray(FBKCHARWrapper& Parameter, sockaddr* OtherParty)
@@ -143,23 +143,24 @@ BKJson::Node BKUDPHandler::AnalyzeNetworkDataWithByteArray(FBKCHARWrapper& Param
             FString OtherPartyKey = BKUDPHelper::GetAddressPortFromOtherParty(OtherParty, MessageID, true);
 
             BKScopeGuard Guard(&OtherPartiesRecords_Mutex);
-            auto It = OtherPartiesRecords.find(OtherPartyKey);
-            if (It != OtherPartiesRecords.end())
+
+            BKOtherPartyRecord* FoundValue = nullptr;
+            if (OtherPartiesRecords.Get(OtherPartyKey, FoundValue))
             {
-                if (!It->second || (It->second && It->second->bBeingDeleted))
+                if (!FoundValue || FoundValue->bBeingDeleted)
                 {
-                    It->second = new BKOtherPartyRecord(this, OtherPartyKey);
+                    FoundValue = new BKOtherPartyRecord(this, OtherPartyKey);
                 }
                 else
                 {
-                    It->second->UpdateLastInteraction();
+                    FoundValue->UpdateLastInteraction();
                 }
-                OtherPartyRecord = It->second;
+                OtherPartyRecord = FoundValue;
             }
             else
             {
                 OtherPartyRecord = new BKOtherPartyRecord(this, OtherPartyKey);
-                OtherPartiesRecords.insert(std::pair<FString, BKOtherPartyRecord*>(OtherPartyKey, OtherPartyRecord));
+                OtherPartiesRecords.Put(OtherPartyKey, OtherPartyRecord);
             }
         }
 
@@ -683,10 +684,10 @@ BKReliableConnectionRecord* BKUDPHandler::Create_AddOrGet_ReliableConnectionReco
     {
         BKScopeGuard Guard(&ReliableConnectionRecords_Mutex);
 
-        auto It = ReliableConnectionRecords.find(OtherPartyKey);
-        if (It != ReliableConnectionRecords.end())
+        BKReliableConnectionRecord* FoundValue = nullptr;
+        if (ReliableConnectionRecords.Get(OtherPartyKey, FoundValue))
         {
-            BKReliableConnectionRecord* Record = It->second;
+            BKReliableConnectionRecord* Record = FoundValue;
             if (Record)
             {
                 if (Record->bBeingDeleted)
@@ -712,13 +713,13 @@ BKReliableConnectionRecord* BKUDPHandler::Create_AddOrGet_ReliableConnectionReco
             }
             else
             {
-                RemoveFromReliableConnections(It);
+                RemoveFromReliableConnections(OtherPartyKey);
             }
         }
         if (EnsureHandshakingStatusEqualsTo == 0 && ExistingHandshakeStatus == RELIABLE_CONNECTION_NOT_FOUND && !ReliableConnection)
         {
             ReliableConnection = new BKReliableConnectionRecord(this, MessageID, *OtherParty, OtherPartyKey, Buffer, bAsSender);
-            ReliableConnectionRecords.insert(std::pair<FString, BKReliableConnectionRecord*>(OtherPartyKey, ReliableConnection));
+            ReliableConnectionRecords.Put(OtherPartyKey, ReliableConnection);
         }
     }
     return ReliableConnection;
@@ -899,14 +900,14 @@ void BKUDPHandler::ClearPendingDeletePool()
     if (!bSystemStarted) return;
 
     BKScopeGuard Guard(&UDPRecords_PendingDeletePool_Mutex);
-    for (auto& It : UDPRecords_PendingDeletePool)
+    UDPRecords_PendingDeletePool.Iterate([this](BKHashNode<BKUDPRecord*, uint64>* Node)
     {
-        if (It.first)
+        if (Node->GetKey())
         {
-            delete (It.first);
+            delete (Node->GetKey());
         }
-    }
-    UDPRecords_PendingDeletePool.clear();
+    });
+    UDPRecords_PendingDeletePool.Clear();
 }
 
 void BKUDPHandler::AddNewUDPRecord(BKUDPRecord* NewRecord)
@@ -970,7 +971,7 @@ void BKUDPHandler::StartSystem()
                             if (AsOtherPartyRecord)
                             {
                                 BKScopeGuard OtherPartiesRecords_Guard(&HandlerInstance->OtherPartiesRecords_Mutex);
-                                HandlerInstance->OtherPartiesRecords.erase(AsOtherPartyRecord->GetOtherPartyKey());
+                                HandlerInstance->OtherPartiesRecords.Remove(AsOtherPartyRecord->GetOtherPartyKey());
                             }
                         }
                         else if (Record->GetType() == EBKReliableRecordType::ReliableConnectionRecord)
@@ -1009,36 +1010,28 @@ void BKUDPHandler::StartSystem()
 
         uint64 CurrentTimestamp = BKUtilities::GetTimeStampInMS();
 
-        BKUDPRecord* DeleteRecord = nullptr;
-        uint64 PooledTimestamp;
-
         BKScopeGuard Guard(&HandlerInstance->UDPRecords_PendingDeletePool_Mutex);
-        for (auto It = HandlerInstance->UDPRecords_PendingDeletePool.begin(); It != HandlerInstance->UDPRecords_PendingDeletePool.end();)
+        HandlerInstance->UDPRecords_PendingDeletePool.Iterate([HandlerInstance, CurrentTimestamp](BKHashNode<BKUDPRecord*, uint64>* Node)
         {
-            bool bRemoved = false;
+            BKUDPRecord* DeleteRecord = nullptr;
+            uint64 PooledTimestamp;
 
-            if (It->first)
+            if (Node->GetKey())
             {
-                DeleteRecord = It->first;
-                PooledTimestamp = It->second;
+                DeleteRecord = Node->GetKey();
+                PooledTimestamp = Node->GetValue();
 
                 if (!DeleteRecord->IsReferenced() && (CurrentTimestamp - PooledTimestamp) > PENDING_DELETE_CHECK_TIME_INTERVAL)
                 {
-                    HandlerInstance->UDPRecords_PendingDeletePool.erase(It++);
+                    HandlerInstance->UDPRecords_PendingDeletePool.Remove(DeleteRecord);
                     delete (DeleteRecord);
-                    bRemoved = true;
-                }
-
-                if (!bRemoved)
-                {
-                    ++It;
                 }
             }
             else
             {
-                HandlerInstance->UDPRecords_PendingDeletePool.erase(It++);
+                HandlerInstance->UDPRecords_PendingDeletePool.Remove(DeleteRecord);
             }
-        }
+        });
     };
     BKScheduledAsyncTaskManager::NewScheduledAsyncTask(DeallocatorLambda, SelfAsArray, PENDING_DELETE_CHECK_TIME_INTERVAL, true, true);
 }
@@ -1096,18 +1089,10 @@ void BKUDPHandler::Send(sockaddr* OtherParty, const FBKCHARWrapper& SendBuffer)
 #endif
 }
 
-void BKUDPHandler::RemoveFromReliableConnections(std::__detail::_Node_iterator<std::pair<const FString, BKReliableConnectionRecord *>, false, true> Iterator)
-{
-    ReliableConnectionRecords.erase(Iterator);
-    if (bPendingKill && ReliableConnectionRecords.empty() && ReadyToDieCallback)
-    {
-        ReadyToDieCallback();
-    }
-}
 void BKUDPHandler::RemoveFromReliableConnections(const FString& Key)
 {
-    ReliableConnectionRecords.erase(Key);
-    if (bPendingKill && ReliableConnectionRecords.empty() && ReadyToDieCallback)
+    ReliableConnectionRecords.Remove(Key);
+    if (bPendingKill && ReliableConnectionRecords.IsEmpty() && ReadyToDieCallback)
     {
         ReadyToDieCallback();
     }
@@ -1121,7 +1106,7 @@ void BKUDPHandler::MarkPendingKill(std::function<void()> _ReadyToDieCallback)
     ReadyToDieCallback = std::move(_ReadyToDieCallback);
 
     BKScopeGuard Guard(&ReliableConnectionRecords_Mutex);
-    if (ReliableConnectionRecords.empty())
+    if (ReliableConnectionRecords.IsEmpty())
     {
         ReadyToDieCallback();
     }
@@ -1133,10 +1118,11 @@ void BKUDPHandler::AddRecordToPendingDeletePool(BKUDPRecord* PendingDeleteRecord
     PendingDeleteRecord->bBeingDeleted = true;
 
     BKScopeGuard Guard(&UDPRecords_PendingDeletePool_Mutex);
-    auto It = UDPRecords_PendingDeletePool.find(PendingDeleteRecord);
-    if (It == UDPRecords_PendingDeletePool.end())
+
+    uint64 FoundValue;
+    if (!UDPRecords_PendingDeletePool.Get(PendingDeleteRecord, FoundValue))
     {
-        UDPRecords_PendingDeletePool.insert(std::pair<BKUDPRecord*, uint64>(PendingDeleteRecord, BKUtilities::GetTimeStampInMS()));
+        UDPRecords_PendingDeletePool.Put(PendingDeleteRecord, BKUtilities::GetTimeStampInMS());
     }
 }
 

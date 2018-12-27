@@ -16,103 +16,103 @@ class BKMutex
 private:
 
 #if PLATFORM_WINDOWS
-    CRITICAL_SECTION _mutex{};
+    CRITICAL_SECTION MutexValue{};
 #else
-    pthread_mutex_t _mutex{};
+    pthread_mutex_t MutexValue{};
 #endif
 
-    bool _locked = false;
+    bool bLocked = false;
 
-    void init()
+    void Initialize()
     {
 #if PLATFORM_WINDOWS
-        InitializeCriticalSection(&_mutex);
+        InitializeCriticalSectionEx(&MutexValue, 2000, CRITICAL_SECTION_NO_DEBUG_INFO);
 #else
-        pthread_mutexattr_t attr{};
-        pthread_mutexattr_init(&attr);
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-        pthread_mutex_init(&_mutex, &attr);
-        pthread_mutexattr_destroy(&attr);
+        pthread_mutexattr_t Attr{};
+        pthread_mutexattr_init(&Attr);
+        pthread_mutexattr_settype(&Attr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&MutexValue, &Attr);
+        pthread_mutexattr_destroy(&Attr);
 #endif
-        _locked = false;
+        bLocked = false;
     }
 
 
 public:
     BKMutex()
     {
-        init();
+        Initialize();
     }
 
-    BKMutex(const BKMutex& in_mutex)
+    BKMutex(const BKMutex& _MutexValue)
     {
-        init();
+        Initialize();
 
-        if (in_mutex._locked && !_locked)
+        if (_MutexValue.bLocked && !bLocked)
         {
-            lock();
+            Lock();
         }
-        else if (!in_mutex._locked && _locked)
+        else if (!_MutexValue.bLocked && bLocked)
         {
-            unlock();
+            Unlock();
         }
     }
 
-    BKMutex& operator=(const BKMutex& in_mutex)
+    BKMutex& operator=(const BKMutex& _MutexValue)
     {
-        if (in_mutex._locked && !_locked)
+        if (_MutexValue.bLocked && !bLocked)
         {
-            lock();
+            Lock();
         }
-        else if (!in_mutex._locked && _locked)
+        else if (!_MutexValue.bLocked && bLocked)
         {
-            unlock();
+            Unlock();
         }
         return *this;
     }
 
 #if PLATFORM_WINDOWS
-    CRITICAL_SECTION* handle()
+    CRITICAL_SECTION* Handle()
     {
-        return &_mutex;
+        return &MutexValue;
     };
 #else
-    pthread_mutex_t* handle()
+    pthread_mutex_t* Handle()
     {
-        return &_mutex;
+        return &MutexValue;
     };
 #endif
 
     //Destructor
-    virtual ~BKMutex()
+    ~BKMutex()
     {
 #if PLATFORM_WINDOWS
-        DeleteCriticalSection(&_mutex);
+        DeleteCriticalSection(&MutexValue);
 #else
-        pthread_mutex_unlock(&_mutex);
-        pthread_mutex_destroy(&_mutex);
+        pthread_mutex_unlock(&MutexValue);
+        pthread_mutex_destroy(&MutexValue);
 #endif
     }
 
-    bool lock()
+    bool Lock()
     {
-        _locked = true;
+        bLocked = true;
 #if PLATFORM_WINDOWS
-        EnterCriticalSection(&_mutex);
+        EnterCriticalSection(&MutexValue);
         return true;
 #else
-        return pthread_mutex_lock(&_mutex) == 0;
+        return pthread_mutex_lock(&MutexValue) == 0;
 #endif
     }
 
-    bool unlock()
+    bool Unlock()
     {
-        _locked = false;
+        bLocked = false;
 #if PLATFORM_WINDOWS
-        LeaveCriticalSection(&_mutex);
+        LeaveCriticalSection(&MutexValue);
         return true;
 #else
-        return pthread_mutex_unlock(&_mutex) == 0;
+        return pthread_mutex_unlock(&MutexValue) == 0;
 #endif
     }
 };
@@ -131,7 +131,7 @@ public:
         RelativeMutex = Mutex;
         if (!bDoNoLock && RelativeMutex)
         {
-            RelativeMutex->lock();
+            RelativeMutex->Lock();
         }
     }
     volatile BKScopeGuard_Internal& operator=(BKMutex* Mutex) volatile noexcept
@@ -139,7 +139,7 @@ public:
         RelativeMutex = Mutex;
         if (RelativeMutex)
         {
-            RelativeMutex->lock();
+            RelativeMutex->Lock();
         }
         return *this;
     }
@@ -159,7 +159,7 @@ public:
     {
         if (RelativeMutex && !bRedirected)
         {
-            RelativeMutex->unlock();
+            RelativeMutex->Unlock();
         }
     }
 
@@ -172,7 +172,7 @@ public:
         if (!Condition) return;
 
 #if PLATFORM_WINDOWS
-        SleepConditionVariableCS(Condition, RelativeMutex->handle(), INFINITE);
+        SleepConditionVariableCS(Condition, RelativeMutex->Handle(), INFINITE);
 #else
         pthread_cond_wait(Condition, RelativeMutex->handle());
 #endif

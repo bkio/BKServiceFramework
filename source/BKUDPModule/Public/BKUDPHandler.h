@@ -11,6 +11,7 @@
 #include "BKUtilities.h"
 #include "BKTaskDefines.h"
 #include "BKSafeQueue.h"
+#include "BKHashMap.h"
 #include <unordered_map>
 #include <unordered_set>
 #if PLATFORM_WINDOWS
@@ -221,13 +222,20 @@ public:
 #define PENDING_DELETE_CHECK_TIME_INTERVAL 100
 #define RELIABLE_CONNECTION_NOT_FOUND 255
 
+struct BKUDPRecordKeyHash
+{
+    unsigned long operator()(const BKUDPRecord* _Key) const
+    {
+        return (size_t)_Key % TABLE_SIZE;
+    }
+};
+
 class BKUDPHandler : public BKAsyncTaskParameter
 {
 
 private:
     BKMutex ReliableConnectionRecords_Mutex{};
-    std::unordered_map<FString, BKReliableConnectionRecord*> ReliableConnectionRecords;
-    void RemoveFromReliableConnections(std::__detail::_Node_iterator<std::pair<const FString, BKReliableConnectionRecord *>, false, true> Iterator);
+    BKHashMap<FString, BKReliableConnectionRecord*, BKFStringKeyHash> ReliableConnectionRecords;
     void RemoveFromReliableConnections(const FString& Key);
 
     BKMutex LastThissideGeneratedTimestamp_Mutex{};
@@ -237,12 +245,12 @@ private:
     uint32 LastThissideMessageID = 1;
 
     BKMutex OtherPartiesRecords_Mutex{};
-    std::unordered_map<FString, BKOtherPartyRecord*> OtherPartiesRecords{};
+    BKHashMap<FString, BKOtherPartyRecord*, BKFStringKeyHash> OtherPartiesRecords{};
 
     BKSafeQueue<BKUDPRecord*> UDPRecordsForTimeoutCheck;
 
     BKMutex UDPRecords_PendingDeletePool_Mutex;
-    std::unordered_map<BKUDPRecord*, uint64> UDPRecords_PendingDeletePool;
+    BKHashMap<BKUDPRecord*, uint64, BKUDPRecordKeyHash> UDPRecords_PendingDeletePool;
     void AddRecordToPendingDeletePool(BKUDPRecord* PendingDeleteRecord);
 
     void ClearReliableConnections();
