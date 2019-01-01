@@ -34,7 +34,7 @@ void BKServiceDiscoveryComponent::StartComponent(std::function<void(bool)> Resul
     {
         if (!ComponentInstance)
         {
-            StopComponent(FString("Initialization Failure"));
+            StopComponent(FString(L"Initialization Failure"));
             return;
         }
         if (bSuccess)
@@ -45,7 +45,7 @@ void BKServiceDiscoveryComponent::StartComponent(std::function<void(bool)> Resul
         }
         else
         {
-            StopComponent(FString("Initialization Failure"));
+            StopComponent(FString(L"Initialization Failure"));
             if (ComponentInstance->StartComponentResultCallback)
                 ComponentInstance->StartComponentResultCallback(false);
         }
@@ -97,7 +97,7 @@ void BKServiceDiscoveryComponent::RegisterService(const std::function<void(bool)
     if (ComponentUDPClient && ComponentUDPClient->GetUDPHandler())
     {
         BKJson::Node DataToSend = BKJson::Node(BKJson::Node::T_OBJECT);
-        DataToSend.Add(FString("CharArray"), BKJson::Node(CompileServiceInformation()));
+        DataToSend.Add(FString(L"CharArray"), BKJson::Node(CompileServiceInformation()));
 
         FBKCHARWrapper WrappedData = ComponentUDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(ComponentUDPClient->GetSocketAddress(), DataToSend, true, false, true);
 
@@ -136,7 +136,7 @@ void BKServiceDiscoveryComponent::UnregisterService(const FString& Reason)
     if (ComponentUDPClient && ComponentUDPClient->GetUDPHandler())
     {
         BKJson::Node DataToSend = BKJson::Node(BKJson::Node::T_OBJECT);
-        DataToSend.Add(FString("CharArray"), BKJson::Node(CompileUnregisterServiceMessage(Reason)));
+        DataToSend.Add(FString(L"CharArray"), BKJson::Node(CompileUnregisterServiceMessage(Reason)));
 
         FBKCHARWrapper WrappedData = ComponentUDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(ComponentUDPClient->GetSocketAddress(), DataToSend, true, false, true);
 
@@ -149,9 +149,9 @@ void BKServiceDiscoveryComponent::UnregisterService(const FString& Reason)
 FString BKServiceDiscoveryComponent::CompileServiceInformation()
 {
     BKJson::Node ResultObject = BKJson::Node(BKJson::Node::T_OBJECT);
-    ResultObject.Add(FString("ServiceName"), BKJson::Node(ServiceName));
-    ResultObject.Add(FString("ServiceIP"), BKJson::Node(ServiceIP));
-    ResultObject.Add(FString("ServicePort"), BKJson::Node((int32)ServicePort));
+    ResultObject.Add(FString(L"ServiceName"), BKJson::Node(ServiceName));
+    ResultObject.Add(FString(L"ServiceIP"), BKJson::Node(ServiceIP));
+    ResultObject.Add(FString(L"ServicePort"), BKJson::Node((int32)ServicePort));
 
     BKJson::Writer Writer;
     return Writer.WriteString(ResultObject);
@@ -159,8 +159,8 @@ FString BKServiceDiscoveryComponent::CompileServiceInformation()
 FString BKServiceDiscoveryComponent::CompileUnregisterServiceMessage(const FString& Reason)
 {
     BKJson::Node ResultObject = BKJson::Node(BKJson::Node::T_OBJECT);
-    ResultObject.Add(FString("Status"), BKJson::Node(FString("Unregister")));
-    ResultObject.Add(FString("Reason"), BKJson::Node(Reason));
+    ResultObject.Add(FString(L"Status"), BKJson::Node(FString(L"Unregister")));
+    ResultObject.Add(FString(L"Reason"), BKJson::Node(Reason));
 
     BKJson::Writer Writer;
     return Writer.WriteString(ResultObject);
@@ -177,7 +177,7 @@ void BKServiceDiscoveryComponent::StartHeartbeating()
             if (CompiledHeartbeatData.Len() > 0)
             {
                 BKJson::Node DataToSend = BKJson::Node(BKJson::Node::T_OBJECT);
-                DataToSend.Add(FString("CharArray"), BKJson::Node(CompiledHeartbeatData));
+                DataToSend.Add(FString(L"CharArray"), BKJson::Node(CompiledHeartbeatData));
 
                 FBKCHARWrapper WrappedData = ComponentInstance->ComponentUDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(ComponentInstance->ComponentUDPClient->GetSocketAddress(), DataToSend, true, false, true);
 
@@ -188,7 +188,7 @@ void BKServiceDiscoveryComponent::StartHeartbeating()
         }
         else if (bComponentStarted && ComponentInstance)
         {
-            StopComponent(FString("UDP Failure"));
+            StopComponent(FString(L"UDP Failure"));
             StartComponent([](bool bResult){}, ComponentInstance->DiscoveryServerIP, ComponentInstance->DiscoveryServerPort, ComponentInstance->ServiceName, ComponentInstance->ServiceIP, ComponentInstance->ServicePort);
         }
     };
@@ -208,11 +208,11 @@ FString BKServiceDiscoveryComponent::CompileCurrentHeartbeatData()
         BKScopeGuard LocalGuard(&ComponentInstance->CurrentHeartbeatData_Mutex);
 
         BKJson::Node ResultObject = BKJson::Node(BKJson::Node::T_OBJECT);
-        ResultObject.Add(FString("CurrentUsersNo"), BKJson::Node(CurrentUsersNo));
-        ResultObject.Add(FString("CurrentSystemInfo"), CurrentSystemInfo);
+        ResultObject.Add(FString(L"CurrentUsersNo"), BKJson::Node(CurrentUsersNo));
+        ResultObject.Add(FString(L"CurrentSystemInfo"), CurrentSystemInfo);
 
         BKJson::Writer Writer;
         return Writer.WriteString(ResultObject);
     }
-    return FString("");
+    return FString(L"");
 }

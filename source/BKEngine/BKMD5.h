@@ -39,14 +39,13 @@ public:
      **/
     static FString HashAnsiString(const FString& String)
     {
-        assert(!String.IsWide());
-
-        if (String.Len() == 0) return EMPTY_FSTRING_ANSI;
+        if (String.Len() == 0) return EMPTY_FSTRING_UTF8;
 
         uint8 Digest[16];
 
         FMD5 Md5Gen;
-        Md5Gen.Update((uint8*)String.GetAnsiCharArray(), String.Len());
+        const ANSICHAR* StringArray = String.GetAnsiCharArray();
+        Md5Gen.Update((uint8*)StringArray, strlen(StringArray));
         Md5Gen.Final(Digest);
 
         return FString::Hexify(Digest, 16);

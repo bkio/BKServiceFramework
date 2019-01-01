@@ -21,11 +21,11 @@ class BKUDPHelper
 public:
     static FString GetAddressPortFromOtherParty(struct sockaddr *OtherParty, uint32 MessageID, bool bDoNotAppendMessageID = false)
     {
-        if (!OtherParty) return EMPTY_FSTRING_ANSI;
+        if (!OtherParty) return EMPTY_FSTRING_UTF8;
 
         auto OtherPartyAsBroad = reinterpret_cast<struct sockaddr_in*>(OtherParty);
 
-        FStringStream Stream(false);
+        FStringStream Stream;
         Stream << inet_ntoa(OtherPartyAsBroad->sin_addr);
         Stream << ':';
         Stream << htons(OtherPartyAsBroad->sin_port);

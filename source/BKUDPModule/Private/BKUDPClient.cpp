@@ -109,7 +109,7 @@ bool BKUDPClient::InitializeClient()
     int32 RetVal = WSAStartup(0x202, &WSAData);
     if (RetVal != 0)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("WSAStartup() failed with error: ") + FString::FromInt(WSAGetLastError()));
+        BKUtilities::Print(EBKLogType::Error, FString(L"WSAStartup() failed with error: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
         return false;
     }
@@ -135,10 +135,10 @@ bool BKUDPClient::InitializeClient()
     if (AddrInfo != 0)
     {
 #if PLATFORM_WINDOWS
-        BKUtilities::Print(EBKLogType::Error, FString("Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
+        BKUtilities::Print(EBKLogType::Error, FString(L"Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
         WSACleanup();
 #else
-        BKUtilities::Print(EBKLogType::Error, FString("Cannot resolve address."));
+        BKUtilities::Print(EBKLogType::Error, FString(L"Cannot resolve address."));
 #endif
         return false;
     }
@@ -149,20 +149,20 @@ bool BKUDPClient::InitializeClient()
         freeaddrinfo(Result);
 
 #if PLATFORM_WINDOWS
-        BKUtilities::Print(EBKLogType::Error, FString("Cannot create socket. Error: ") + FString::FromInt(WSAGetLastError()));
+        BKUtilities::Print(EBKLogType::Error, FString(L"Cannot create socket. Error: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
 #else
-        BKUtilities::Print(EBKLogType::Error, FString("Cannot create socket."));
+        BKUtilities::Print(EBKLogType::Error, FString(L"Cannot create socket."));
 #endif
         return false;
     }
 
     int32 optval = 1;
-    setsockopt(UDPSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&optval, sizeof(int32));
+    setsockopt(UDPSocket, SOL_SOCKET, SO_REUSEADDR, (const ANSICHAR*)&optval, sizeof(int32));
 #if PLATFORM_WINDOWS
-    setsockopt(UDPSocket, SOL_SOCKET, UDP_NOCHECKSUM, (const char*)&optval, sizeof(int32));
+    setsockopt(UDPSocket, SOL_SOCKET, UDP_NOCHECKSUM, (const ANSICHAR*)&optval, sizeof(int32));
 #else
-    setsockopt(UDPSocket, SOL_SOCKET, SO_NO_CHECK, (const char*)&optval, sizeof(int32));
+    setsockopt(UDPSocket, SOL_SOCKET, SO_NO_CHECK, (const ANSICHAR*)&optval, sizeof(int32));
 #endif
 
     SocketAddress = (struct sockaddr*)FMemory::Malloc(Result->ai_addrlen);
@@ -174,10 +174,10 @@ bool BKUDPClient::InitializeClient()
     if (UDPSocket < 0)
     {
 #if PLATFORM_WINDOWS
-        BKUtilities::Print(EBKLogType::Error, FString("Error has occurred during opening a socket: ") + FString::FromInt(WSAGetLastError()));
+        BKUtilities::Print(EBKLogType::Error, FString(L"Error has occurred during opening a socket: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
 #else
-        BKUtilities::Print(EBKLogType::Error, FString("Error has occurred during opening a socket."));
+        BKUtilities::Print(EBKLogType::Error, FString(L"Error has occurred during opening a socket."));
 #endif
         return false;
     }

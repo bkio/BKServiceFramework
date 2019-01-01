@@ -26,8 +26,8 @@ public:
     BKJson::Node ToJsonObject()
     {
         BKJson::Node ResultObject = BKJson::Node(BKJson::Node::T_OBJECT);
-        ResultObject.Add(FString("Total_CPU_Utilization"), BKJson::Node(Total_CPU_Utilization));
-        ResultObject.Add(FString("Total_Memory_Utilization"), BKJson::Node(Total_Memory_Utilization));
+        ResultObject.Add(FString(L"Total_CPU_Utilization"), BKJson::Node(Total_CPU_Utilization));
+        ResultObject.Add(FString(L"Total_Memory_Utilization"), BKJson::Node(Total_Memory_Utilization));
         return ResultObject;
     }
     FString ToJsonString()

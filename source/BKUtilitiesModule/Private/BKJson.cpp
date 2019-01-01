@@ -8,21 +8,21 @@ namespace BKJson
 {
     namespace
     {
-        inline bool isWhitespace(ANSICHAR c)
+        inline bool isWhitespace(UTFCHAR c)
         {
-            return (c == '\n' || c == ' ' || c == '\t' || c == '\r' || c == '\f');
+            return (c == L'\n' || c == L' ' || c == L'\t' || c == L'\r' || c == L'\f');
         }
 
-        const ANSICHAR charsUnescaped[] = { '\\'  , '/'  , '\"'  , '\n' , '\t' , '\b' , '\f' , '\r' };
-        const ANSICHAR *charsEscaped[]  = { "\\\\", "\\/", "\\\"", "\\n", "\\t", "\\b", "\\f", "\\r" };
+        const UTFCHAR charsUnescaped[] = { L'\\'  , L'/'  , L'\"'  , L'\n' , L'\t' , L'\b' , L'\f' , L'\r' };
+        const UTFCHAR *charsEscaped[]  = { L"\\\\", L"\\/", L"\\\"", L"\\n", L"\\t", L"\\b", L"\\f", L"\\r" };
         const uint32 numEscapeChars = 8;
-        const ANSICHAR nullUnescaped = '\0';
-        const ANSICHAR *nullEscaped  = "\0\0";
-        const ANSICHAR *getEscaped(const ANSICHAR c)
+        const UTFCHAR nullUnescaped = L'\0';
+        const UTFCHAR *nullEscaped  = L"\0\0";
+        const UTFCHAR *getEscaped(const UTFCHAR c)
         {
             for (uint32 i = 0; i < numEscapeChars; ++i)
             {
-                const ANSICHAR &ue = charsUnescaped[i];
+                const UTFCHAR &ue = charsUnescaped[i];
 
                 if (c == ue)
                 {
@@ -31,11 +31,11 @@ namespace BKJson
             }
             return nullEscaped;
         }
-        ANSICHAR getUnescaped(const ANSICHAR c1, const ANSICHAR c2)
+        UTFCHAR getUnescaped(const UTFCHAR c1, const UTFCHAR c2)
         {
             for (uint32 i = 0; i < numEscapeChars; ++i)
             {
-                const ANSICHAR *e = charsEscaped[i];
+                const UTFCHAR *e = charsEscaped[i];
 
                 if (c1 == e[0] && c2 == e[1])
                 {
@@ -65,7 +65,7 @@ namespace BKJson
     }
     Node::Node(Type type, const FString &value) : data(new Data(T_NULL)) { Set(type, value); }
     Node::Node(const FString &value) : data(new Data(T_STRING)) { Set(value); }
-    Node::Node(const ANSICHAR *value) : data(new Data(T_STRING)) { Set(value); }
+    Node::Node(const UTFCHAR *value) : data(new Data(T_STRING)) { Set(value); }
     Node::Node(int32 value) : data(new Data(T_NUMBER)) { Set(value); }
     Node::Node(uint32 value) : data(new Data(T_NUMBER)) { Set(value); }
     Node::Node(int64 value) : data(new Data(T_NUMBER)) { Set(value); }
@@ -101,11 +101,11 @@ namespace BKJson
         {
             if (IsNull())
             {
-                return FString("null");
+                return FString(L"null");
             }
             else if (IsValidation())
             {
-                return FString("validation");
+                return FString(L"validation");
             }
             else
             {
@@ -137,7 +137,7 @@ namespace BKJson
     {
         if (IsBoolean())
         {
-            return (data->valueStr == FString("true"));
+            return (data->valueStr == FString(L"true"));
         }
         else
         {
@@ -179,7 +179,7 @@ namespace BKJson
             data->valueStr = UnescapeString(value);
         }
     }
-    void Node::Set(const ANSICHAR *value)
+    void Node::Set(const UTFCHAR *value)
     {
         if (IsValue())
         {
@@ -193,7 +193,7 @@ namespace BKJson
 	{\
 		Detach();\
 		data->type = T_NUMBER;\
-		FStringStream sstr(false);\
+		FStringStream sstr;\
 		sstr << value;\
 		data->valueStr = sstr.Str();\
 	}
@@ -210,7 +210,7 @@ namespace BKJson
         {
             Detach();
             data->type = T_BOOL;
-            data->valueStr = (value ? "true" : "false");
+            data->valueStr = (value ? L"true" : L"false");
         }
     }
 
@@ -231,7 +231,7 @@ namespace BKJson
         return *this;
     }
     Node &Node::operator=(const FString &rhs) { Set(rhs); return *this; }
-    Node &Node::operator=(const ANSICHAR *rhs) { Set(rhs); return *this; }
+    Node &Node::operator=(const UTFCHAR *rhs) { Set(rhs); return *this; }
     Node &Node::operator=(int32 rhs) { Set(rhs); return *this; }
     Node &Node::operator=(uint32 rhs) { Set(rhs); return *this; }
     Node &Node::operator=(int64 rhs) { Set(rhs); return *this; }
@@ -245,7 +245,7 @@ namespace BKJson
         if (IsArray())
         {
             Detach();
-            data->children.emplace_back(FString(""), node);
+            data->children.emplace_back(FString(L""), node);
         }
     }
     void Node::Add(const FString &name, const Node &node)
@@ -423,13 +423,13 @@ namespace BKJson
         FString escaped;
         escaped.Reserve(static_cast<uint32>(value.Len()));
 
-        ANSICHAR c;
+        UTFCHAR c;
         for (uint32 i = 0; i < value.Len(); i++)
         {
-            c = value.AtAnsi(i);
+            c = (UTFCHAR)value.AtWide(i);
 
-            const ANSICHAR *a = getEscaped(c);
-            if (a[0] != '\0')
+            const UTFCHAR *a = getEscaped(c);
+            if (a[0] != L'\0')
             {
                 escaped += a[0];
                 escaped += a[1];
@@ -446,22 +446,22 @@ namespace BKJson
     {
         FString unescaped;
 
-        ANSICHAR c1, c2;
+        UTFCHAR c1, c2;
         for (uint32 i = 0; i < value.Len(); i++)
         {
-            c1 = value.AtAnsi(i);
+            c1 = (UTFCHAR)value.AtWide(i);
             if ((i + 1) != value.Len())
             {
-                c2 = value.AtAnsi(i + 1);
+                c2 = (UTFCHAR)value.AtWide(i + 1);
                 i++;
             }
             else
             {
-                c2 = '\0';
+                c2 = L'\0';
             }
 
-            const ANSICHAR a = getUnescaped(c1, c2);
-            if (a != '\0')
+            const UTFCHAR a = getUnescaped(c1, c2);
+            if (a != L'\0')
             {
                 unescaped += a;
             }
@@ -482,23 +482,23 @@ namespace BKJson
     void Writer::SetFormat(const JsonFormatter &format)
     {
         this->format = format;
-        indentationChar = static_cast<ANSICHAR>(format.useTabs ? '\t' : ' ');
-        spacing = (format.spacing ? " " : "");
-        newline = (format.newline ? "\n" : spacing);
+        indentationChar = static_cast<UTFCHAR>(format.useTabs ? L'\t' : L' ');
+        spacing = (format.spacing ? L" " : L"");
+        newline = (format.newline ? L"\n" : spacing);
     }
 
-    void Writer::WriteStream(const Node &node, std::ostream &stream) const
+    void Writer::WriteStream(const Node &node, FStringStream &stream) const
     {
         WriteNode(node, 0, stream);
     }
     FString Writer::WriteString(const Node &node) const
     {
-        std::ostringstream outStream;
+        FStringStream outStream;
         WriteStream(node, outStream);
-        return FString(outStream.str());
+        return FString(outStream.Str());
     }
 
-    void Writer::WriteNode(const Node &node, uint32 level, std::ostream &stream) const
+    void Writer::WriteNode(const Node &node, uint32 level, FStringStream &stream) const
     {
         switch (node.GetType())
         {
@@ -515,9 +515,10 @@ namespace BKJson
                 WriteValue(node, stream); break;
         }
     }
-    void Writer::WriteObject(const Node &node, uint32 level, std::ostream &stream) const
+    void Writer::WriteObject(const Node &node, uint32 level, FStringStream &stream) const
     {
-        stream << "{" << newline;
+        stream << L"{";
+        stream << newline;
 
         for (Node::const_iterator it = node.begin(); it != node.end(); ++it)
         {
@@ -525,38 +526,56 @@ namespace BKJson
             const Node &value = (*it).second;
 
             if (it != node.begin())
-                stream << "," << newline;
-            stream << GetIndentation(level + 1).GetAnsiCharString() << "\""<<name.GetAnsiCharString()<<"\"" << ":" << spacing;
+            {
+                stream << L",";
+                stream << newline;
+            }
+            stream << GetIndentation(level + 1);
+            stream << L"\"";
+            stream << name;
+            stream << L"\"";
+            stream << L":";
+            stream << spacing;
             WriteNode(value, level + 1, stream);
         }
 
-        stream << newline << GetIndentation(level).GetAnsiCharString() << "}";
+        stream << newline;
+        stream << GetIndentation(level);
+        stream << L"}";
     }
-    void Writer::WriteArray(const Node &node, uint32 level, std::ostream &stream) const
+    void Writer::WriteArray(const Node &node, uint32 level, FStringStream &stream) const
     {
-        stream << "[" << newline;
+        stream << L"[";
+        stream << newline;
 
         for (Node::const_iterator it = node.begin(); it != node.end(); ++it)
         {
             const Node &value = (*it).second;
 
             if (it != node.begin())
-                stream << "," << newline;
-            stream << GetIndentation(level + 1).GetAnsiCharString();
+            {
+                stream << L",";
+                stream << newline;
+            }
+            stream << GetIndentation(level + 1);
             WriteNode(value, level + 1, stream);
         }
 
-        stream << newline << GetIndentation(level).GetAnsiCharString() << "]";
+        stream << newline;
+        stream << GetIndentation(level);
+        stream << L"]";
     }
-    void Writer::WriteValue(const Node &node, std::ostream &stream) const
+    void Writer::WriteValue(const Node &node, FStringStream &stream) const
     {
         if (node.IsString())
         {
-            stream << "\""<< EscapeString(node.ToString()).GetAnsiCharString()<<"\"";
+            stream << L"\"";
+            stream << EscapeString(node.ToString());
+            stream << L"\"";
         }
         else
         {
-            stream << node.ToString().GetAnsiCharString();
+            stream << node.ToString();
         }
     }
 
@@ -564,7 +583,7 @@ namespace BKJson
     {
         if (!format.newline)
         {
-            return FString("");
+            return FString(L"");
         }
         else
         {
@@ -575,7 +594,7 @@ namespace BKJson
     JsonParser::JsonParser() = default;
     JsonParser::~JsonParser() = default;
 
-    Node JsonParser::ParseStream(std::istream &stream)
+    Node JsonParser::ParseStream(std::wistream &stream)
     {
         TokenQueue tokens;
         DataQueue data;
@@ -591,14 +610,14 @@ namespace BKJson
         return error;
     }
 
-    void JsonParser::Tokenize(std::istream &stream, TokenQueue &tokens, DataQueue &data)
+    void JsonParser::Tokenize(std::wistream &stream, TokenQueue &tokens, DataQueue &data)
     {
         Token token = T_UNKNOWN;
         FString valueBuffer;
         bool saveBuffer;
 
-        ANSICHAR c = '\0';
-        while (stream.peek() != std::char_traits<ANSICHAR>::eof())
+        UTFCHAR c = L'\0';
+        while (stream.peek() != std::char_traits<UTFCHAR>::eof())
         {
             stream.get(c);
 
@@ -609,54 +628,54 @@ namespace BKJson
 
             switch (c)
             {
-                case '{':
+                case L'{':
                 {
                     token = T_OBJ_BEGIN;
                     break;
                 }
-                case '}':
+                case L'}':
                 {
                     token = T_OBJ_END;
                     break;
                 }
-                case '[':
+                case L'[':
                 {
                     token = T_ARRAY_BEGIN;
                     break;
                 }
-                case ']':
+                case L']':
                 {
                     token = T_ARRAY_END;
                     break;
                 }
-                case ',':
+                case L',':
                 {
                     token = T_SEPARATOR_NODE;
                     break;
                 }
-                case ':':
+                case L':':
                 {
                     token = T_SEPARATOR_NAME;
                     break;
                 }
-                case '"':
+                case L'"':
                 {
                     token = T_VALUE;
                     ReadString(stream, data);
                     break;
                 }
-                case '/':
+                case L'/':
                 {
-                    auto p = static_cast<ANSICHAR>(stream.peek());
-                    if (p == '*')
+                    auto p = static_cast<UTFCHAR>(stream.peek());
+                    if (p == L'*')
                     {
                         JumpToCommentEnd(stream);
                         saveBuffer = false;
                         break;
                     }
-                    else if (p == '/')
+                    else if (p == L'/')
                     {
-                        JumpToNext('\n', stream);
+                        JumpToNext(L'\n', stream);
                         saveBuffer = false;
                         break;
                     }
@@ -670,7 +689,7 @@ namespace BKJson
                 }
             }
 
-            if ((saveBuffer || stream.peek() == std::char_traits<ANSICHAR>::eof()) && (!valueBuffer.IsEmpty())) // Always save buffer on the last character
+            if ((saveBuffer || stream.peek() == std::char_traits<UTFCHAR>::eof()) && (!valueBuffer.IsEmpty())) // Always save buffer on the last character
             {
                 if (InterpretValue(valueBuffer, data))
                 {
@@ -715,7 +734,7 @@ namespace BKJson
                 case T_UNKNOWN:
                 {
                     const FString &unknownToken = data.front().second;
-                    error = FString("Unknown token: ") + unknownToken;
+                    error = FString(L"Unknown token: ") + unknownToken;
                     data.pop();
                     return Node(Node::T_INVALID);
                 }
@@ -736,17 +755,17 @@ namespace BKJson
                 {
                     if (nodeStack.empty())
                     {
-                        error = "Found end of object or array without beginning";
+                        error = L"Found end of object or array without beginning";
                         return Node(Node::T_INVALID);
                     }
                     if (token == T_OBJ_END && !nodeStack.top().second.IsObject())
                     {
-                        error = "Mismatched end and beginning of object";
+                        error = L"Mismatched end and beginning of object";
                         return Node(Node::T_INVALID);
                     }
                     if (token == T_ARRAY_END && !nodeStack.top().second.IsArray())
                     {
-                        error = "Mismatched end and beginning of array";
+                        error = L"Mismatched end and beginning of array";
                         return Node(Node::T_INVALID);
                     }
 
@@ -767,7 +786,7 @@ namespace BKJson
                         }
                         else
                         {
-                            error = "Can only add elements to objects and arrays";
+                            error = L"Can only add elements to objects and arrays";
                             return Node(Node::T_INVALID);
                         }
                     }
@@ -781,7 +800,7 @@ namespace BKJson
                 {
                     if (data.empty())
                     {
-                        error = "Missing data for value";
+                        error = L"Missing data for value";
                         return Node(Node::T_INVALID);
                     }
 
@@ -791,7 +810,7 @@ namespace BKJson
                         tokens.pop();
                         if (dataPair.first != Node::T_STRING)
                         {
-                            error = "A name has to be a string";
+                            error = L"A name has to be a string";
                             return Node(Node::T_INVALID);
                         }
                         else
@@ -817,7 +836,7 @@ namespace BKJson
                         }
                         else
                         {
-                            error = "Outermost node must be an object or array";
+                            error = L"Outermost node must be an object or array";
                             return Node(Node::T_INVALID);
                         }
                     }
@@ -828,7 +847,7 @@ namespace BKJson
                 case T_SEPARATOR_NODE:
                 {
                     if (!tokens.empty() && tokens.front() == T_ARRAY_END) {
-                        error = "Extra comma in array";
+                        error = L"Extra comma in array";
                         return Node(Node::T_INVALID);
                     }
                     break;
@@ -839,36 +858,36 @@ namespace BKJson
         return root;
     }
 
-    void JsonParser::JumpToNext(ANSICHAR c, std::istream &stream)
+    void JsonParser::JumpToNext(UTFCHAR c, std::wistream &stream)
     {
-        while (!stream.eof() && static_cast<ANSICHAR>(stream.get()) != c);
+        while (!stream.eof() && static_cast<UTFCHAR>(stream.get()) != c);
         stream.unget();
     }
-    void JsonParser::JumpToCommentEnd(std::istream &stream)
+    void JsonParser::JumpToCommentEnd(std::wistream &stream)
     {
         stream.ignore(1);
-        ANSICHAR c1 = '\0', c2 = '\0';
-        while (stream.peek() != std::char_traits<ANSICHAR>::eof())
+        UTFCHAR c1 = L'\0', c2 = L'\0';
+        while (stream.peek() != std::char_traits<UTFCHAR>::eof())
         {
             stream.get(c2);
 
-            if (c1 == '*' && c2 == '/')
+            if (c1 == L'*' && c2 == L'/')
                 break;
 
             c1 = c2;
         }
     }
 
-    void JsonParser::ReadString(std::istream &stream, DataQueue &data)
+    void JsonParser::ReadString(std::wistream &stream, DataQueue &data)
     {
         FString str;
 
-        ANSICHAR c1 = '\0', c2 = '\0';
-        while (stream.peek() != std::char_traits<ANSICHAR>::eof())
+        UTFCHAR c1 = L'\0', c2 = L'\0';
+        while (stream.peek() != std::char_traits<UTFCHAR>::eof())
         {
             stream.get(c2);
 
-            if (c1 != '\\' && c2 == '"')
+            if (c1 != L'\\' && c2 == L'"')
             {
                 break;
             }
@@ -884,17 +903,17 @@ namespace BKJson
     {
         FString upperValue = value.ToUpper();
 
-        if (upperValue == FString("nullptr"))
+        if (upperValue == FString(L"nullptr"))
         {
-            data.push(std::make_pair(Node::T_NULL, FString("")));
+            data.push(std::make_pair(Node::T_NULL, FString(L"")));
         }
-        else if (upperValue == FString("TRUE"))
+        else if (upperValue == FString(L"TRUE"))
         {
-            data.push(std::make_pair(Node::T_BOOL, FString("true")));
+            data.push(std::make_pair(Node::T_BOOL, FString(L"true")));
         }
-        else if (upperValue == FString("FALSE"))
+        else if (upperValue == FString(L"FALSE"))
         {
-            data.push(std::make_pair(Node::T_BOOL, FString("false")));
+            data.push(std::make_pair(Node::T_BOOL, FString(L"false")));
         }
         else
         {
@@ -906,10 +925,10 @@ namespace BKJson
             bool scientificNumber = false;
             for (int32 b = 0; b < upperValue.Len(); b++)
             {
-                ANSICHAR c = upperValue.AtAnsi(static_cast<uint32>(b));
+                UTFCHAR c = upperValue.AtWide(static_cast<uint32>(b));
                 switch (c)
                 {
-                    case '-':
+                    case L'-':
                     {
                         if (scientific)
                         {
@@ -927,7 +946,7 @@ namespace BKJson
                         }
                         break;
                     }
-                    case '+':
+                    case L'+':
                     {
                         if (!scientific || scientificSign)
                             number = false;
@@ -935,7 +954,7 @@ namespace BKJson
                             scientificSign = true;
                         break;
                     }
-                    case '.':
+                    case L'.':
                     {
                         if (fraction) // Only one . allowed
                             number = false;
@@ -943,7 +962,7 @@ namespace BKJson
                             fraction = true;
                         break;
                     }
-                    case 'E':
+                    case L'E':
                     {
                         if (scientific)
                             number = false;
@@ -953,7 +972,7 @@ namespace BKJson
                     }
                     default:
                     {
-                        if (c >= '0' && c <= '9')
+                        if (c >= L'0' && c <= L'9')
                         {
                             if (scientific)
                                 scientificNumber = true;

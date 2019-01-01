@@ -59,11 +59,7 @@ struct BKFStringKeyHash
 {
     unsigned long operator()(const FString& _Key) const
     {
-        if (_Key.IsWide())
-        {
-            return std::hash<std::wstring>()(_Key.GetWideCharString()) % BK_HASH_MAP_TABLE_SIZE;
-        }
-        return std::hash<std::string>()(_Key.GetAnsiCharString()) % BK_HASH_MAP_TABLE_SIZE;
+        return std::hash<std::wstring>()(_Key.GetWideCharString()) % BK_HASH_MAP_TABLE_SIZE;
     }
 };
 

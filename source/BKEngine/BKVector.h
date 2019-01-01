@@ -1474,7 +1474,7 @@ bool FVector::IsUnit(float LengthSquaredTolerance) const
 
 FString FVector::ToString() const
 {
-    return FString::FromFloat(X) + FString(", ") + FString::FromFloat(Y) + FString(", ") + FString::FromFloat(Z);
+    return FString::FromFloat(X) + FString(L", ") + FString::FromFloat(Y) + FString(L", ") + FString::FromFloat(Z);
 }
 
 float FVector::HeadingAngle() const

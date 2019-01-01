@@ -11,7 +11,7 @@ bool BKHTTPServer::InitializeSocket(uint16 Port)
     WSADATA WSAData{};
     if (WSAStartup(0x202, &WSAData) != 0)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("BKHTTPServer: WSAStartup() failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString(L"BKHTTPServer: WSAStartup() failed with error: ") + BKUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
@@ -21,14 +21,14 @@ bool BKHTTPServer::InitializeSocket(uint16 Port)
 #if PLATFORM_WINDOWS
     if (HTTPSocket == INVALID_SOCKET)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("BKHTTPServer: Socket initialization failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString(L"BKHTTPServer: Socket initialization failed with error: ") + BKUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
 #else
     if (HTTPSocket == -1)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("WHTTPServer: Socket initialization failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString(L"WHTTPServer: Socket initialization failed with error: ") + BKUtilities::WGetSafeErrorMessage());
         return false;
     }
 #endif
@@ -46,7 +46,7 @@ bool BKHTTPServer::InitializeSocket(uint16 Port)
     int32 ret = bind(HTTPSocket, (struct sockaddr*)&HTTPServer, sizeof(HTTPServer));
     if (ret == -1)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("BKHTTPServer: Socket binding failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString(L"BKHTTPServer: Socket binding failed with error: ") + BKUtilities::WGetSafeErrorMessage());
 #if PLATFORM_WINDOWS
         WSACleanup();
 #endif
@@ -122,9 +122,54 @@ void BKHTTPServer::ListenSocket()
                     return;
                 }
 
-                if (Parameter)
+                if (Parameter && Parameter->Initialize() && Parameter->GetData())
                 {
                     ServerInstance->HTTPListenCallback(Parameter);
+
+                    Parameter->SetResponseHeader_Internal(FString(L"content-type"), Parameter->ResponseContentType + FString(L"; charset=UTF-8"), false);
+                    Parameter->SetResponseHeader_Internal(FString(L"content-length"), FString::FromInt(Parameter->ResponseBody.Len()), false);
+
+                    //TODO: this will be rejected due to missing Secure, Path and Domain directives. Fix.
+                    FStringStream CookieStringBuilder;
+                    for (int i = 0; i < Parameter->ResponseCookies.Num(); i++)
+                    {
+                        if (Parameter->ResponseCookies[i].IsValid())
+                        {
+                            CookieStringBuilder << Parameter->ResponseCookies[i]->Item1;
+
+                            CookieStringBuilder << L"=";
+
+                            CookieStringBuilder << Parameter->ResponseCookies[i]->Item2;
+
+                            Parameter->AddResponseHeader_Internal(FString(L"set-cookie"), CookieStringBuilder.Str(), false);
+                        }
+                    }
+
+                    FStringStream HeaderStringBuilder;
+                    HeaderStringBuilder << L"HTTP/1.1 ";
+                    HeaderStringBuilder << Parameter->ResponseCode;
+                    HeaderStringBuilder << " ";
+                    HeaderStringBuilder << Parameter->ResponseCodeDescription;
+                    HeaderStringBuilder << "\r\n";
+
+                    for (int i = 0; i < Parameter->ResponseHeaders.Num(); i++)
+                    {
+                        if (Parameter->ResponseHeaders[i].IsValid())
+                        {
+                            HeaderStringBuilder << Parameter->ResponseHeaders[i]->Item1;
+
+                            HeaderStringBuilder << L": ";
+
+                            HeaderStringBuilder << Parameter->ResponseHeaders[i]->Item2;
+
+                            HeaderStringBuilder << L"\r\n";
+                        }
+                    }
+                    HeaderStringBuilder << L"\r\n";
+
+                    Parameter->SendData(Parameter->ResponseBody, FString(HeaderStringBuilder.Str()));
+
+                    Parameter->Finalize();
                     delete (Parameter);
                 }
             }

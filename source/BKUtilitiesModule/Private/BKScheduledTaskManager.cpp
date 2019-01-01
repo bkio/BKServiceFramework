@@ -155,4 +155,5 @@ uint32 BKScheduledAsyncTaskManager::TickerStop()
     if (!bSystemStarted) return 0;
     if (TickThread) delete (TickThread);
     TickThread = new BKThread(std::bind(&BKScheduledAsyncTaskManager::TickerRun, this), std::bind(&BKScheduledAsyncTaskManager::TickerStop, this));
+    return 0;
 }

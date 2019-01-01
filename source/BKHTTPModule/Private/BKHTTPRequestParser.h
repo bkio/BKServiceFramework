@@ -23,7 +23,7 @@ private:
     FString TempHeaderName{};
     FString TempHeaderValue{};
 
-    ANSICHAR PreviousChar{};
+    UTFCHAR PreviousChar{};
 
     BKHashMap<FString, FString, BKFStringKeyHash> Headers{};
     FString Payload{};
@@ -41,17 +41,17 @@ public:
         FirstLine = true;
         Beginning = true;
 
-        Method = EMPTY_FSTRING_ANSI;
-        Path = EMPTY_FSTRING_ANSI;
-        ProtocolVersion = EMPTY_FSTRING_ANSI;
+        Method = EMPTY_FSTRING_UTF8;
+        Path = EMPTY_FSTRING_UTF8;
+        ProtocolVersion = EMPTY_FSTRING_UTF8;
 
-        TempHeaderName = EMPTY_FSTRING_ANSI;
-        TempHeaderValue = EMPTY_FSTRING_ANSI;
+        TempHeaderName = EMPTY_FSTRING_UTF8;
+        TempHeaderValue = EMPTY_FSTRING_UTF8;
 
         PreviousChar = '\0';
 
         Headers.Clear();
-        Payload = "";
+        Payload = L"";
         bHeadersAvailable = false;
         bBodyAvailable = false;
         bErrorOccuredInBodyParsing = false;
@@ -67,17 +67,17 @@ public:
      * @param size Size of the chunk of data
      * @return If corrupted false, otherwise true
      */
-    void ProcessChunkForHeaders(const ANSICHAR* Buffer, int32 Size)
+    void ProcessChunkForHeaders(const FString& Buffer)
     {
         if (bHeadersAvailable) return;
 
         int32 Field = 0;
 
-        ANSICHAR c;
-        for(int32 i = 0; i < Size; i++)
+        UTFCHAR c;
+        for (int32 i = 0; i < Buffer.Len(); i++)
         {
-            c = Buffer[i];
-            if(c == '\r')
+            c = Buffer.AtWide(i);
+            if (c == L'\r')
             {
                 HalfEndOfLine = true;
 
@@ -85,14 +85,15 @@ public:
                 Beginning = false;
                 continue;
             }
-            else if(HalfEndOfLine && c == '\n')
+            else if (HalfEndOfLine && c == L'\n')
             {
-                if(EndOfLine)
+                if (EndOfLine)
                 {
                     bHeadersAvailable = true;
-                    if ((i + 1) < Size)
+                    if ((i + 1) < Buffer.Len())
                     {
-                        ProcessChunkForBody(Buffer + i + 1, Size - i - 1);
+                        FString BodyChunk = FString(Buffer.GetWideCharArray() + i + 1, Buffer.Len() - i - 1);
+                        ProcessChunkForBody(BodyChunk);
                         return;
                     }
                 }
@@ -101,8 +102,8 @@ public:
                     if(!FirstLine)
                     {
                         Headers.Put(TempHeaderName, TempHeaderValue);
-                        TempHeaderName = "";
-                        TempHeaderValue = "";
+                        TempHeaderName = L"";
+                        TempHeaderValue = L"";
                     }
                     EndOfLine = true;
                     FirstLine = false;
@@ -112,9 +113,9 @@ public:
                     continue;
                 }
             }
-            if(FirstLine)
+            if (FirstLine)
             {
-                if(Beginning || EndOfLine)
+                if (Beginning || EndOfLine)
                 {
                     Field = 0;
                 }
@@ -177,13 +178,13 @@ public:
             EndOfLine = false;
         }
     }
-    void ProcessChunkForBody(const ANSICHAR* Buffer, int32 Size)
+    void ProcessChunkForBody(const FString& Buffer)
     {
         if (bBodyAvailable) return;
 
         int32 ContentLength = 0;
         FString FoundValue;
-        if (Headers.Get(FString("Content-Length"), FoundValue))
+        if (Headers.Get(FString(L"Content-Length"), FoundValue))
         {
             try
             {
@@ -199,12 +200,12 @@ public:
                 bErrorOccuredInBodyParsing = true;
                 return;
             }
-            if ((Size + Payload.Len()) >= ContentLength) bBodyAvailable = true;
-            ContentLength = ContentLength < Size ? ContentLength : Size;
+            if ((Buffer.Len() + Payload.Len()) >= ContentLength) bBodyAvailable = true;
+            ContentLength = ContentLength < Buffer.Len() ? ContentLength : Buffer.Len();
         }
         else
         {
-            ContentLength = Size;
+            ContentLength = Buffer.Len();
             bBodyAvailable = true;
         }
 
@@ -212,7 +213,7 @@ public:
         ChunkString.Resize(static_cast<uint32>(ContentLength));
         for (int32 x = 0; x < ContentLength; x++)
         {
-            ChunkString.SetElement(x, Buffer[x]);
+            ChunkString.SetElement(x, Buffer.AtWide(x));
         }
         Payload.Append(ChunkString);
     }
@@ -260,7 +261,7 @@ public:
     //@return String contains payload
     FString GetPayload()
     {
-        return FString::StringToWString(Payload);
+        return Payload;
     }
 
     virtual ~BKHTTPRequestParser() = default;

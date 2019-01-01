@@ -169,8 +169,8 @@ bool FBase64::Decode(const FString& Source, TArray<uint8>& Dest)
  */
 FString FBase64::Encode(const FString& Source)
 {
-    assert(!Source.IsWide());
-    return Encode((uint8*)Source.GetAnsiCharArray(), static_cast<uint32>(Source.Len()));
+    const ANSICHAR* SourceArray = Source.GetAnsiCharArray();
+    return Encode((uint8*)SourceArray, static_cast<uint32>(strlen(SourceArray)));
 }
 
 /**

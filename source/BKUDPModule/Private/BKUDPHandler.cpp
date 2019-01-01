@@ -261,7 +261,7 @@ BKJson::Node BKUDPHandler::AnalyzeNetworkDataWithByteArray(FBKCHARWrapper& Param
 
             BoolArray.SetNum(VariableContentCount);
 
-            static const FString BooleanArrayString("BooleanArray");
+            static const FString BooleanArrayString(L"BooleanArray");
 
             BKJson::Node Exists = ResultMap.Get(BooleanArrayString);
             if (Exists.GetType() == BKJson::Node::Type::T_ARRAY)
@@ -289,7 +289,7 @@ BKJson::Node BKUDPHandler::AnalyzeNetworkDataWithByteArray(FBKCHARWrapper& Param
 
             RemainedBytes -= VariableContentCount;
 
-            static const FString ByteArrayString("ByteArray");
+            static const FString ByteArrayString(L"ByteArray");
 
             BKJson::Node Exists = ResultMap.Get(ByteArrayString);
             if (Exists.GetType() == BKJson::Node::Type::T_ARRAY)
@@ -322,12 +322,12 @@ BKJson::Node BKUDPHandler::AnalyzeNetworkDataWithByteArray(FBKCHARWrapper& Param
 
             RemainedBytes -= VariableContentCount;
 
-            static const FString CharArrayString("CharArray");
+            static const FString CharArrayString(L"CharArray");
 
             BKJson::Node Exists = ResultMap.Get(CharArrayString);
             if (Exists.GetType() == BKJson::Node::Type::T_STRING)
             {
-                CharArray = FString(Exists.ToString(EMPTY_FSTRING_ANSI)) + CharArray;
+                CharArray = FString(Exists.ToString(EMPTY_FSTRING_UTF8)) + CharArray;
                 ResultMap.Remove(CharArrayString);
             }
             ResultMap.Add(CharArrayString, BKJson::Node(CharArray));
@@ -354,9 +354,9 @@ BKJson::Node BKUDPHandler::AnalyzeNetworkDataWithByteArray(FBKCHARWrapper& Param
 
             RemainedBytes -= AsArraySize;
 
-            static const FString ShortArrayString("ShortArray");
-            static const FString IntegerArrayString("IntegerArray");
-            static const FString FloatArrayString("FloatArray");
+            static const FString ShortArrayString(L"ShortArray");
+            static const FString IntegerArrayString(L"IntegerArray");
+            static const FString FloatArrayString(L"FloatArray");
 
             FString Key = VariableType == 3 ? ShortArrayString : (VariableType == 4 ? IntegerArrayString : FloatArrayString);
             BKJson::Node Exists = ResultMap.Get(Key);
@@ -498,13 +498,15 @@ FBKCHARWrapper BKUDPHandler::MakeByteArrayForNetworkData(
         {
             uint16 InfoByte;
 
-            static const FString CharArrayString("CharArray");
+            static const FString CharArrayString(L"CharArray");
 
             FString KeyString = NamedNode.first;
             if (KeyString == CharArrayString)
             {
-                FString ValueString = NamedNode.second.ToString(EMPTY_FSTRING_ANSI);
-                int32 Length = ValueString.Len();
+                FString ValueString = NamedNode.second.ToString(EMPTY_FSTRING_UTF8);
+
+                auto StringAsAnsiArray = ValueString.GetAnsiCharString();
+                int32 Length = StringAsAnsiArray.length();
                 if (Length > 0 && Length < MaxValue)
                 {
                     InfoByte = 2;
@@ -518,7 +520,7 @@ FBKCHARWrapper BKUDPHandler::MakeByteArrayForNetworkData(
                         Result.Add(Wrapper.GetArrayElement(1));
                     }
 
-                    for (uint32 i = 0; i < Length; i++) Result.Add(ValueString.AtAnsi(i));
+                    for (uint32 i = 0; i < Length; i++) Result.Add(StringAsAnsiArray.at(i));
                 }
             }
             else
@@ -529,7 +531,7 @@ FBKCHARWrapper BKUDPHandler::MakeByteArrayForNetworkData(
                     auto Length = (ANSICHAR)ValueList.GetSize();
                     if (Length > 0 && Length < MaxValue)
                     {
-                        static const FString BooleanArrayString("BooleanArray");
+                        static const FString BooleanArrayString(L"BooleanArray");
 
                         if (KeyString == BooleanArrayString)
                         {
@@ -569,10 +571,10 @@ FBKCHARWrapper BKUDPHandler::MakeByteArrayForNetworkData(
                         }
                         else
                         {
-                            static const FString ByteArrayString("ByteArray");
-                            static const FString ShortArrayString("ShortArray");
-                            static const FString IntegerArrayString("IntegerArray");
-                            static const FString FloatArrayString("FloatArray");
+                            static const FString ByteArrayString(L"ByteArray");
+                            static const FString ShortArrayString(L"ShortArray");
+                            static const FString IntegerArrayString(L"IntegerArray");
+                            static const FString FloatArrayString(L"FloatArray");
 
                             uint8 UnitSize;
                             uint8 BasicType = 0;
@@ -1079,12 +1081,12 @@ void BKUDPHandler::Send(sockaddr* OtherParty, const FBKCHARWrapper& SendBuffer)
 #if PLATFORM_WINDOWS
     if (SentLength == SOCKET_ERROR)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("BKUDPHandler: Socket send failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString(L"BKUDPHandler: Socket send failed with error: ") + BKUtilities::WGetSafeErrorMessage());
     }
 #else
     if (SentLength == -1)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("BKUDPHandler: Socket send failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString(L"BKUDPHandler: Socket send failed with error: ") + BKUtilities::WGetSafeErrorMessage());
     }
 #endif
 }

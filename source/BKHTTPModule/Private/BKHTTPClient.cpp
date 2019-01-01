@@ -21,7 +21,7 @@ void BKHTTPClient::NewHTTPRequest(
     NewClient->ServerPort = _ServerPort;
     NewClient->Headers = std::move(_Headers);
     NewClient->Payload = _Payload;
-    NewClient->RequestLine = _Verb + FString(" ") + _Path + FString(" HTTP/1.1");
+    NewClient->RequestLine = _Verb + FString(L" ") + _Path + FString(L" HTTP/1.1");
 
     TArray<BKAsyncTaskParameter*> AsArray(NewClient);
     BKAsyncTaskManager::NewAsyncTask(_RequestCallback, AsArray, true);
@@ -69,7 +69,7 @@ bool BKHTTPClient::InitializeSocket()
     int32 RetVal = WSAStartup(0x202, &WSAData);
     if (RetVal != 0)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("WSAStartup() failed with error: ") + FString::FromInt(WSAGetLastError()));
+        BKUtilities::Print(EBKLogType::Error, FString(L"WSAStartup() failed with error: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
         return false;
     }
@@ -95,10 +95,10 @@ bool BKHTTPClient::InitializeSocket()
     if (AddrInfo != 0)
     {
 #if PLATFORM_WINDOWS
-        BKUtilities::Print(EBKLogType::Error, FString("Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
+        BKUtilities::Print(EBKLogType::Error, FString(L"Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
         WSACleanup();
 #else
-        BKUtilities::Print(EBKLogType::Error, FString("Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
+        BKUtilities::Print(EBKLogType::Error, FString(L"Cannot resolve address: ") + FString::FromInt((int32)AddrInfo));
 #endif
         return false;
     }
@@ -110,10 +110,10 @@ bool BKHTTPClient::InitializeSocket()
         if (HTTPSocket < 0)
         {
 #if PLATFORM_WINDOWS
-            BKUtilities::Print(EBKLogType::Error, FString("Create socket failed with error: ") + FString::FromInt(WSAGetLastError()));
+            BKUtilities::Print(EBKLogType::Error, FString(L"Create socket failed with error: ") + FString::FromInt(WSAGetLastError()));
             WSACleanup();
 #else
-            BKUtilities::Print(EBKLogType::Error, FString("Create socket failed."));
+            BKUtilities::Print(EBKLogType::Error, FString(L"Create socket failed."));
 #endif
             return false;
         }
@@ -151,10 +151,10 @@ bool BKHTTPClient::InitializeSocket()
 #endif
     {
 #if PLATFORM_WINDOWS
-        BKUtilities::Print(EBKLogType::Error, FString("Error has occurred during connecting to server: ") + FString::FromInt(WSAGetLastError()));
+        BKUtilities::Print(EBKLogType::Error, FString(L"Error has occurred during connecting to server: ") + FString::FromInt(WSAGetLastError()));
         WSACleanup();
 #else
-        BKUtilities::Print(EBKLogType::Error, FString("Error has occurred during connecting to server."));
+        BKUtilities::Print(EBKLogType::Error, FString(L"Error has occurred during connecting to server."));
 #endif
         return false;
     }
@@ -179,23 +179,25 @@ void BKHTTPClient::SendData()
 {
     if (!bRequestInitialized) return;
 
-    FStringStream HeaderBuilder(false);
-    HeaderBuilder << RequestLine.GetAnsiCharArray();
-    HeaderBuilder << "\r\n";
+    FStringStream HeaderBuilder;
+    HeaderBuilder << RequestLine;
+    HeaderBuilder << L"\r\n";
     Headers.Iterate([&HeaderBuilder](BKHashNode<FString, FString>* Node)
     {
-        HeaderBuilder << Node->GetKey().GetAnsiCharArray();
-        HeaderBuilder << ':';
-        HeaderBuilder << Node->GetValue().GetAnsiCharArray();
-        HeaderBuilder << "\r\n";
+        HeaderBuilder << Node->GetKey();
+        HeaderBuilder << L':';
+        HeaderBuilder << Node->GetValue();
+        HeaderBuilder << L"\r\n";
     });
 
-    FString Response = HeaderBuilder.Str() + FString::WStringToString(Payload);
+    FString Response = HeaderBuilder.Str() + Payload;
+
+    const ANSICHAR* ResponseArray = Response.GetAnsiCharArray();
 
 #if PLATFORM_WINDOWS
-    send(HTTPSocket, Response.GetAnsiCharArray(), strlen(Response.GetAnsiCharArray()), 0);
+    send(HTTPSocket, ResponseArray, strlen(ResponseArray), 0);
 #else
-    send(HTTPSocket, Response.GetAnsiCharArray(), strlen(Response.GetAnsiCharArray()), MSG_NOSIGNAL);
+    send(HTTPSocket, ResponseArray, strlen(ResponseArray), MSG_NOSIGNAL);
 #endif
 }
 
@@ -214,7 +216,9 @@ bool BKHTTPClient::ReceiveData()
 
         if (BytesReceived > 0)
         {
-            Parser.ProcessChunkForHeaders(RecvBuffer, BytesReceived);
+            FString PreParseString = FString(RecvBuffer, BytesReceived);
+
+            Parser.ProcessChunkForHeaders(PreParseString);
 
             HeadersReady = Parser.AllHeadersAvailable();
             BodyReady = Parser.AllBodyAvailable();
@@ -230,7 +234,9 @@ bool BKHTTPClient::ReceiveData()
 
         if (BytesReceived > 0)
         {
-            Parser.ProcessChunkForBody(RecvBuffer, BytesReceived);
+            FString PreParseString = FString(RecvBuffer, BytesReceived);
+
+            Parser.ProcessChunkForBody(PreParseString);
 
             if (Parser.ErrorOccuredInBodyParsing()) return false;
 

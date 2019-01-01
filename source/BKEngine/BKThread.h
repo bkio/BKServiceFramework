@@ -45,7 +45,7 @@ private:
                 }
                 catch (std::bad_alloc& ba)
                 {
-                    BKUtilities::Print(EBKLogType::Error, FString("Error: Thread out-of-memory: ") + FString(ba.what()));
+                    BKUtilities::Print(EBKLogType::Error, FString(L"Error: Thread out-of-memory: ") + FString(ba.what()));
                     CleanThread(wThread);
                     if (wThread->StopCallback)
                     {

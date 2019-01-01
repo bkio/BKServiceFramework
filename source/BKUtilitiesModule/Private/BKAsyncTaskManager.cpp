@@ -124,7 +124,7 @@ uint32 BKAsyncTaskManager::AsyncWorkerStopped(FBKAsyncWorker* StoppedWorker)
             delete (ManagerInstance->AsyncWorkers[i]);
             ManagerInstance->AsyncWorkers[i] = new FBKAsyncWorker;
             ManagerInstance->AsyncWorkers[i]->StartWorker();
-            BKUtilities::Print(EBKLogType::Warning, FString("An AsyncWorker has stopped. Another worker has just been started."));
+            BKUtilities::Print(EBKLogType::Warning, FString(L"An AsyncWorker has stopped. Another worker has just been started."));
             return 0;
         }
     }
@@ -203,7 +203,7 @@ void FBKAsyncWorker::ProcessData()
             double DiffMs = BKUtilities::GetTimeStampInMSDetailed() - PossibleAwaitingTask->QueuedTimestamp;
             if (DiffMs > 1000)
             {
-                BKUtilities::Print(EBKLogType::Warning, FString("WAsyncTask was in queue for ") + FString::FromFloat(DiffMs));
+                BKUtilities::Print(EBKLogType::Warning, FString(L"WAsyncTask was in queue for ") + FString::FromFloat(DiffMs));
             }
 
             PossibleAwaitingTask->bQueued = false;

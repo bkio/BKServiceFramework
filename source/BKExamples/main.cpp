@@ -41,26 +41,32 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
 
     HTTPServerInstance = new BKHTTPServer([](BKHTTPAcceptedClient* Parameter)
     {
-        if (Parameter && Parameter->Initialize())
-        {
-            if (!Parameter->GetData()) return;
+        BKUtilities::Print(EBKLogType::Log, FString(L"Request Body: ") + Parameter->GetRequestBody());
+        BKUtilities::Print(EBKLogType::Log, FString(L"Request Client IP: ") + Parameter->GetRequestClientIP());
+        BKUtilities::Print(EBKLogType::Log, FString(L"Request Method: ") + Parameter->GetRequestMethod());
+        BKUtilities::Print(EBKLogType::Log, FString(L"Request Path: ") + Parameter->GetRequestPath());
 
-            FString ResponseBody = FString(L"<html>Hello world!</html>");
-            FString ResponseHeaders = FString("HTTP/1.1 200 OK\r\n"
-                                                "Content-Type: text/html; charset=UTF-8\r\n"
-                                                "Content-Length: " + std::to_string(ResponseBody.Len()) + "\r\n\r\n");
-            Parameter->SendData(ResponseBody, ResponseHeaders);
-            Parameter->Finalize();
-        }
+        auto Headers = Parameter->GetRequestHeaders();
+        FString HeaderString;
+
+        Headers.Iterate([&HeaderString](BKHashNode<FString, FString>* Header)
+        {
+            HeaderString.Append(Header->GetKey() + FString(L" -> ") + Header->GetValue() + FString(L", "));
+        });
+        BKUtilities::Print(EBKLogType::Log, FString(L"Request Headers: ") + HeaderString);
+
+        Parameter->SetResponseCode(200);
+        Parameter->SetResponseContentType(FString(L"text/html"));
+        Parameter->SetResponseBody(FString(L"<html>Hello world!</html>"));
     });
     HTTPServerInstance->StartSystem(HTTPServerPort, 2500);
 
     WSystemInfoCallback SystemCallback = [](BKSystemInfo* CurrentSystemInfo)
     {
         BKUtilities::Print(EBKLogType::Log,
-                          FString("Total CPU: ") +
+                          FString(L"Total CPU: ") +
                           FString::FromInt(CurrentSystemInfo->GetTotalCPUUtilization()) +
-                          FString("\t Total Memory: ") +
+                          FString(L"\t Total Memory: ") +
                           FString::FromInt(CurrentSystemInfo->GetTotalMemoryUtilization()));
     };
     uint32 CallbackID;
@@ -101,11 +107,11 @@ void SendPingToGoogle()
                 if (Request->ProcessRequest())
                 {
                     FString Response = FString(Request->GetResponsePayload());
-                    BKUtilities::Print(EBKLogType::Log, FString("Response length from Google: ") + FString::FromInt(Response.Len()));
+                    BKUtilities::Print(EBKLogType::Log, FString(L"Response length from Google: ") + FString::FromInt(Response.Len()));
                 }
                 else
                 {
-                    BKUtilities::Print(EBKLogType::Error, FString("Ping send request to Google has failed."));
+                    BKUtilities::Print(EBKLogType::Error, FString(L"Ping send request to Google has failed."));
                 }
 
                 if (Request->DestroyApproval()) delete (Request);
@@ -123,7 +129,7 @@ void SendPingToGoogle()
             }
         }
     };
-    BKHTTPClient::NewHTTPRequest(FString("google.com"), 80, FString(L"Ping..."), FString("GET"), FString(""), DEFAULT_HTTP_REQUEST_HEADERS, DEFAULT_TIMEOUT_MS, RequestLambda, TimeoutLambda);
+    BKHTTPClient::NewHTTPRequest(FString(L"google.com"), 80, FString(L"Ping..."), FString(L"GET"), FString(L""), DEFAULT_HTTP_REQUEST_HEADERS, DEFAULT_TIMEOUT_MS, RequestLambda, TimeoutLambda);
 }
 
 void SendUDPPacketToServer()
@@ -139,11 +145,11 @@ void SendUDPPacketToServer()
             WrappedData.DeallocateValue();
         }
     };
-    BKUDPClient* UDPClient = BKUDPClient::NewUDPClient(FString("127.0.0.1"), 45000, DataReceivedLambda);
+    BKUDPClient* UDPClient = BKUDPClient::NewUDPClient(FString(L"127.0.0.1"), 45000, DataReceivedLambda);
     if (UDPClient && UDPClient->GetUDPHandler())
     {
         BKJson::Node DataToSend = BKJson::Node(BKJson::Node::T_OBJECT);
-        DataToSend.Add(FString("CharArray"), BKJson::Node("Hello world!"));
+        DataToSend.Add(FString(L"CharArray"), BKJson::Node(L"Hello world!"));
 
         FBKCHARWrapper WrappedData = UDPClient->GetUDPHandler()->MakeByteArrayForNetworkData(UDPClient->GetSocketAddress(), DataToSend);
 
@@ -157,17 +163,17 @@ int main(int argc, char* argv[])
 {
     setlocale(LC_CTYPE, "");
 
-    BKUtilities::Print(EBKLogType::Log, FString("Application has started."));
+    BKUtilities::Print(EBKLogType::Log, FString(L"Application has started."));
 
-    BKUtilities::Print(EBKLogType::Log, FString("Commands:"));
-    BKUtilities::Print(EBKLogType::Log, FString("__________________"));
-    BKUtilities::Print(EBKLogType::Log, FString("0: Exit"));
-    BKUtilities::Print(EBKLogType::Log, FString("1: Start"));
-    BKUtilities::Print(EBKLogType::Log, FString("2: Stop"));
-    BKUtilities::Print(EBKLogType::Log, FString("3: Restart"));
-    BKUtilities::Print(EBKLogType::Log, FString("4: Send ping to Google"));
-    BKUtilities::Print(EBKLogType::Log, FString("5: Send reliable packet to UDP Server"));
-    BKUtilities::Print(EBKLogType::Log, FString("__________________"));
+    BKUtilities::Print(EBKLogType::Log, FString(L"Commands:"));
+    BKUtilities::Print(EBKLogType::Log, FString(L"__________________"));
+    BKUtilities::Print(EBKLogType::Log, FString(L"0: Exit"));
+    BKUtilities::Print(EBKLogType::Log, FString(L"1: Start"));
+    BKUtilities::Print(EBKLogType::Log, FString(L"2: Stop"));
+    BKUtilities::Print(EBKLogType::Log, FString(L"3: Restart"));
+    BKUtilities::Print(EBKLogType::Log, FString(L"4: Send ping to Google"));
+    BKUtilities::Print(EBKLogType::Log, FString(L"5: Send reliable packet to UDP Server"));
+    BKUtilities::Print(EBKLogType::Log, FString(L"__________________"));
 
     uint16 HTTP_Port = 8000;
     if (const ANSICHAR* HTTP_Port_String = std::getenv("BK_HTTP_SERVER_PORT"))
@@ -180,7 +186,7 @@ int main(int argc, char* argv[])
         UDP_Port = FString::ConvertToInteger<uint16>(UDP_Port_String);
     }
 
-    BKUtilities::Print(EBKLogType::Log, FString("Auto-start. HTTP Port: ") + FString::FromInt(HTTP_Port) + FString(", UDP Port: ") + FString::FromInt(UDP_Port));
+    BKUtilities::Print(EBKLogType::Log, FString(L"Auto-start. HTTP Port: ") + FString::FromInt(HTTP_Port) + FString(L", UDP Port: ") + FString::FromInt(UDP_Port));
     Start(HTTP_Port, UDP_Port);
 
     int32 Signal;
@@ -195,18 +201,18 @@ int main(int argc, char* argv[])
         else if (Signal == 1)
         {
             Start(HTTP_Port, UDP_Port);
-            BKUtilities::Print(EBKLogType::Log, FString("System started."));
+            BKUtilities::Print(EBKLogType::Log, FString(L"System started."));
         }
         else if (Signal == 2)
         {
             Stop();
-            BKUtilities::Print(EBKLogType::Log, FString("System stopped."));
+            BKUtilities::Print(EBKLogType::Log, FString(L"System stopped."));
         }
         else if (Signal == 3)
         {
             Stop();
             Start(HTTP_Port, UDP_Port);
-            BKUtilities::Print(EBKLogType::Log, FString("System restarted."));
+            BKUtilities::Print(EBKLogType::Log, FString(L"System restarted."));
         }
         else if (Signal == 4)
         {

@@ -7,6 +7,8 @@
 #include "BKHTTPRequestParser.h"
 #include "BKScheduledTaskManager.h"
 #include "BKHTTPHelper.h"
+#include "BKTuple.h"
+#include "BKSharedPtr.h"
 
 struct BKHTTPAcceptedSocket
 {
@@ -77,10 +79,11 @@ public:
     {
         BKScopeGuard SendData_Guard(&HTTPSocket_Mutex);
         if (!bSocketOperational) return;
+        const ANSICHAR* ResponseArray = Response.GetAnsiCharArray();
 #if PLATFORM_WINDOWS
-        send(ClientSocket, Response.GetAnsiCharArray(), strlen(Response.GetAnsiCharArray()), 0);
+        send(ClientSocket, ResponseArray, strlen(ResponseArray), 0);
 #else
-        send(ClientSocket, Response.GetAnsiCharArray(), strlen(Response.GetAnsiCharArray()), MSG_NOSIGNAL);
+        send(ClientSocket, ResponseArray, strlen(ResponseArray), MSG_NOSIGNAL);
 #endif
     }
 
@@ -135,29 +138,33 @@ private:
         }
     }
 
-    void SendData_Internal(const FString& Body, const FString& Header, bool bCancelAfter)
+    void Finalize()
     {
-        FString Response = Header + FString::WStringToString(Body);
+        Cancel();
+    }
+
+    void SendData(const FString& Body, const FString& Header, bool bCancelAfter = false)
+    {
+        FString Response = Header + Body;
         ClientSocket->Send(Response);
         if (bCancelAfter)
         {
             Cancel();
         }
     }
+    static FString CorruptedResponseBody;
+    static FString CorruptedResponseHeaders;
     void Corrupted_Internal()
     {
-        static FString ResponseBody(L"<html>Corrupted</html>");
-        static FString ResponseHeaders("HTTP/1.1 400 Bad Request\r\n"
-                                              "Content-Type: text/html; charset=UTF-8\r\n"
-                                              "Content-Length: " + std::to_string(ResponseBody.Len()) + "\r\n\r\n");
-        SendData_Internal(ResponseBody, ResponseHeaders, true);
+        SendData(CorruptedResponseBody, CorruptedResponseHeaders, true);
     }
     void SocketError_Internal()
     {
         Cancel();
     }
 
-    bool GetData_Internal()
+    //@return: If succeed true, otherwise false.
+    bool GetData()
     {
         if (!bInitialized) return false;
 
@@ -171,7 +178,9 @@ private:
 
             if (BytesReceived > 0)
             {
-                Parser.ProcessChunkForHeaders(RecvBuffer, BytesReceived);
+                FString PreParseString = FString(RecvBuffer, BytesReceived);
+
+                Parser.ProcessChunkForHeaders(PreParseString);
 
                 HeadersReady = Parser.AllHeadersAvailable();
                 BodyReady = Parser.AllBodyAvailable();
@@ -183,7 +192,7 @@ private:
             }
         }
 
-        if (Parser.GetMethod().RightFind("HEAD", 0) == 0 || Parser.GetMethod().RightFind("GET", 0) == 0) return true;
+        if (Parser.GetMethod().RightFind(L"HEAD", 0) == 0 || Parser.GetMethod().RightFind(L"GET", 0) == 0) return true;
 
         while (!BodyReady)
         {
@@ -193,7 +202,9 @@ private:
 
             if (BytesReceived > 0)
             {
-                Parser.ProcessChunkForBody(RecvBuffer, BytesReceived);
+                FString PreParseString = FString(RecvBuffer, BytesReceived);
+
+                Parser.ProcessChunkForBody(PreParseString);
                 if (Parser.ErrorOccuredInBodyParsing())
                 {
                     Corrupted_Internal();
@@ -210,16 +221,7 @@ private:
                 return false;
             }
         }
-    }
-
-public:
-#if PLATFORM_WINDOWS
-    BKHTTPAcceptedClient(SOCKET _ClientSocket, sockaddr* _Client, uint32 _TimeoutInMs)
-#else
-    BKHTTPAcceptedClient(int32 _ClientSocket, sockaddr* _Client, uint32 _TimeoutInMs)
-#endif
-    {
-        ClientSocket = new BKHTTPAcceptedSocket(_ClientSocket, _Client, _TimeoutInMs);
+        return true;
     }
 
     bool Initialize()
@@ -246,58 +248,219 @@ public:
         return true;
     }
 
-    //@return: If succeed true, otherwise false.
-    bool GetData()
+    //Uniquely
+    bool SetResponseHeader_Internal(const FString& _HeaderKey, const FString& _HeaderValue, bool _bAssertReservedsNotUsed = true)
     {
-        return GetData_Internal();
+        //Case insensitive, can have multiple headers with same key
+        FString CaseLoweredKey = _HeaderKey.ToLower();
+
+        if (_bAssertReservedsNotUsed)
+        {
+            assert(CaseLoweredKey != FString(L"content-type"));
+            assert(CaseLoweredKey != FString(L"content-length"));
+            assert(CaseLoweredKey != FString(L"set-cookie"));
+        }
+
+        bool bFound = false;
+        for (int i = 0; i < ResponseHeaders.Num(); i++)
+        {
+            if (ResponseHeaders[i].IsValid())
+            {
+                if (ResponseHeaders[i]->Item1.ToLower() == CaseLoweredKey)
+                {
+                    bFound = true;
+                    break;
+                }
+            }
+        }
+
+        if (!bFound)
+        {
+            ResponseHeaders.Add(TSharedPtr<BKTuple_Two<FString, FString>>(new BKTuple_Two<FString, FString>(CaseLoweredKey, _HeaderValue)));
+            return true;
+        }
+        return false;
     }
 
-    void SendData(const FString& Body, const FString& Header)
+    void AddResponseHeader_Internal(const FString& _HeaderKey, const FString& _HeaderValue, bool _bAssertReservedsNotUsed = true)
     {
-        if (!bInitialized) return;
-        SendData_Internal(Body, Header, false);
+        //Case insensitive, can have multiple headers with same key
+        FString CaseLoweredKey = _HeaderKey.ToLower();
+
+        if (_bAssertReservedsNotUsed)
+        {
+            assert(CaseLoweredKey != FString(L"content-type"));
+            assert(CaseLoweredKey != FString(L"content-length"));
+            assert(CaseLoweredKey != FString(L"set-cookie"));
+        }
+
+        ResponseHeaders.Add(TSharedPtr<BKTuple_Two<FString, FString>>(new BKTuple_Two<FString, FString>(CaseLoweredKey, _HeaderValue)));
     }
 
-    void Finalize()
+    friend class BKHTTPServer;
+
+    //Response variables
+    FString ResponseBody;
+    FString ResponseContentType = FString(L"text/html");
+    int ResponseCode = 200;
+    FString ResponseCodeDescription = FString(L"OK");
+    TArray<TSharedPtr<BKTuple_Two<FString, FString>>> ResponseHeaders;
+    TArray<TSharedPtr<BKTuple_Two<FString, FString>>> ResponseCookies;
+
+    static std::map<int32, FString> HttpCodeDescriptionMap;
+
+public:
+#if PLATFORM_WINDOWS
+    BKHTTPAcceptedClient(SOCKET _ClientSocket, sockaddr* _Client, uint32 _TimeoutInMs)
+#else
+    BKHTTPAcceptedClient(int32 _ClientSocket, sockaddr* _Client, uint32 _TimeoutInMs)
+#endif
     {
-        Cancel();
+        ClientSocket = new BKHTTPAcceptedSocket(_ClientSocket, _Client, _TimeoutInMs);
     }
 
-    FString GetClientIP()
+    void SetResponseBody(const FString& _Body)
     {
-        if (!bInitialized) return EMPTY_FSTRING_ANSI;
+        ResponseBody = _Body;
+    }
+
+    void SetResponseCode(int _Code)
+    {
+        ResponseCode = _Code;
+        ResponseCodeDescription = GetResponseCodeDescription(ResponseCode);
+    }
+
+    void SetResponseContentType(const FString& _ContentType)
+    {
+        ResponseContentType = _ContentType;
+    }
+
+    void AddResponseHeader(const FString& _HeaderKey, const FString& _HeaderValue)
+    {
+        AddResponseHeader_Internal(_HeaderKey, _HeaderValue);
+    }
+
+    //Uniquely
+    bool SetResponseHeader(const FString& _HeaderKey, const FString& _HeaderValue)
+    {
+        return SetResponseHeader_Internal(_HeaderKey, _HeaderValue);
+    }
+
+    bool SetResponseCookie(const FString& _CookieKey, const FString& _CookieValue)
+    {
+        //Case sensitive, cannot have multiple cookies with same key
+
+        bool bFound = false;
+        for (int i = 0; i < ResponseCookies.Num(); i++)
+        {
+            if (ResponseCookies[i].IsValid())
+            {
+                if (ResponseCookies[i]->Item1 == _CookieKey)
+                {
+                    bFound = true;
+                    break;
+                }
+            }
+        }
+
+        if (!bFound)
+        {
+            ResponseCookies.Add(TSharedPtr<BKTuple_Two<FString, FString>>(new BKTuple_Two<FString, FString>(_CookieKey, _CookieValue)));
+            return true;
+        }
+        return false;
+    }
+
+    FString GetRequestClientIP()
+    {
+        if (!bInitialized) return EMPTY_FSTRING_UTF8;
         return ClientIP;
     }
 
-    FString GetMethod()
+    FString GetRequestMethod()
     {
-        if (!bInitialized) return EMPTY_FSTRING_ANSI;
+        if (!bInitialized) return EMPTY_FSTRING_UTF8;
         return Parser.GetMethod();
     }
 
-    FString GetPath()
+    FString GetRequestPath()
     {
-        if (!bInitialized) return EMPTY_FSTRING_ANSI;
+        if (!bInitialized) return EMPTY_FSTRING_UTF8;
         return Parser.GetPath();
     }
 
-    FString GetProtocol()
+    FString GetRequestProtocol()
     {
-        if (!bInitialized) return EMPTY_FSTRING_ANSI;
+        if (!bInitialized) return EMPTY_FSTRING_UTF8;
         return Parser.GetProtocol();
     }
 
-    BKHashMap<FString, FString, BKFStringKeyHash> GetHeaders()
+    BKHashMap<FString, FString, BKFStringKeyHash> GetRequestHeaders()
     {
         if (!bInitialized) return BKHashMap<FString, FString, BKFStringKeyHash>();
         return Parser.GetHeaders();
     };
 
-    FString GetPayload()
+    FString GetRequestBody()
     {
         if (!bInitialized) return EMPTY_FSTRING_UTF8;
         return Parser.GetPayload();
     }
+
+    FString GetResponseCodeDescription(int32 Code)
+    {
+        if (HttpCodeDescriptionMap.find(Code) != HttpCodeDescriptionMap.end())
+        {
+            return FString(HttpCodeDescriptionMap[Code]);
+        }
+        return FString();
+    }
 };
+std::map<int32, FString> BKHTTPAcceptedClient::HttpCodeDescriptionMap =
+{
+    {100, FString(L"Continue")},
+    {101, FString(L"Switching Protocols")},
+    {200, FString(L"OK")},
+    {201, FString(L"Created")},
+    {202, FString(L"Accepted")},
+    {203, FString(L"Non-Authoritative Information")},
+    {204, FString(L"No Content")},
+    {205, FString(L"Reset Content")},
+    {206, FString(L"Partial Content")},
+    {300, FString(L"Multiple Choices")},
+    {301, FString(L"Moved Permanently")},
+    {302, FString(L"Found")},
+    {303, FString(L"See Other")},
+    {304, FString(L"Not Modified")},
+    {305, FString(L"Use Proxy")},
+    {307, FString(L"Temporary Redirect")},
+    {400, FString(L"Bad Request")},
+    {401, FString(L"Unauthorized")},
+    {402, FString(L"Payment Required")},
+    {403, FString(L"Forbidden")},
+    {404, FString(L"Not Found")},
+    {405, FString(L"Method Not Allowed")},
+    {406, FString(L"Not Acceptable")},
+    {407, FString(L"Proxy Authentication Required")},
+    {408, FString(L"Request Time-out")},
+    {409, FString(L"Conflict")},
+    {410, FString(L"Gone")},
+    {411, FString(L"Length Required")},
+    {412, FString(L"Precondition Failed")},
+    {413, FString(L"Request Entity Too Large")},
+    {414, FString(L"Request-URI Too Large")},
+    {415, FString(L"Unsupported Media Type")},
+    {416, FString(L"Requested range not satisfiable")},
+    {417, FString(L"Expectation Failed")},
+    {500, FString(L"Internal Server Error")},
+    {501, FString(L"Not Implemented")},
+    {502, FString(L"Bad Gateway")},
+    {503, FString(L"Service Unavailable")},
+    {504, FString(L"Gateway Time-out")},
+    {505, FString(L"HTTP Version not supported")}
+};
+
+FString BKHTTPAcceptedClient::CorruptedResponseBody = FString(L"<html>Corrupted</html>");
+FString BKHTTPAcceptedClient::CorruptedResponseHeaders(FString(L"HTTP/1.1 400 Bad Request\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Length: 22 \r\n\r\n"));
 
 #endif //Pragma_Once_BKHTTPServerHelper

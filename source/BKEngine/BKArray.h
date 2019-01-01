@@ -49,6 +49,10 @@ public:
     {
         Array.push_back(Item);
     }
+    void Add(const T&& Item)
+    {
+        Array.push_back(Item);
+    }
     void Add(const T* Ptr, int32 Count)
     {
         std::vector<T> NewItems;

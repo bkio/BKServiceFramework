@@ -190,11 +190,7 @@ public:
     static int32 ConvertByteArrayToInteger(FBKCHARWrapper& Source, int32 StartIndex, uint8 UnitSize);
     static float ConvertByteArrayToFloat(FBKCHARWrapper& Source, int32 StartIndex, uint8 UnitSize);
 
-    static TArray<uint8> StringToByteArray(const FString& InputData);
-    static FString ByteArrayToString(const TArray<uint8>& ByteArray);
     static FString ConvertIntegerToHex(int32 inputValue);
-
-    static int32 ConvertHexToInteger(const FString& InputData);
 };
 
 #endif

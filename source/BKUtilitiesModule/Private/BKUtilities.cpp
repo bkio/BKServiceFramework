@@ -52,26 +52,13 @@ FScopeSafeCharArray::~FScopeSafeCharArray()
 BKMutex BKUtilities::PrintMutex;
 void BKUtilities::Print(EBKLogType LogType, const FString& Format)
 {
-    if (Format.IsWide())
-    {
-        FStringStream Message(true);
-        Message << (LogType == EBKLogType::Log ? L"Log: " : (LogType == EBKLogType::Warning ? L"Warning: " : L"Error: "));
-        Message << Format.GetWideCharArray();
-        Message << L"\n";
+    FStringStream Message;
+    Message << (LogType == EBKLogType::Log ? L"Log: " : (LogType == EBKLogType::Warning ? L"Warning: " : L"Error: "));
+    Message << Format.GetWideCharArray();
+    Message << L"\n";
 
-        BKScopeGuard Guard(&PrintMutex);
-        std::wcout << Message.Str().GetWideCharString();
-    }
-    else
-    {
-        FStringStream Message(false);
-        Message << (LogType == EBKLogType::Log ? "Log: " : (LogType == EBKLogType::Warning ? "Warning: " : "Error: "));
-        Message << Format.GetAnsiCharArray();
-        Message << "\n";
-
-        BKScopeGuard Guard(&PrintMutex);
-        std::cout << Message.Str().GetAnsiCharString();
-    }
+    BKScopeGuard Guard(&PrintMutex);
+    std::wcout << Message.Str().GetWideCharString();
 }
 
 uint64 BKUtilities::GetTimeStampInMS()
@@ -104,9 +91,9 @@ FString BKUtilities::WGetSafeErrorMessage()
 #endif
     }
 #if PLATFORM_WINDOWS
-    return FString("Last Error Code: ") + FString::FromInt(static_cast<int32>(GetLastError()));
+    return FString(L"Last Error Code: ") + FString::FromInt(static_cast<int32>(GetLastError()));
 #else
-    return FString("Error state has not been set.");
+    return FString(L"Error state has not been set.");
 #endif
 }
 FString BKUtilities::WGenerateMD5HashFromString(const FString& RawData)
@@ -151,7 +138,7 @@ FString BKUtilities::Base64EncodeExceptExtension(const FString& FileName)
     int32 LastDotIndex = INDEX_NONE;
     if (FileName.FindLastChar('.', LastDotIndex) && LastDotIndex > 0 && LastDotIndex != FileName.Len() - 1)
     {
-        return FBase64::Encode(FileName.Mid(0, static_cast<uint32>(LastDotIndex))) + FString(".") + FileName.Mid(
+        return FBase64::Encode(FileName.Mid(0, static_cast<uint32>(LastDotIndex))) + FString(L".") + FileName.Mid(
                 static_cast<uint32>(LastDotIndex + 1), static_cast<uint32>(FileName.Len() - LastDotIndex - 1));
     }
     return FBase64::Encode(FileName);
@@ -163,7 +150,7 @@ bool BKUtilities::Base64DecodeExceptExtension(const FString& FileName, FString& 
     {
         if (FBase64::Decode(FileName.Mid(0, static_cast<uint32>(LastDotIndex)), Destination))
         {
-            Destination.Append(FString(".") + FileName.Mid(static_cast<uint32>(LastDotIndex + 1),
+            Destination.Append(FString(L".") + FileName.Mid(static_cast<uint32>(LastDotIndex + 1),
                                                            static_cast<uint32>(FileName.Len() - LastDotIndex - 1)));
             return true;
         }
@@ -261,32 +248,6 @@ float BKUtilities::ConvertByteArrayToFloat(FBKCHARWrapper& Source, int32 StartIn
     return Result;
 }
 
-TArray<uint8> BKUtilities::StringToByteArray(const FString& InputData)
-{
-    TArray<uint8> returnArray;
-    for (uint32 i = 0; i < InputData.Len(); i++)
-    {
-        if (InputData.IsWide())
-        {
-            returnArray.Add((uint8)InputData.AtWide(i));
-        }
-        else
-        {
-            returnArray.Add((uint8)InputData.AtAnsi(i));
-        }
-    }
-    return returnArray;
-}
-FString BKUtilities::ByteArrayToString(const TArray<uint8>& ByteArray)
-{
-    FString returnData = EMPTY_FSTRING_UTF8;
-    for (int32 i = 0; i < ByteArray.Num(); i++)
-    {
-        returnData += (ANSICHAR)ByteArray[i];
-    }
-    return returnData;
-}
-
 FString BKUtilities::ConvertIntegerToHex(int32 inputValue)
 {
     FString returnString = EMPTY_FSTRING_UTF8;
@@ -310,21 +271,4 @@ FString BKUtilities::ConvertIntegerToHex(int32 inputValue)
         returnString += charData;
     }
     return returnString;
-}
-int32 BKUtilities::ConvertHexToInteger(const FString& InputData)
-{
-    assert(!InputData.IsWide());
-
-    ANSICHAR newData[64];
-    auto iterations = static_cast<uint8>(InputData.Len());
-    if (iterations > 64)
-    {
-        iterations = 64;
-    }
-
-    for (uint32 i = 0; i < iterations; i++)
-    {
-        newData[i] = InputData.AtAnsi(i);
-    }
-    return static_cast<int32>(std::strtoul(newData, nullptr, 16));
 }

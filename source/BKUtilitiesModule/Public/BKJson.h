@@ -10,10 +10,9 @@
 #include <queue>
 #include <iterator>
 #include <istream>
-#include <ostream>
 #include <memory>
 
-#define JSON_FIELD_NOT_FOUND FString("Not Found")
+#define JSON_FIELD_NOT_FOUND FString(L"Not Found")
 
 namespace BKJson
 {
@@ -79,7 +78,7 @@ namespace BKJson
         Node(const Node &other);
         Node(Type type, const FString &value);
         explicit Node(const FString &value);
-        explicit Node(const ANSICHAR *value);
+        explicit Node(const UTFCHAR *value);
         explicit Node(int32 value);
         explicit Node(uint32 value);
         explicit Node(int64 value);
@@ -105,7 +104,7 @@ namespace BKJson
         inline bool IsContainer() const { return (IsObject() || IsArray()); }
         inline bool IsValue() const { return (IsNull() || IsString() || IsNumber() || IsBoolean()); }
 
-        FString ToString(const FString &def = FString("")) const;
+        FString ToString(const FString &def = FString(L"")) const;
         int32 ToInteger(int32 def = 0) const;
         float ToFloat(float def = 0.f) const;
         double ToDouble(double def = 0.0) const;
@@ -114,7 +113,7 @@ namespace BKJson
         void SetNull();
         void Set(Type type, const FString &value);
         void Set(const FString &value);
-        void Set(const ANSICHAR *value);
+        void Set(const UTFCHAR *value);
         void Set(int32 value);
         void Set(uint32 value);
         void Set(int64 value);
@@ -125,7 +124,7 @@ namespace BKJson
 
         Node &operator=(const Node &rhs);
         Node &operator=(const FString &rhs);
-        Node &operator=(const ANSICHAR *rhs);
+        Node &operator=(const UTFCHAR *rhs);
         Node &operator=(int32 rhs);
         Node &operator=(uint32 rhs);
         Node &operator=(int64 rhs);
@@ -193,21 +192,21 @@ namespace BKJson
 
         void SetFormat(const JsonFormatter &format);
 
-        void WriteStream(const Node &node, std::ostream &stream) const;
+        void WriteStream(const Node &node, FStringStream &stream) const;
         FString WriteString(const Node &node) const;
 
     private:
-        void WriteNode(const Node &node, uint32 level, std::ostream &stream) const;
-        void WriteObject(const Node &node, uint32 level, std::ostream &stream) const;
-        void WriteArray(const Node &node, uint32 level, std::ostream &stream) const;
-        void WriteValue(const Node &node, std::ostream &stream) const;
+        void WriteNode(const Node &node, uint32 level, FStringStream &stream) const;
+        void WriteObject(const Node &node, uint32 level, FStringStream &stream) const;
+        void WriteArray(const Node &node, uint32 level, FStringStream &stream) const;
+        void WriteValue(const Node &node, FStringStream &stream) const;
 
         FString GetIndentation(uint32 level) const;
 
         JsonFormatter format;
-        ANSICHAR indentationChar;
-        const ANSICHAR *newline;
-        const ANSICHAR *spacing;
+        UTFCHAR indentationChar;
+        const UTFCHAR *newline;
+        const UTFCHAR *spacing;
     };
 
     class JsonParser
@@ -216,7 +215,7 @@ namespace BKJson
         JsonParser();
         ~JsonParser();
 
-        Node ParseStream(std::istream &stream);
+        Node ParseStream(std::wistream &stream);
 
         const FString &GetError() const;
 
@@ -235,13 +234,13 @@ namespace BKJson
         typedef std::queue<Token> TokenQueue;
         typedef std::queue<std::pair<Node::Type, FString> > DataQueue;
 
-        void Tokenize(std::istream &stream, TokenQueue &tokens, DataQueue &data);
+        void Tokenize(std::wistream &stream, TokenQueue &tokens, DataQueue &data);
         Node Assemble(TokenQueue &tokens, DataQueue &data);
 
-        void JumpToNext(ANSICHAR c, std::istream &stream);
-        void JumpToCommentEnd(std::istream &stream);
+        void JumpToNext(UTFCHAR c, std::wistream &stream);
+        void JumpToCommentEnd(std::wistream &stream);
 
-        void ReadString(std::istream &stream, DataQueue &data);
+        void ReadString(std::wistream &stream, DataQueue &data);
         bool InterpretValue(const FString &value, DataQueue &data);
 
         FString error;

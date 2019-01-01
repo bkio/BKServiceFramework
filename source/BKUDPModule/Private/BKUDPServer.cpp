@@ -10,7 +10,7 @@ bool BKUDPServer::InitializeSocket(uint16 Port)
     WSADATA WSAData{};
     if (WSAStartup(0x202, &WSAData) != 0)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("BKUDPServer: WSAStartup() failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString(L"BKUDPServer: WSAStartup() failed with error: ") + BKUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
@@ -20,24 +20,24 @@ bool BKUDPServer::InitializeSocket(uint16 Port)
 #if PLATFORM_WINDOWS
     if (UDPSocket == INVALID_SOCKET)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("BKUDPServer: Socket initialization failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString(L"BKUDPServer: Socket initialization failed with error: ") + BKUtilities::WGetSafeErrorMessage());
         WSACleanup();
         return false;
     }
 #else
     if (UDPSocket == -1)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("WUDPServer: Socket initialization failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString(L"WUDPServer: Socket initialization failed with error: ") + BKUtilities::WGetSafeErrorMessage());
         return false;
     }
 #endif
 
     int32 optval = 1;
-    setsockopt(UDPSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&optval, sizeof(int32));
+    setsockopt(UDPSocket, SOL_SOCKET, SO_REUSEADDR, (const ANSICHAR*)&optval, sizeof(int32));
 #if PLATFORM_WINDOWS
-    setsockopt(UDPSocket, SOL_SOCKET, UDP_NOCHECKSUM, (const char*)&optval, sizeof(int32));
+    setsockopt(UDPSocket, SOL_SOCKET, UDP_NOCHECKSUM, (const ANSICHAR*)&optval, sizeof(int32));
 #else
-    setsockopt(UDPSocket, SOL_SOCKET, SO_NO_CHECK, (const char*)&optval, sizeof(int32));
+    setsockopt(UDPSocket, SOL_SOCKET, SO_NO_CHECK, (const ANSICHAR*)&optval, sizeof(int32));
 #endif
 
     FMemory::Memzero((ANSICHAR*)&UDPServer, sizeof(UDPServer));
@@ -48,7 +48,7 @@ bool BKUDPServer::InitializeSocket(uint16 Port)
     int32 ret = bind(UDPSocket, (struct sockaddr*)&UDPServer, sizeof(UDPServer));
     if (ret == -1)
     {
-        BKUtilities::Print(EBKLogType::Error, FString("BKUDPServer: Socket binding failed with error: ") + BKUtilities::WGetSafeErrorMessage());
+        BKUtilities::Print(EBKLogType::Error, FString(L"BKUDPServer: Socket binding failed with error: ") + BKUtilities::WGetSafeErrorMessage());
 #if PLATFORM_WINDOWS
         WSACleanup();
 #endif

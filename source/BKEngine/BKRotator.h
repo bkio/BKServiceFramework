@@ -520,7 +520,7 @@ void FRotator::SetComponentForAxis(EAxis::Type Axis, float Component)
 
 FString FRotator::ToString() const
 {
-    return FString::FromFloat(Pitch) + FString(", ") + FString::FromFloat(Yaw) + FString(", ") + FString::FromFloat(Roll);
+    return FString::FromFloat(Pitch) + FString(L", ") + FString::FromFloat(Yaw) + FString(L", ") + FString::FromFloat(Roll);
 }
 
 template<> struct TIsPODType<FRotator> { enum { Value = true }; };
