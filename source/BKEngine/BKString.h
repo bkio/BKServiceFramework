@@ -10,9 +10,6 @@
 #include <regex>
 #include <cassert>
 #include <iomanip>
-#include <clocale>
-#include <locale>
-#include <codecvt>
 
 #if PLATFORM_WINDOWS
     #include "windows.h"
@@ -59,9 +56,7 @@ private:
     {
         if (Length <= 0) Length = _str.size();
 
-        std::wstring_convert<std::codecvt_utf8<UTFCHAR>> Converter;
-        std::string narrow = Converter.to_bytes(Length == _str.size() ? _str : _str.substr(0, Length));
-        return narrow;
+        return std::string(_str.begin(), _str.begin() + Length);
     }
 
     //Called from all different constructors
@@ -348,12 +343,12 @@ public:
 
     const UTFCHAR* GetWideCharArray() const
     {
-        return DataWide.data();
+        return DataWide.c_str();
     }
     const ANSICHAR* GetAnsiCharArray() const
     {
         std::string AsAnsiString = WStringToString(DataWide, -1);
-        return AsAnsiString.data();
+        return AsAnsiString.c_str();
     }
     std::wstring GetWideCharString() const
     {

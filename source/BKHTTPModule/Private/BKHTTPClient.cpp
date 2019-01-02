@@ -192,12 +192,12 @@ void BKHTTPClient::SendData()
 
     FString Response = HeaderBuilder.Str() + Payload;
 
-    const ANSICHAR* ResponseArray = Response.GetAnsiCharArray();
+    std::string ResponseString = Response.GetAnsiCharString();
 
 #if PLATFORM_WINDOWS
-    send(HTTPSocket, ResponseArray, strlen(ResponseArray), 0);
+    send(HTTPSocket, ResponseString.c_str(), ResponseString.size(), 0);
 #else
-    send(HTTPSocket, ResponseArray, strlen(ResponseArray), MSG_NOSIGNAL);
+    send(HTTPSocket, ResponseString.c_str(), ResponseString.size(), MSG_NOSIGNAL);
 #endif
 }
 

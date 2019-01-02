@@ -99,7 +99,7 @@ public:
                 }
                 else
                 {
-                    if(!FirstLine)
+                    if (!FirstLine)
                     {
                         Headers.Put(TempHeaderName, TempHeaderValue);
                         TempHeaderName = L"";
@@ -120,9 +120,10 @@ public:
                     Field = 0;
                 }
 
-                if(c == ' ')
+                if (c == L' ')
                 {
                     Field++;
+                    Beginning = false;
                 }
                 else
                 {
@@ -147,15 +148,15 @@ public:
             }
             else
             {
-                if(EndOfLine)
+                if (EndOfLine)
                 {
                     Field = 0;
                 }
 
-                switch(Field)
+                switch (Field)
                 {
                     case 0:
-                        if(c == ' ' && PreviousChar == ':')
+                        if (c == L' ' && PreviousChar == L':')
                         {
                             TempHeaderName.PopBack();
                             Field++;
@@ -176,6 +177,7 @@ public:
             }
             HalfEndOfLine = false;
             EndOfLine = false;
+            PreviousChar = c;
         }
     }
     void ProcessChunkForBody(const FString& Buffer)

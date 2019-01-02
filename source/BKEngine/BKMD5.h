@@ -44,8 +44,9 @@ public:
         uint8 Digest[16];
 
         FMD5 Md5Gen;
-        const ANSICHAR* StringArray = String.GetAnsiCharArray();
-        Md5Gen.Update((uint8*)StringArray, strlen(StringArray));
+
+        std::string SourceString = String.GetAnsiCharString();
+        Md5Gen.Update((uint8*)SourceString.c_str(), SourceString.size());
         Md5Gen.Final(Digest);
 
         return FString::Hexify(Digest, 16);

@@ -79,11 +79,11 @@ public:
     {
         BKScopeGuard SendData_Guard(&HTTPSocket_Mutex);
         if (!bSocketOperational) return;
-        const ANSICHAR* ResponseArray = Response.GetAnsiCharArray();
+        std::string ResponseString = Response.GetAnsiCharString();
 #if PLATFORM_WINDOWS
-        send(ClientSocket, ResponseArray, strlen(ResponseArray), 0);
+        send(ClientSocket, ResponseString.c_str(), ResponseString.size(), 0);
 #else
-        send(ClientSocket, ResponseArray, strlen(ResponseArray), MSG_NOSIGNAL);
+        send(ClientSocket, ResponseString.c_str(), ResponseString.size(), MSG_NOSIGNAL);
 #endif
     }
 

@@ -113,12 +113,11 @@ void BKHTTPServer::ListenSocket()
             {
                 auto ServerInstance = reinterpret_cast<BKHTTPServer*>(TaskParameters[0]);
                 auto Parameter = reinterpret_cast<BKHTTPAcceptedClient*>(TaskParameters[1]);
+
+                //Parameter should not be deleted here, will be done by timeout handler
+
                 if (!ServerInstance || !ServerInstance->bSystemStarted || !ServerInstance->HTTPListenCallback)
                 {
-                    if (Parameter)
-                    {
-                        delete (Parameter);
-                    }
                     return;
                 }
 
@@ -170,7 +169,6 @@ void BKHTTPServer::ListenSocket()
                     Parameter->SendData(Parameter->ResponseBody, FString(HeaderStringBuilder.Str()));
 
                     Parameter->Finalize();
-                    delete (Parameter);
                 }
             }
         };

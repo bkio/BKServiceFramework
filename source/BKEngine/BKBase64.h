@@ -169,8 +169,8 @@ bool FBase64::Decode(const FString& Source, TArray<uint8>& Dest)
  */
 FString FBase64::Encode(const FString& Source)
 {
-    const ANSICHAR* SourceArray = Source.GetAnsiCharArray();
-    return Encode((uint8*)SourceArray, static_cast<uint32>(strlen(SourceArray)));
+    std::string SourceString = Source.GetAnsiCharString();
+    return Encode((uint8*)SourceString.c_str(), static_cast<uint32>(SourceString.size()));
 }
 
 /**
