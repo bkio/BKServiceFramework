@@ -35,9 +35,9 @@
 .idea_modules/
 cmake-build-debug/
 cmake-build-release/
-source/cmake-build-debug/
-source/cmake-build-release/
-source/.idea/
-binaries/
-intermediate/
-libraries/
+Source/cmake-build-debug/
+Source/cmake-build-release/
+Source/.idea/
+Binaries/
+Intermediate/
+Libraries/
