@@ -345,10 +345,9 @@ public:
     {
         return DataWide.c_str();
     }
-    const ANSICHAR* GetAnsiCharArray() const
+    const std::string GetAnsiCharArray() const
     {
-        std::string AsAnsiString = WStringToString(DataWide, -1);
-        return AsAnsiString.c_str();
+        return WStringToString(DataWide, -1);
     }
     std::wstring GetWideCharString() const
     {

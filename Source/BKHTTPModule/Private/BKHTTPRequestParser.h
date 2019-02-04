@@ -190,7 +190,7 @@ public:
         {
             try
             {
-                ContentLength = FString::ConvertToInteger<int32>(FoundValue.GetAnsiCharArray());
+                ContentLength = FString::ConvertToInteger<int32>(FoundValue.GetAnsiCharArray().c_str());
             }
             catch (const std::invalid_argument &ia)
             {

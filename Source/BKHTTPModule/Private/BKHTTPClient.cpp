@@ -11,7 +11,7 @@ void BKHTTPClient::NewHTTPRequest(
         const FString& _Payload,
         const FString& _Verb,
         const FString& _Path,
-        BKHashMap<FString, FString, BKFStringKeyHash> _Headers,
+        const BKHashMap<FString, FString, BKFStringKeyHash>& _Headers,
         uint32 _TimeoutMs,
         BKFutureAsyncTask& _RequestCallback,
         BKFutureAsyncTask& _TimeoutCallback)
@@ -19,7 +19,7 @@ void BKHTTPClient::NewHTTPRequest(
     auto NewClient = new BKHTTPClient();
     NewClient->ServerAddress = _ServerAddress;
     NewClient->ServerPort = _ServerPort;
-    NewClient->Headers = std::move(_Headers);
+    NewClient->Headers = _Headers;
     NewClient->Payload = _Payload;
     NewClient->RequestLine = _Verb + FString(L" ") + _Path + FString(L" HTTP/1.1");
 
@@ -88,9 +88,9 @@ bool BKHTTPClient::InitializeSocket()
     struct addrinfo* Result;
 
 #if PLATFORM_WINDOWS
-    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.GetAnsiCharArray(), PortString.GetAnsiCharArray(), &Hint, &Result));
+    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.GetAnsiCharArray().c_str(), PortString.GetAnsiCharArray().c_str(), &Hint, &Result));
 #else
-    AddrInfo = getaddrinfo(ServerAddress.GetAnsiCharArray(), PortString.GetAnsiCharArray(), &Hint, &Result);
+    AddrInfo = getaddrinfo(ServerAddress.GetAnsiCharArray().c_str(), PortString.GetAnsiCharArray().c_str(), &Hint, &Result);
 #endif
     if (AddrInfo != 0)
     {
@@ -216,7 +216,7 @@ bool BKHTTPClient::ReceiveData()
 
         if (BytesReceived > 0)
         {
-            FString PreParseString = FString(RecvBuffer, BytesReceived);
+            FString PreParseString = FString(RecvBuffer, static_cast<uint32>(BytesReceived));
 
             Parser.ProcessChunkForHeaders(PreParseString);
 
@@ -234,7 +234,7 @@ bool BKHTTPClient::ReceiveData()
 
         if (BytesReceived > 0)
         {
-            FString PreParseString = FString(RecvBuffer, BytesReceived);
+            FString PreParseString = FString(RecvBuffer, static_cast<uint32>(BytesReceived));
 
             Parser.ProcessChunkForBody(PreParseString);
 

@@ -3,7 +3,7 @@
 #ifndef Pragma_Once_BKSharedPtr
 #define Pragma_Once_BKSharedPtr
 
-class TSharedPtr_ReferenceCounter
+class BKSharedPtr_ReferenceCounter
 {
 private:
     int Count;
@@ -19,38 +19,38 @@ private:
     }
 
     template<class T>
-    friend class TSharedPtr;
+    friend class BKSharedPtr;
 
-    TSharedPtr_ReferenceCounter() = default;
+    BKSharedPtr_ReferenceCounter() = default;
 };
 
 template <typename T>
-class TSharedPtr
+class BKSharedPtr
 {
 private:
     T* Pointer;
-    TSharedPtr_ReferenceCounter* ReferenceCounter;
+    BKSharedPtr_ReferenceCounter* ReferenceCounter;
 
 public:
-    TSharedPtr() : Pointer(nullptr), ReferenceCounter(nullptr)
+    BKSharedPtr() : Pointer(nullptr), ReferenceCounter(nullptr)
     {
-        ReferenceCounter = new TSharedPtr_ReferenceCounter();
+        ReferenceCounter = new BKSharedPtr_ReferenceCounter();
         ReferenceCounter->AddRef();
     }
 
-    TSharedPtr(T* _PointerValue) : Pointer(_PointerValue), ReferenceCounter(nullptr)
+    BKSharedPtr(T* _PointerValue) : Pointer(_PointerValue), ReferenceCounter(nullptr)
     {
-        ReferenceCounter = new TSharedPtr_ReferenceCounter();
+        ReferenceCounter = new BKSharedPtr_ReferenceCounter();
         ReferenceCounter->AddRef();
     }
 
-    TSharedPtr(const TSharedPtr<T>& _OtherSharedPtr) : Pointer(_OtherSharedPtr.Pointer), ReferenceCounter(_OtherSharedPtr.ReferenceCounter)
+    BKSharedPtr(const BKSharedPtr<T>& _OtherSharedPtr) : Pointer(_OtherSharedPtr.Pointer), ReferenceCounter(_OtherSharedPtr.ReferenceCounter)
     {
         // Copy constructor
         ReferenceCounter->AddRef();
     }
 
-    ~TSharedPtr()
+    ~BKSharedPtr()
     {
         if(ReferenceCounter->Release() == 0)
         {
@@ -74,7 +74,7 @@ public:
         return Pointer != nullptr;
     }
 
-    TSharedPtr<T>& operator = (const TSharedPtr<T>& _OtherSharedPtr)
+    BKSharedPtr<T>& operator = (const BKSharedPtr<T>& _OtherSharedPtr)
     {
         // Assignment operator
         if (this != &_OtherSharedPtr) // Avoid self assignment
@@ -89,8 +89,8 @@ public:
 
             // Copy the data and reference pointer
             // and increment the reference count
-            Pointer = _OtherSharedPtr.pData;
-            ReferenceCounter = _OtherSharedPtr.reference;
+            Pointer = _OtherSharedPtr.Pointer;
+            ReferenceCounter = _OtherSharedPtr.ReferenceCounter;
             ReferenceCounter->AddRef();
         }
         return *this;

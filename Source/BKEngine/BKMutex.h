@@ -26,7 +26,7 @@ private:
     void Initialize()
     {
 #if PLATFORM_WINDOWS
-        InitializeCriticalSectionEx(&MutexValue, 2000, CRITICAL_SECTION_NO_DEBUG_INFO);
+        InitializeCriticalSection(&MutexValue);
 #else
         pthread_mutexattr_t Attr{};
         pthread_mutexattr_init(&Attr);

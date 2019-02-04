@@ -128,9 +128,9 @@ bool BKUDPClient::InitializeClient()
     struct addrinfo* Result;
 
 #if PLATFORM_WINDOWS
-    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.GetAnsiCharArray(), PortString.GetAnsiCharArray(), &Hint, &Result));
+    AddrInfo = static_cast<DWORD>(getaddrinfo(ServerAddress.GetAnsiCharArray().c_str(), PortString.GetAnsiCharArray().c_str(), &Hint, &Result));
 #else
-    AddrInfo = getaddrinfo(ServerAddress.GetAnsiCharArray(), PortString.GetAnsiCharArray(), &Hint, &Result);
+    AddrInfo = getaddrinfo(ServerAddress.GetAnsiCharArray().c_str(), PortString.GetAnsiCharArray().c_str(), &Hint, &Result);
 #endif
     if (AddrInfo != 0)
     {

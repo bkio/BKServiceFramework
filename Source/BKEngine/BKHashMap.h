@@ -71,7 +71,7 @@ public:
     BKHashMap()
     {
         // construct zero initialized hash table of size
-        Table = new BKHashNode<K, V> *[BK_HASH_MAP_TABLE_SIZE]();
+        Table = new BKHashNode<K, V>*[BK_HASH_MAP_TABLE_SIZE];
     }
 
     ~BKHashMap()
@@ -87,10 +87,10 @@ public:
         // destroy all buckets one by one
         for (int i = 0; i < BK_HASH_MAP_TABLE_SIZE; ++i)
         {
-            BKHashNode<K, V> *Entry = Table[i];
+            BKHashNode<K, V>* Entry = Table[i];
             while (Entry)
             {
-                BKHashNode<K, V> *Prev = Entry;
+                BKHashNode<K, V>* Prev = Entry;
                 Entry = Entry->GetNext();
                 delete Prev;
             }
@@ -103,10 +103,10 @@ public:
     {
         for (int i = 0; i < BK_HASH_MAP_TABLE_SIZE; ++i)
         {
-            BKHashNode<K, V> *Entry = Table[i];
+            BKHashNode<K, V>* Entry = Table[i];
             while (Entry)
             {
-                BKHashNode<K, V> *Prev = Entry;
+                BKHashNode<K, V>* Prev = Entry;
                 Entry = Entry->GetNext();
                 _Callback(Prev);
             }

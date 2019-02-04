@@ -276,7 +276,7 @@ private:
 
         if (!bFound)
         {
-            ResponseHeaders.Add(TSharedPtr<BKTuple_Two<FString, FString>>(new BKTuple_Two<FString, FString>(CaseLoweredKey, _HeaderValue)));
+            ResponseHeaders.Add(BKSharedPtr<BKTuple_Two<FString, FString>>(new BKTuple_Two<FString, FString>(CaseLoweredKey, _HeaderValue)));
             return true;
         }
         return false;
@@ -294,7 +294,7 @@ private:
             assert(CaseLoweredKey != FString(L"set-cookie"));
         }
 
-        ResponseHeaders.Add(TSharedPtr<BKTuple_Two<FString, FString>>(new BKTuple_Two<FString, FString>(CaseLoweredKey, _HeaderValue)));
+        ResponseHeaders.Add(BKSharedPtr<BKTuple_Two<FString, FString>>(new BKTuple_Two<FString, FString>(CaseLoweredKey, _HeaderValue)));
     }
 
     friend class BKHTTPServer;
@@ -304,8 +304,8 @@ private:
     FString ResponseContentType = FString(L"text/html");
     int ResponseCode = 200;
     FString ResponseCodeDescription = FString(L"OK");
-    TArray<TSharedPtr<BKTuple_Two<FString, FString>>> ResponseHeaders;
-    TArray<TSharedPtr<BKTuple_Two<FString, FString>>> ResponseCookies;
+    TArray<BKSharedPtr<BKTuple_Two<FString, FString>>> ResponseHeaders;
+    TArray<BKSharedPtr<BKTuple_Two<FString, FString>>> ResponseCookies;
 
     static std::map<int32, FString> HttpCodeDescriptionMap;
 
@@ -365,7 +365,7 @@ public:
 
         if (!bFound)
         {
-            ResponseCookies.Add(TSharedPtr<BKTuple_Two<FString, FString>>(new BKTuple_Two<FString, FString>(_CookieKey, _CookieValue)));
+            ResponseCookies.Add(BKSharedPtr<BKTuple_Two<FString, FString>>(new BKTuple_Two<FString, FString>(_CookieKey, _CookieValue)));
             return true;
         }
         return false;

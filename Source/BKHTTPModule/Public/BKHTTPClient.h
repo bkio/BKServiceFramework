@@ -18,7 +18,7 @@ class BKHTTPClient : public BKAsyncTaskParameter
 private:
     FString ServerAddress;
     uint16 ServerPort = 80;
-    BKHashMap<FString, FString, BKFStringKeyHash> Headers{};
+    BKHashMap<FString, FString, BKFStringKeyHash> Headers;
     FString Payload;
     FString RequestLine;
 
@@ -52,7 +52,7 @@ public:
         const FString& _Payload,
         const FString& _Verb,
         const FString& _Path,
-        BKHashMap<FString, FString, BKFStringKeyHash> _Headers,
+        const BKHashMap<FString, FString, BKFStringKeyHash>& _Headers,
         uint32 _TimeoutMs,
         BKFutureAsyncTask& _RequestCallback,
         BKFutureAsyncTask& _TimeoutCallback);
