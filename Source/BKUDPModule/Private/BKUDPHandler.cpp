@@ -19,7 +19,7 @@ void BKUDPHandler::ClearReliableConnections()
     if (!bSystemStarted) return;
 
     BKScopeGuard Guard(&ReliableConnectionRecords_Mutex);
-    ReliableConnectionRecords.Iterate([this](BKHashNode<FString, BKReliableConnectionRecord*>* Node)
+    ReliableConnectionRecords.Iterate([this](BKSharedPtr<BKHashNode<FString, BKReliableConnectionRecord*>> Node)
     {
         BKReliableConnectionRecord* Record = Node->GetValue();
         if (Record && !Record->bBeingDeleted)
@@ -35,7 +35,7 @@ void BKUDPHandler::ClearOtherPartiesRecords()
     if (!bSystemStarted) return;
 
     BKScopeGuard Guard(&OtherPartiesRecords_Mutex);
-    OtherPartiesRecords.Iterate([this](BKHashNode<FString, BKOtherPartyRecord*>* Node)
+    OtherPartiesRecords.Iterate([this](BKSharedPtr<BKHashNode<FString, BKOtherPartyRecord*>> Node)
     {
         if (Node->GetValue() && !Node->GetValue()->bBeingDeleted)
         {
@@ -902,7 +902,7 @@ void BKUDPHandler::ClearPendingDeletePool()
     if (!bSystemStarted) return;
 
     BKScopeGuard Guard(&UDPRecords_PendingDeletePool_Mutex);
-    UDPRecords_PendingDeletePool.Iterate([this](BKHashNode<BKUDPRecord*, uint64>* Node)
+    UDPRecords_PendingDeletePool.Iterate([this](BKSharedPtr<BKHashNode<BKUDPRecord*, uint64>> Node)
     {
         if (Node->GetKey())
         {
@@ -1013,25 +1013,18 @@ void BKUDPHandler::StartSystem()
         uint64 CurrentTimestamp = BKUtilities::GetTimeStampInMS();
 
         BKScopeGuard Guard(&HandlerInstance->UDPRecords_PendingDeletePool_Mutex);
-        HandlerInstance->UDPRecords_PendingDeletePool.Iterate([HandlerInstance, CurrentTimestamp](BKHashNode<BKUDPRecord*, uint64>* Node)
+        HandlerInstance->UDPRecords_PendingDeletePool.Iterate([HandlerInstance, CurrentTimestamp](BKSharedPtr<BKHashNode<BKUDPRecord*, uint64>> Node)
         {
-            BKUDPRecord* DeleteRecord = nullptr;
-            uint64 PooledTimestamp;
+            BKUDPRecord* DeleteRecord = Node->GetKey();
+            uint64 PooledTimestamp = Node->GetValue();
 
-            if (Node->GetKey())
+            if (DeleteRecord)
             {
-                DeleteRecord = Node->GetKey();
-                PooledTimestamp = Node->GetValue();
-
                 if (!DeleteRecord->IsReferenced() && (CurrentTimestamp - PooledTimestamp) > PENDING_DELETE_CHECK_TIME_INTERVAL)
                 {
                     HandlerInstance->UDPRecords_PendingDeletePool.Remove(DeleteRecord);
                     delete (DeleteRecord);
                 }
-            }
-            else
-            {
-                HandlerInstance->UDPRecords_PendingDeletePool.Remove(DeleteRecord);
             }
         });
     };

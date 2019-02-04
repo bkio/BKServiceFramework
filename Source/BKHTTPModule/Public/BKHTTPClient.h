@@ -9,7 +9,7 @@
 #include "../Private/BKHTTPRequestParser.h"
 #include "../Private/BKHTTPHelper.h"
 
-#define DEFAULT_HTTP_REQUEST_HEADERS BKHashMap<FString, FString, BKFStringKeyHash>()
+#define DEFAULT_HTTP_REQUEST_HEADERS BKHashMap<FString, FString>()
 #define DEFAULT_TIMEOUT_MS 2500
 
 class BKHTTPClient : public BKAsyncTaskParameter
@@ -18,7 +18,7 @@ class BKHTTPClient : public BKAsyncTaskParameter
 private:
     FString ServerAddress;
     uint16 ServerPort = 80;
-    BKHashMap<FString, FString, BKFStringKeyHash> Headers;
+    BKHashMap<FString, FString> Headers;
     FString Payload;
     FString RequestLine;
 
@@ -52,7 +52,7 @@ public:
         const FString& _Payload,
         const FString& _Verb,
         const FString& _Path,
-        const BKHashMap<FString, FString, BKFStringKeyHash>& _Headers,
+        const BKHashMap<FString, FString>& _Headers,
         uint32 _TimeoutMs,
         BKFutureAsyncTask& _RequestCallback,
         BKFutureAsyncTask& _TimeoutCallback);
@@ -60,9 +60,9 @@ public:
     bool ProcessRequest();
     void CancelRequest();
 
-    BKHashMap<FString, FString, BKFStringKeyHash> GetResponseHeaders()
+    BKHashMap<FString, FString> GetResponseHeaders()
     {
-        if (!bRequestInitialized) return BKHashMap<FString, FString, BKFStringKeyHash>();
+        if (!bRequestInitialized) return BKHashMap<FString, FString>();
         return Parser.GetHeaders();
     };
 

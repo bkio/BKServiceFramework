@@ -29,8 +29,6 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
                 AnalyzedData.GetType() != BKJson::Node::Type::T_INVALID &&
                 AnalyzedData.GetType() != BKJson::Node::Type::T_NULL)
             {
-                BKUtilities::Print(EBKLogType::Log, AnalyzedData.ToString(FString(L"Test")));
-
                 FBKCHARWrapper FinalBuffer = HandlerInstance->MakeByteArrayForNetworkData(Parameter->OtherParty, AnalyzedData);
                 HandlerInstance->Send(Parameter->OtherParty, FinalBuffer);
                 FinalBuffer.DeallocateValue();
@@ -51,7 +49,7 @@ void Start(uint16 HTTPServerPort, uint16 UDPServerPort)
         auto Headers = Parameter->GetRequestHeaders();
         FString HeaderString;
 
-        Headers.Iterate([&HeaderString](BKHashNode<FString, FString>* Header)
+        Headers.Iterate([&HeaderString](BKSharedPtr<BKHashNode<FString, FString>> Header)
         {
             HeaderString.Append(Header->GetKey() + FString(L" -> ") + Header->GetValue() + FString(L", "));
         });

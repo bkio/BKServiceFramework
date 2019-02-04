@@ -395,9 +395,9 @@ public:
         return Parser.GetProtocol();
     }
 
-    BKHashMap<FString, FString, BKFStringKeyHash> GetRequestHeaders()
+    BKHashMap<FString, FString> GetRequestHeaders()
     {
-        if (!bInitialized) return BKHashMap<FString, FString, BKFStringKeyHash>();
+        if (!bInitialized) return BKHashMap<FString, FString>();
         return Parser.GetHeaders();
     };
 

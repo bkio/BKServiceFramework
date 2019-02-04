@@ -25,7 +25,7 @@ private:
 
     UTFCHAR PreviousChar{};
 
-    BKHashMap<FString, FString, BKFStringKeyHash> Headers{};
+    BKHashMap<FString, FString> Headers{};
     FString Payload{};
     bool bHeadersAvailable = false;
     bool bBodyAvailable = false;
@@ -237,7 +237,7 @@ public:
     }
 
     //@return Headers in form of BKHashMap<FString, FString, BKFStringKeyHash> (name -> value)
-    BKHashMap<FString, FString, BKFStringKeyHash> GetHeaders()
+    BKHashMap<FString, FString> GetHeaders()
     {
         return Headers;
     };

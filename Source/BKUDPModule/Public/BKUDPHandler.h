@@ -225,7 +225,7 @@ class BKUDPHandler : public BKAsyncTaskParameter
 
 private:
     BKMutex ReliableConnectionRecords_Mutex{};
-    BKHashMap<FString, BKReliableConnectionRecord*, BKFStringKeyHash> ReliableConnectionRecords;
+    BKHashMap<FString, BKReliableConnectionRecord*> ReliableConnectionRecords;
     void RemoveFromReliableConnections(const FString& Key);
 
     BKMutex LastThissideGeneratedTimestamp_Mutex{};
@@ -235,20 +235,13 @@ private:
     uint32 LastThissideMessageID = 1;
 
     BKMutex OtherPartiesRecords_Mutex{};
-    BKHashMap<FString, BKOtherPartyRecord*, BKFStringKeyHash> OtherPartiesRecords{};
+    BKHashMap<FString, BKOtherPartyRecord*> OtherPartiesRecords{};
 
     BKSafeQueue<BKUDPRecord*> UDPRecordsForTimeoutCheck;
 
     BKMutex UDPRecords_PendingDeletePool_Mutex;
 
-    struct BKUDPRecordKeyHash
-    {
-        unsigned long operator()(const BKUDPRecord* _Key) const
-        {
-            return (size_t)_Key % BK_HASH_MAP_TABLE_SIZE;
-        }
-    };
-    BKHashMap<BKUDPRecord*, uint64, BKUDPRecordKeyHash> UDPRecords_PendingDeletePool;
+    BKHashMap<BKUDPRecord*, uint64> UDPRecords_PendingDeletePool;
     void AddRecordToPendingDeletePool(BKUDPRecord* PendingDeleteRecord);
 
     void ClearReliableConnections();
